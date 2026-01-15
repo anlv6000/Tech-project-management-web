@@ -1,0 +1,122 @@
+:root{
+  --bg:#f6f8fa; --surface:#fff; --muted:#6b7280; --accent:#2563eb;
+}
+body,html,#root{height:100%;}
+.App{height:100%; background:var(--bg); font-family:Inter,Segoe UI,Arial,sans-serif;}
+.layout{display:flex; height:100vh;}
+.sidebar{width:280px; background:var(--surface); border-right:1px solid #e5e7eb; padding:16px; box-sizing:border-box; overflow:auto}
+.sidebar h3{margin:0 0 12px}
+.sidebar nav button{display:block;width:100%;text-align:left;padding:8px;border:none;background:transparent;cursor:pointer}
+.sidebar nav button.active{background:#eef2ff}
+.sidebar-section{margin-top:18px}
+.muted{color:var(--muted); font-size:13px}
+.projects-list .small-item{padding:6px 0}
+.project-item{padding:8px;border-bottom:1px solid #f1f5f9}
+.project-item a{font-weight:600}
+.project-actions{float:right}
+.main{flex:1;display:flex;flex-direction:column}
+.topbar{height:64px;background:var(--surface);display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid #e5e7eb}
+.brand{margin:0}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.topbar .user{font-weight:600}
+.content-area{padding:20px;overflow:auto}
+.page-content{background:var(--surface);padding:20px;border-radius:8px}
+.auth-page{display:flex;height:100vh;align-items:center;justify-content:center;background:linear-gradient(180deg,#eef2ff,white)}
+.auth-box{width:420px;background:var(--surface);padding:20px;border-radius:8px;box-shadow:0 6px 18px rgba(16,24,40,0.08)}
+.auth-header{display:flex;justify-content:space-between;align-items:center}
+.auth-toggle button{margin-left:6px}
+.auth-form{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.auth-form input{padding:8px;border:1px solid #e5e7eb;border-radius:6px}
+.auth-form button{background:var(--accent);color:white;padding:10px;border:none;border-radius:6px}
+.board{margin-top:12px}
+.board-columns{display:flex;gap:12px}
+.board-column{background:#fafafa;padding:12px;border-radius:6px;flex:1;min-height:200px;border:1px solid #eef2ff}
+.col-header{font-weight:700;margin-bottom:8px}
+.task-card{background:var(--surface);padding:8px;border-radius:6px;margin-bottom:8px;border:1px solid #e6eefb}
+.add-task{display:flex;gap:8px;margin-bottom:12px}
+.add-task input{flex:1;padding:8px;border:1px solid #e5e7eb;border-radius:6px}
+.add-task button{padding:8px 12px;border:none;background:var(--accent);color:#fff;border-radius:6px}
+.project-list{list-style:none;padding:0}
+.project-list li{padding:8px 0;border-bottom:1px dashed #f1f5f9}
+.small-item a{color:inherit;text-decoration:none}
+.space-header{margin-bottom:12px}
+
+/* Jira-like improvements */
+.topbar { box-shadow: 0 1px 0 rgba(16,24,40,0.04); }
+.search input{padding:8px;border-radius:6px;border:1px solid #e6eefb;width:320px}
+.ghost{background:transparent;border:1px solid transparent;padding:8px 10px;border-radius:6px}
+.user{display:flex;align-items:center;gap:8px}
+.avatar{display:inline-flex;width:34px;height:34px;border-radius:50%;background:#e2e8f0;align-items:center;justify-content:center;font-weight:700}
+.username{font-weight:600}
+
+.board-columns{align-items:flex-start}
+.board-column{min-width:240px}
+.col-header{display:flex;justify-content:space-between;align-items:center;padding-bottom:6px}
+.col-header .count{background:#eef2ff;padding:4px 8px;border-radius:12px;font-size:12px}
+.col-list{min-height:60px}
+.task-card{cursor:pointer;padding:10px}
+.task-top{display:flex;justify-content:space-between;align-items:center}
+.task-title{font-weight:700}
+.task-badge{font-size:14px}
+.task-meta{font-size:13px;margin-top:6px}
+
+/* modal */
+.modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,0.4);display:flex;align-items:center;justify-content:center;z-index:80}
+.modal{width:640px;background:var(--surface);border-radius:8px;padding:0;box-shadow:0 12px 40px rgba(2,6,23,0.2)}
+.modal-header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #eef2ff}
+.modal-body{padding:16px;display:flex;flex-direction:column;gap:8px}
+.modal-body input,.modal-body textarea,.modal-body select{padding:8px;border:1px solid #e6eefb;border-radius:6px}
+.modal-footer{padding:12px 16px;display:flex;justify-content:flex-end;gap:8px;border-top:1px solid #f3f4f6}
+.btn{padding:8px 12px;border-radius:6px}
+.btn.muted{background:#f3f4f6}
+.btn.primary{background:var(--accent);color:white}
+.close{background:transparent;border:none;font-size:18px}
+
+/* Sidebar tweaks */
+.project-row{display:flex;flex-direction:column;padding:8px 0}
+.proj-meta{font-size:12px}
+
+/* Responsive */
+@media (max-width:900px){
+  .sidebar{display:none}
+  .search input{width:160px}
+  .board-columns{gap:8px}
+}
+.App {
+  text-align: center;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
