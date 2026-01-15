@@ -1,0 +1,169 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "name": "Admin User",
+      "email": "admin@company.com",
+      "role": "admin",
+      "passwordHash": "$2a$08$.OZdmJeyajrC0OZVf5lvTOmhnmZK4GfFKIRl9X.GA5QRbo4IYXDv."
+    },
+    {
+      "id": 2,
+      "name": "Project Manager",
+      "email": "pm@company.com",
+      "role": "pm",
+      "passwordHash": "$2a$08$32hAOY6fcU41glayce3du.XBFldm8gqebhNOawlxvRiki3Iie1rmW"
+    },
+    {
+      "id": 3,
+      "name": "Alice Nguyen",
+      "email": "alice@company.com",
+      "role": "developer",
+      "passwordHash": "$2a$08$HkWWIQcYHh1Ez6vQelZHA.OhxM6ew.QcgjOg6wN.oE0i3jzrutaN2"
+    },
+    {
+      "id": 4,
+      "name": "Bob Tran",
+      "email": "bob@company.com",
+      "role": "developer",
+      "passwordHash": "$2a$08$./cur9vX7X46gu5VoRY/rOHXELtgkAtjUAKwzAC1JoZZxsiwcCf1u"
+    },
+    {
+      "name": "qielli",
+      "email": "anlevan001@gmail.com",
+      "passwordHash": "$2a$08$EWtBAaZ0MBskRGh99ypuAe4w3wA4pmG.xggmMAqCnEI9JX7UtPBhO",
+      "role": "member",
+      "id": 5
+    }
+  ],
+  "projects": [
+    {
+      "id": 1,
+      "name": "Website Revamp",
+      "description": "Revamp the marketing website to improve conversions and accessibility.",
+      "ownerId": 2,
+      "createdAt": "2025-11-01T09:00:00.000Z"
+    },
+    {
+      "id": 2,
+      "name": "Mobile App",
+      "description": "Develop the customer-facing mobile application (iOS/Android).",
+      "ownerId": 2,
+      "createdAt": "2025-12-10T10:30:00.000Z"
+    },
+    {
+      "id": 3,
+      "name": "Internal Tools",
+      "description": "Build internal admin tools and dashboards for ops and sales.",
+      "ownerId": 1,
+      "createdAt": "2025-10-20T08:15:00.000Z"
+    }
+  ],
+  "tasks": [
+    {
+      "id": 1,
+      "projectId": 1,
+      "title": "Landing page mockups",
+      "description": "Create design mockups for the new landing page.",
+      "assigneeId": 3,
+      "status": "TO DO",
+      "comments": [
+        {
+          "id": 1,
+          "userId": 2,
+          "text": "Focus on CTA above the fold.",
+          "createdAt": "2025-11-02T12:00:00.000Z"
+        }
+      ],
+      "logs": []
+    },
+    {
+      "id": 2,
+      "projectId": 1,
+      "title": "Implement header component",
+      "description": "Build responsive header with navigation and search.",
+      "assigneeId": 4,
+      "status": "IN PROGRESS",
+      "comments": [],
+      "logs": [
+        {
+          "id": 1,
+          "userId": 4,
+          "hours": 3.5,
+          "notes": "Built initial layout",
+          "createdAt": "2025-11-05T15:30:00.000Z"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "projectId": 1,
+      "title": "Accessibility audit",
+      "description": "Run accessibility checks and fix issues.",
+      "assigneeId": 3,
+      "status": "IN REVIEW",
+      "comments": [
+        {
+          "id": 1,
+          "userId": 1,
+          "text": "Please address color contrast on buttons.",
+          "createdAt": "2025-11-10T09:10:00.000Z"
+        }
+      ],
+      "logs": []
+    },
+    {
+      "id": 4,
+      "projectId": 1,
+      "title": "Deploy to staging",
+      "description": "Deployment and smoke test on staging environment.",
+      "assigneeId": 4,
+      "status": "DONE",
+      "comments": [],
+      "logs": [
+        {
+          "id": 1,
+          "userId": 4,
+          "hours": 1.25,
+          "notes": "Deployed and verified",
+          "createdAt": "2025-11-12T11:00:00.000Z"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "projectId": 2,
+      "title": "Auth screens",
+      "description": "Design and implement login/register flows for mobile.",
+      "assigneeId": 3,
+      "status": "IN PROGRESS",
+      "comments": [],
+      "logs": []
+    },
+    {
+      "id": 6,
+      "projectId": 2,
+      "title": "Push notifications integration",
+      "description": "Integrate FCM and APNs for notifications.",
+      "assigneeId": null,
+      "status": "TO DO",
+      "comments": [],
+      "logs": []
+    },
+    {
+      "id": 7,
+      "projectId": 3,
+      "title": "Admin dashboard MVP",
+      "description": "Create basic metrics and user management screens.",
+      "assigneeId": 2,
+      "status": "TO DO",
+      "comments": [],
+      "logs": []
+    }
+  ],
+  "nextIds": {
+    "user": 5,
+    "project": 4,
+    "task": 8
+  }
+}
