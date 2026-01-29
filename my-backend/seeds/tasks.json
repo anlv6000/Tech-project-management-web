@@ -1,0 +1,5 @@
+[
+  { "title": "Design homepage", "description": "Create new homepage mockups", "projectName": "Website Redesign", "assigneeEmail": "marta@example.com", "status": "TO DO" },
+  { "title": "Implement auth", "description": "Add login/register endpoints", "projectName": "Mobile App", "assigneeEmail": "paul@example.com", "status": "IN PROGRESS" },
+  { "title": "QA pass", "description": "Full QA run", "projectName": "Website Redesign", "assigneeEmail": "victor@example.com", "status": "IN REVIEW" }
+]

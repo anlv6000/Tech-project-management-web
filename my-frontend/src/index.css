@@ -11,3 +11,18 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* App styles */
+.App { min-height: 100vh; background: #fafafa; }
+
+aside { box-sizing: border-box; }
+
+@media (max-width: 800px) {
+  aside { display: none; }
+  main { padding: 12px !important; }
+}
+
+/* Board styles */
+.board-column { background: #f9f9f9; padding: 8px; border-radius: 6px; min-height: 160px; }
+.task-card { padding: 8px; background: #fff; border: 1px solid #eee; border-radius: 4px; margin-bottom: 8px; }
+

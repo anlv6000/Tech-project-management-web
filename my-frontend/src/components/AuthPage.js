@@ -26,32 +26,27 @@ export default function AuthPage({ onSuccess, api }) {
   }
 
   return (
-    <div className="auth-page">
-      <div className="auth-box">
-        <div className="auth-header">
-          <h2>{mode === 'login' ? 'Login' : 'Create account'}</h2>
-          <div className="auth-toggle">
-            <button className={mode==='login'?'active':''} onClick={() => setMode('login')}>Login</button>
-            <button className={mode==='register'?'active':''} onClick={() => setMode('register')}>Register</button>
-          </div>
-        </div>
-
-        {mode === 'login' ? (
-          <form onSubmit={doLogin} className="auth-form">
-            <input placeholder="Email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
-            <input type="password" placeholder="Password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required />
-            <button type="submit" disabled={loading}>Sign in</button>
+    <div style={{display:'flex',height:'100vh',alignItems:'center',justifyContent:'center'}}>
+      <div style={{width:360,padding:20,border:'1px solid #ddd',borderRadius:6,boxShadow:'0 2px 6px rgba(0,0,0,0.08)'}}>
+        <h2 style={{marginTop:0}}>{mode==='login'?'Sign in':'Create account'}</h2>
+        {mode==='login' ? (
+          <form onSubmit={doLogin}>
+            <input placeholder="Email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} required style={{width:'100%',padding:8,marginBottom:8}} />
+            <input type="password" placeholder="Password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})} required style={{width:'100%',padding:8,marginBottom:8}} />
+            <button type="submit" disabled={loading} style={{width:'100%',padding:10}}>Sign in</button>
           </form>
         ) : (
-          <form onSubmit={doRegister} className="auth-form">
-            <input placeholder="Full name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
-            <input placeholder="Email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
-            <input type="password" placeholder="Password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required />
-            <button type="submit" disabled={loading}>Create account</button>
+          <form onSubmit={doRegister}>
+            <input placeholder="Full name" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} required style={{width:'100%',padding:8,marginBottom:8}} />
+            <input placeholder="Email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} required style={{width:'100%',padding:8,marginBottom:8}} />
+            <input type="password" placeholder="Password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})} required style={{width:'100%',padding:8,marginBottom:8}} />
+            <button type="submit" disabled={loading} style={{width:'100%',padding:10}}>Create account</button>
           </form>
         )}
 
-        <div className="auth-help">This frontend uses the backend if available; otherwise it falls back to a local demo dataset.</div>
+        <div style={{marginTop:12,textAlign:'center'}}>
+          <button onClick={()=>setMode(mode==='login'?'register':'login')} style={{border:'none',background:'none',color:'#06f',cursor:'pointer'}}>{mode==='login'?'Create account':'Back to login'}</button>
+        </div>
       </div>
     </div>
   );

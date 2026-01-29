@@ -1,0 +1,4 @@
+[
+  { "name": "Website Redesign", "description": "Revamp the corporate website for Q1", "ownerEmail": "paul@example.com" },
+  { "name": "Mobile App", "description": "Build mobile app MVP", "ownerEmail": "paul@example.com" }
+]

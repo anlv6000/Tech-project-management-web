@@ -1,39 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function IssueModal({ open, task, onClose, onSave }) {
-  const [draft, setDraft] = useState(task || {});
-
-  if (!open) return null;
-
-  function handleChange(k, v) { setDraft({ ...draft, [k]: v }); }
-
-  function save() { onSave && onSave(draft); onClose && onClose(); }
-
+  const [draft, setDraft] = useState(null);
+  useEffect(()=>{ setDraft(task?{...task}:null); },[task]);
+  if (!open || !draft) return null;
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3>Issue: {draft.title || 'New issue'}</h3>
-          <button className="close" onClick={onClose}>✕</button>
-        </div>
-        <div className="modal-body">
-          <label>Title</label>
-          <input value={draft.title||''} onChange={e=>handleChange('title', e.target.value)} />
-          <label>Description</label>
-          <textarea value={draft.description||''} onChange={e=>handleChange('description', e.target.value)} />
-          <label>Status</label>
-          <select value={draft.status||'TO DO'} onChange={e=>handleChange('status', e.target.value)}>
+    <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.3)'}}>
+      <div style={{width:560,background:'#fff',padding:16,borderRadius:6}}>
+        <h3 style={{marginTop:0}}>Task</h3>
+        <input value={draft.title} onChange={e=>setDraft({...draft,title:e.target.value})} style={{width:'100%',padding:8,marginBottom:8}} />
+        <textarea value={draft.description||''} onChange={e=>setDraft({...draft,description:e.target.value})} style={{width:'100%',padding:8,marginBottom:8}} />
+        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          <label>Status:</label>
+          <select value={draft.status||'TO DO'} onChange={e=>setDraft({...draft,status:e.target.value})}>
             <option>TO DO</option>
             <option>IN PROGRESS</option>
             <option>IN REVIEW</option>
             <option>DONE</option>
           </select>
-          <label>Assignee (user id)</label>
-          <input value={draft.assigneeId||''} onChange={e=>handleChange('assigneeId', e.target.value)} />
         </div>
-        <div className="modal-footer">
-          <button className="btn muted" onClick={onClose}>Cancel</button>
-          <button className="btn primary" onClick={save}>Save</button>
+        <div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:12}}>
+          <button onClick={onClose}>Cancel</button>
+          <button onClick={()=>onSave(draft)}>Save</button>
         </div>
       </div>
     </div>
