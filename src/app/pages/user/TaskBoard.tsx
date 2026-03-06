@@ -348,6 +348,11 @@ export default function TaskBoard() {
     };
   });
 
+  const normalizeId = (id: any) => {
+    if (!id) return '';
+    if (typeof id === 'object' && id._id) return String(id._id);
+    return String(id);
+  };
 
   return (
     <DndProvider backend={HTML5Backend}>
@@ -443,24 +448,22 @@ export default function TaskBoard() {
                     <select
                       value={(() => {
                         // Nếu taskChanges có assigneeId thì dùng luôn
-                        if (taskChanges.assigneeId) return String(taskChanges.assigneeId);
+                        if (taskChanges.assigneeId) return normalizeId(taskChanges.assigneeId);
 
-                        // Nếu selectedTask.assigneeId là object (populate) thì lấy id hoặc _id
-                        if (typeof selectedTask.assigneeId === 'object' && selectedTask.assigneeId !== null) {
-                          return String(selectedTask.assigneeId.id || selectedTask.assigneeId._id || '');
-                        }
-
-                        // Nếu là string thì trả về string
-                        return String(selectedTask.assigneeId || '');
+                        // Nếu selectedTask.assigneeId là object (populate) hoặc string thì normalize luôn
+                        return normalizeId(selectedTask.assigneeId);
                       })()}
                       onChange={(e) =>
-                        handleTaskChange('assigneeId', e.target.value !== '' ? String(e.target.value) : undefined)
+                        handleTaskChange(
+                          'assigneeId',
+                          e.target.value !== '' ? normalizeId(e.target.value) : undefined
+                        )
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Unassigned</option>
                       {projectMembers.map((u) => {
-                        const userId = String(u.id || u._id || '');
+                        const userId = normalizeId(u.id || u._id);
                         return (
                           <option key={userId} value={userId}>
                             {u.fullName}
@@ -469,7 +472,6 @@ export default function TaskBoard() {
                       })}
                     </select>
                   </div>
-
                 </div>
 
                 {/* Time Tracking */}

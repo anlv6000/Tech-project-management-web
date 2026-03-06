@@ -138,14 +138,14 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   }, [user]);
 
   // Project methods
-    // UserProject: get all userProjects
-    const getAllUserProjects = () => userProjects;
+  // UserProject: get all userProjects
+  const getAllUserProjects = () => userProjects;
   const createProject = async (data: Omit<Project, 'id' | 'createdAt' | 'isArchived'>): Promise<Project> => {
     try {
       const token = sessionStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/projects`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           ...(token && { 'Authorization': `Bearer ${token}` })
         },
@@ -256,7 +256,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   const getUserProjects = (userId: string): Project[] => {
     // Normalize userId to string for comparison
     const normalizedUserId = String(userId).trim();
-    
+
     // Get project IDs where user is a member
     const userProjectIds = userProjects
       .filter(up => {
@@ -268,7 +268,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         return String(up.projectId || '').trim();
       })
       .filter((id): id is string => id.length > 0);
-    
+
     // Return projects that match the user's project IDs
     return projects.filter(p => {
       const projectId = String(p.id || p._id || '').trim();
@@ -319,13 +319,12 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
   // Load project data on-demand
   const loadProjectData = async (projectId: string) => {
-    if (!projectId || projectId.trim() === '') {
-      return;
-    }
+    if (!projectId || projectId.trim() === '') return;
 
     const normalizedProjectId = String(projectId).trim();
 
     try {
+      // Lấy workUnits và tasks
       const [workUnitsRes, tasksRes] = await Promise.all([
         fetch(`${API_BASE_URL}/work-units/project/${projectId}`),
         fetch(`${API_BASE_URL}/tasks/project/${projectId}`),
@@ -334,22 +333,49 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       if (workUnitsRes.ok) {
         const units = await workUnitsRes.json();
         setWorkUnits(prev => {
-          const existing = prev.filter(wu => String(wu.projectId || '').trim() !== normalizedProjectId);
+          const existing = prev.filter(
+            wu => String(wu.projectId || '').trim() !== normalizedProjectId
+          );
           return [...existing, ...units];
         });
       }
 
+      let tasksList: Task[] = [];
       if (tasksRes.ok) {
-        const tasksList = await tasksRes.json();
+        tasksList = await tasksRes.json();
         setTasks(prev => {
-          const existing = prev.filter(t => String(t.projectId || '').trim() !== normalizedProjectId);
+          const existing = prev.filter(
+            t => String(t.projectId || '').trim() !== normalizedProjectId
+          );
           return [...existing, ...tasksList];
         });
       }
+
+      // 🔥 Lấy comments cho từng task
+      const allComments: Comment[] = [];
+      for (const task of tasksList) {
+        const taskId = task.id || task._id;
+        const commentsRes = await fetch(`${API_BASE_URL}/comments/task/${taskId}`);
+        if (commentsRes.ok) {
+          const taskComments = await commentsRes.json();
+          allComments.push(...taskComments);
+        }
+      }
+
+      // Lọc comment theo taskId thay vì projectId
+      const projectTaskIds = tasksList.map(t => String(t.id || t._id));
+      setComments(prev => {
+        const existing = prev.filter(
+          c => !projectTaskIds.includes(String(c.taskId || ''))
+        );
+        return [...existing, ...allComments];
+      });
+
     } catch (error) {
       console.error('Failed to load project data:', error);
     }
   };
+
 
   // WorkUnit methods
   const createWorkUnit = async (data: Omit<WorkUnit, 'id'>): Promise<WorkUnit> => {
