@@ -24,6 +24,7 @@ export default function ProjectDetail() {
     users,
     getAllUsers,
     addUserToProject,
+    loadProjectData,
   } = useData();
 
   const [activeTab, setActiveTab] = useState<'overview' | 'members' | 'reports'>('overview');
@@ -31,6 +32,11 @@ export default function ProjectDetail() {
   const [selectedUserId, setSelectedUserId] = useState('');
 
   if (!projectId) return null;
+
+  // Load project data on mount
+  React.useEffect(() => {
+    loadProjectData(projectId);
+  }, [projectId]);
 
   const project = getProject(projectId);
   const members = getProjectMembers(projectId);

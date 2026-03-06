@@ -3,6 +3,7 @@ import * as userProjectController from '../controllers/userProjectController.js'
 
 const router = express.Router();
 
+router.get('/', userProjectController.getAllUserProjects);
 router.get('/project/:projectId', userProjectController.getProjectMembers);
 router.post('/', userProjectController.addUserToProject);
 router.put('/:userId/:projectId', userProjectController.updateUserRole);

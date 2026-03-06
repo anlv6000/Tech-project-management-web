@@ -163,6 +163,7 @@ export default function TaskBoard() {
     getTaskAttachments,
     addComment,
     addAttachment,
+    loadProjectData,
   } = useData();
 
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -174,6 +175,11 @@ export default function TaskBoard() {
   const [timeLog, setTimeLog] = useState('');
 
   if (!projectId || !user) return null;
+
+  // Load project data on mount
+  React.useEffect(() => {
+    loadProjectData(projectId);
+  }, [projectId, loadProjectData]);
 
   const project = getProject(projectId);
   const workUnits = getProjectWorkUnits(projectId);

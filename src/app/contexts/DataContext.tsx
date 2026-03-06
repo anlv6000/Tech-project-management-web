@@ -32,6 +32,7 @@ interface DataContextType {
   addUserToProject: (userId: string, projectId: string, role: string) => void;
   removeUserFromProject: (userId: string, projectId: string) => void;
   getProjectMembers: (projectId: string) => UserProject[];
+  loadProjectData: (projectId: string) => Promise<void>;
 
   // WorkUnits
   workUnits: WorkUnit[];
@@ -107,38 +108,26 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       if (!user) return;
 
       try {
+        const token = sessionStorage.getItem('token');
         const userId = user.id || user._id;
         const [
           projectsRes,
           userProjectsRes,
-          workUnitsRes,
-          tasksRes,
-          commentsRes,
-          attachmentsRes,
           usersRes,
           notificationsRes,
-          auditLogsRes,
         ] = await Promise.all([
           fetch(`${API_BASE_URL}/projects`),
           fetch(`${API_BASE_URL}/user-projects`),
-          fetch(`${API_BASE_URL}/work-units`),
-          fetch(`${API_BASE_URL}/tasks`),
-          fetch(`${API_BASE_URL}/comments`),
-          fetch(`${API_BASE_URL}/attachments`),
-          fetch(`${API_BASE_URL}/users`),
+          fetch(`${API_BASE_URL}/users`, {
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+          }),
           fetch(`${API_BASE_URL}/notifications/user/${userId}`),
-          fetch(`${API_BASE_URL}/audit-logs`),
         ]);
 
         if (projectsRes.ok) setProjects(await projectsRes.json());
         if (userProjectsRes.ok) setUserProjects(await userProjectsRes.json());
-        if (workUnitsRes.ok) setWorkUnits(await workUnitsRes.json());
-        if (tasksRes.ok) setTasks(await tasksRes.json());
-        if (commentsRes.ok) setComments(await commentsRes.json());
-        if (attachmentsRes.ok) setAttachments(await attachmentsRes.json());
         if (usersRes.ok) setUsers(await usersRes.json());
         if (notificationsRes.ok) setNotifications(await notificationsRes.json());
-        if (auditLogsRes.ok) setAuditLogs(await auditLogsRes.json());
       } catch (error) {
         console.error('Failed to load data from API:', error);
       }
@@ -262,12 +251,24 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   };
 
   const getUserProjects = (userId: string): Project[] => {
+    // Normalize userId to string for comparison
+    const normalizedUserId = String(userId).trim();
+    
+    // Get project IDs where user is a member
     const userProjectIds = userProjects
-      .filter(up => up.userId === userId || up.userId === userId)
-      .map(up => up.projectId)
-      .filter((id): id is string => id !== undefined);
+      .filter(up => {
+        const upUserId = String(up.userId || '').trim();
+        return upUserId === normalizedUserId;
+      })
+      .map(up => {
+        // Return normalized projectId
+        return String(up.projectId || '').trim();
+      })
+      .filter((id): id is string => id.length > 0);
+    
+    // Return projects that match the user's project IDs
     return projects.filter(p => {
-      const projectId = p.id || p._id;
+      const projectId = String(p.id || p._id || '').trim();
       return projectId && userProjectIds.includes(projectId) && !p.isArchived;
     });
   };
@@ -305,7 +306,40 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   };
 
   const getProjectMembers = (projectId: string) => {
-    return userProjects.filter(up => up.projectId === projectId);
+    // Normalize projectId for comparison
+    const normalizedProjectId = String(projectId).trim();
+    return userProjects.filter(up => {
+      const upProjectId = String(up.projectId || '').trim();
+      return upProjectId === normalizedProjectId;
+    });
+  };
+
+  // Load project data on-demand
+  const loadProjectData = async (projectId: string) => {
+    try {
+      const [workUnitsRes, tasksRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/work-units/project/${projectId}`),
+        fetch(`${API_BASE_URL}/tasks/project/${projectId}`),
+      ]);
+
+      if (workUnitsRes.ok) {
+        const units = await workUnitsRes.json();
+        setWorkUnits(prev => {
+          const existing = prev.filter(wu => wu.projectId !== projectId);
+          return [...existing, ...units];
+        });
+      }
+
+      if (tasksRes.ok) {
+        const tasksList = await tasksRes.json();
+        setTasks(prev => {
+          const existing = prev.filter(t => t.projectId !== projectId);
+          return [...existing, ...tasksList];
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load project data:', error);
+    }
   };
 
   // WorkUnit methods
@@ -361,8 +395,9 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   };
 
   const getProjectWorkUnits = (projectId: string) => {
+    const normalizedProjectId = String(projectId).trim();
     return workUnits
-      .filter(wu => wu.projectId === projectId || wu.projectId === projectId)
+      .filter(wu => String(wu.projectId || '').trim() === normalizedProjectId)
       .sort((a, b) => a.order - b.order);
   };
 
@@ -422,13 +457,15 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   };
 
   const getTasksByWorkUnit = (workUnitId: string) => {
+    const normalizedWorkUnitId = String(workUnitId).trim();
     return tasks
-      .filter(t => t.workUnitId === workUnitId || t.workUnitId === workUnitId)
+      .filter(t => String(t.workUnitId || '').trim() === normalizedWorkUnitId)
       .sort((a, b) => a.order - b.order);
   };
 
   const getTasksByProject = (projectId: string) => {
-    return tasks.filter(t => t.projectId === projectId || t.projectId === projectId);
+    const normalizedProjectId = String(projectId).trim();
+    return tasks.filter(t => String(t.projectId || '').trim() === normalizedProjectId);
   };
 
   // Comment methods
@@ -456,8 +493,9 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   };
 
   const getTaskComments = (taskId: string) => {
+    const normalizedTaskId = String(taskId).trim();
     return comments
-      .filter(c => c.taskId === taskId || c.taskId === taskId)
+      .filter(c => String(c.taskId || '').trim() === normalizedTaskId)
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   };
 
@@ -501,7 +539,8 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   };
 
   const getTaskAttachments = (taskId: string) => {
-    return attachments.filter(a => a.taskId === taskId || a.taskId === taskId);
+    const normalizedTaskId = String(taskId).trim();
+    return attachments.filter(a => String(a.taskId || '').trim() === normalizedTaskId);
   };
 
   // Notification methods
@@ -522,8 +561,9 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   };
 
   const getUserNotifications = (userId: string) => {
+    const normalizedUserId = String(userId).trim();
     return notifications
-      .filter(n => n.userId === userId || n.userId === userId)
+      .filter(n => String(n.userId || '').trim() === normalizedUserId)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   };
 
@@ -585,6 +625,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     addUserToProject,
     removeUserFromProject,
     getProjectMembers,
+    loadProjectData,
     workUnits,
     createWorkUnit,
     updateWorkUnit,

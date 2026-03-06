@@ -4,7 +4,7 @@ import { authenticateToken, requireAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
 
-router.get('/', authenticateToken, requireAdmin, userController.getAllUsers);
+router.get('/', authenticateToken, userController.getAllUsers);
 router.get('/search', userController.searchUsers);
 router.get('/:id', authenticateToken, userController.getUserById);
 router.post('/', userController.createUser);

@@ -1,6 +1,15 @@
 import UserProject from '../models/UserProject.js';
 import mongoose from 'mongoose';
 
+export const getAllUserProjects = async (req, res) => {
+  try {
+    const userProjects = await UserProject.find();
+    res.json(userProjects);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 export const getProjectMembers = async (req, res) => {
   try {
     const { projectId } = req.params;
