@@ -31,6 +31,13 @@ const commentSchema = new mongoose.Schema({
     default: Date.now
   }
 });
+commentSchema.set('toJSON', {
+  transform: (doc, ret) => {
+    ret.id = ret._id.toString();
+    delete ret._id;
+    return ret;
+  }
+});
 
 commentSchema.pre('save', function(next) {
   this.updatedAt = Date.now();

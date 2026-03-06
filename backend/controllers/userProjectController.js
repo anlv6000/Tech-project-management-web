@@ -13,7 +13,7 @@ export const getAllUserProjects = async (req, res) => {
 export const getProjectMembers = async (req, res) => {
   try {
     const { projectId } = req.params;
-    const members = await UserProject.find({ projectId }).populate('userId', '-password');
+    const members = await UserProject.find({ projectId }).populate('userId', '-password').lean();
     res.json(members);
   } catch (error) {
     res.status(500).json({ message: error.message });

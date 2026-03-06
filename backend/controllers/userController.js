@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 
 export const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find().select('-password');
+    const users = await User.find().select('-password').lean();
     res.json(users);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -14,7 +14,7 @@ export const getAllUsers = async (req, res) => {
 
 export const getUserById = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select('-password');
+    const user = await User.findById(req.params.id).select('-password').lean();
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.json(user);
   } catch (error) {
@@ -57,7 +57,7 @@ export const updateUser = async (req, res) => {
       req.params.id,
       { fullName, avatar, isActive },
       { new: true }
-    ).select('-password');
+    ).select('-password').lean();
     
     if (!updatedUser) return res.status(404).json({ message: 'User not found' });
     res.json(updatedUser);
@@ -148,7 +148,7 @@ export const searchUsers = async (req, res) => {
       query = { fullName: { $regex: fullName, $options: 'i' } };
     }
 
-    const users = await User.find(query).select('-password').limit(10);
+    const users = await User.find(query).select('-password').limit(10).lean();
     res.json(users);
   } catch (error) {
     res.status(500).json({ message: error.message });

@@ -43,6 +43,15 @@ const userSchema = new mongoose.Schema({
   }
 });
 
+userSchema.set('toJSON', {
+  transform: (doc, ret) => {
+    ret.id = ret._id.toString();   // thêm trường id dạng string
+    delete ret._id;                // bỏ _id gốc
+    delete ret.password;           // bỏ password
+    return ret;
+  }
+});
+
 // Hash password before saving
 userSchema.pre('save', async function(next) {
   // Only hash if password is modified

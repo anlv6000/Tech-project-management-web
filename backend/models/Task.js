@@ -59,6 +59,13 @@ const taskSchema = new mongoose.Schema({
     default: Date.now
   }
 });
+taskSchema.set('toJSON', {
+  transform: (doc, ret) => {
+    ret.id = ret._id.toString();
+    delete ret._id;
+    return ret;
+  }
+});
 
 taskSchema.pre('save', function(next) {
   this.updatedAt = Date.now();

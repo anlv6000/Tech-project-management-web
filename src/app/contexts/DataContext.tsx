@@ -26,6 +26,7 @@ interface DataContextType {
   deleteProject: (id: string) => void;
   getProject: (id: string) => Project | undefined;
   getUserProjects: (userId: string) => Project[];
+  getAllUserProjects: () => UserProject[];
 
   // UserProjects
   userProjects: UserProject[];
@@ -137,6 +138,8 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   }, [user]);
 
   // Project methods
+    // UserProject: get all userProjects
+    const getAllUserProjects = () => userProjects;
   const createProject = async (data: Omit<Project, 'id' | 'createdAt' | 'isArchived'>): Promise<Project> => {
     try {
       const token = sessionStorage.getItem('token');
@@ -498,6 +501,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }
   };
 
+  // Ensure comments are filtered correctly by taskId
   const getTaskComments = (taskId: string) => {
     const normalizedTaskId = String(taskId).trim();
     return comments
@@ -574,7 +578,12 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   };
 
   // User methods
-  const getAllUsers = () => users;
+  const getAllUsers = () => {
+    return users.map(user => ({
+      ...user,
+      id: user.id || user._id, // Normalize id field
+    }));
+  };
 
   const updateUserData = async (id: string, updates: Partial<User>) => {
     try {
@@ -627,6 +636,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     deleteProject,
     getProject,
     getUserProjects,
+    getAllUserProjects,
     userProjects,
     addUserToProject,
     removeUserFromProject,

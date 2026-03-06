@@ -11,10 +11,12 @@ export default function Reports() {
 
   if (!user) return null;
 
-  const userId = user.id || user._id || '';
+  const userId = String(user.id || user._id || '').trim();
   const projects = getUserProjects(userId);
-  const selectedProject = projects.find(p => (p.id || p._id) === selectedProjectId) || projects[0];
-  const selectedProjectId2 = selectedProject?.id || selectedProject?._id || '';
+  // Normalize selectedProjectId for comparison
+  const normalizedSelectedProjectId = String(selectedProjectId || '').trim();
+  const selectedProject = projects.find(p => String(p.id || p._id || '').trim() === normalizedSelectedProjectId) || projects[0];
+  const selectedProjectId2 = String(selectedProject?.id || selectedProject?._id || '').trim();
   const projectTasks = selectedProject ? getTasksByProject(selectedProjectId2) : [];
   const todoTasks = projectTasks.filter(t => t.status === 'todo').length;
   const inProgressTasks = projectTasks.filter(t => t.status === 'in-progress').length;
@@ -31,7 +33,6 @@ export default function Reports() {
     const taskCount = projectTasks.length;
     const doneCount = doneTasks;
     if (taskCount === 0) return [];
-    
     return Array.from({ length: 4 }, (_, i) => ({
       week: `Week ${i + 1}`,
       completed: Math.round((doneCount / 4) * (i + 1)),
@@ -54,12 +55,12 @@ export default function Reports() {
       <div className="bg-white p-6 rounded-lg border mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-2">Select Project</label>
         <select
-          value={selectedProject?.id || ''}
+          value={selectedProjectId2}
           onChange={(e) => setSelectedProjectId(e.target.value)}
           className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           {projects.map(p => (
-            <option key={p.id} value={p.id}>{p.name}</option>
+            <option key={p.id || p._id} value={String(p.id || p._id || '').trim()}>{p.name}</option>
           ))}
         </select>
       </div>

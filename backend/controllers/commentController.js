@@ -6,7 +6,7 @@ export const getTaskComments = async (req, res) => {
     const { taskId } = req.params;
     const comments = await Comment.find({ taskId })
       .populate('userId', '-password')
-      .sort('createdAt');
+      .sort('createdAt').lean();
     res.json(comments);
   } catch (error) {
     res.status(500).json({ message: error.message });

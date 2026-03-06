@@ -303,11 +303,11 @@ export default function ProjectDetail() {
               <div className="p-6">
                 <div className="space-y-3">
                   {members.map((member) => {
-                    const memberUser = allUsers.find(u => u.id === member.userId);
+                    const memberUser = allUsers.find(u => String(u.id || u._id).trim() === String(member.userId || member._id).trim());
                     if (!memberUser) return null;
 
                     return (
-                      <div key={member.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div key={member.id || member._id}className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
                             <span className="text-blue-600 font-medium">

@@ -22,6 +22,13 @@ const userProjectSchema = new mongoose.Schema({
     default: Date.now
   }
 });
+userProjectSchema.set('toJSON', {
+  transform: (doc, ret) => {
+    ret.id = ret._id.toString();
+    delete ret._id;
+    return ret;
+  }
+});
 
 // Create compound index to ensure user is only added to project once
 userProjectSchema.index({ userId: 1, projectId: 1 }, { unique: true });

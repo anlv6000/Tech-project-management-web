@@ -33,25 +33,44 @@ function TaskCard({ task, onClick, users }: TaskCardProps) {
     }),
   });
 
-  const assignee = users.find(u => (u.id || u._id) === task.assigneeId);
-  const { getTaskComments, getTaskAttachments } = useData();
+  const assigneeId = String(task.assigneeId || '');
+  // Lấy projectId từ task
+  const projectId = String(task.projectId || '');
+  const { getTaskComments, getTaskAttachments, getAllUsers, getAllUserProjects } = useData();
   const taskId = task.id || task._id || '';
   const comments = getTaskComments(taskId);
   const attachments = getTaskAttachments(taskId);
+  // Lấy đúng user cho assignee theo project
+  const allUserProjects = getAllUserProjects ? getAllUserProjects() : [];
+  const projectUserProjects = allUserProjects.filter(up => String(up.projectId || '').trim() === projectId);
+  const memberIds = projectUserProjects.map(up => String(up.userId || '').trim());
+  const projectMembers = getAllUsers().filter(u => {
+    const userId = String(u.id || u._id || '').trim();
+    return memberIds.includes(userId);
+  });
+  const assignee = projectMembers.find(
+    (u) => String(u.id || u._id || '') === assigneeId
+  );
+
+  // Color coding for status
+  let statusColor = '';
+  if (task.status === 'todo') statusColor = 'bg-gray-100 border-gray-300';
+  else if (task.status === 'in-progress') statusColor = 'bg-yellow-100 border-yellow-300';
+  else if (task.status === 'done') statusColor = 'bg-green-100 border-green-300';
+  else statusColor = 'bg-white border-gray-300';
 
   return (
     <div
       ref={drag as any}
       onClick={onClick}
-      className={`bg-white p-4 rounded-lg border hover:shadow-md cursor-pointer transition-all ${
-        isDragging ? 'opacity-50' : 'opacity-100'
-      }`}
+      className={`p-4 rounded-lg border hover:shadow-md cursor-pointer transition-all ${statusColor} ${isDragging ? 'opacity-50' : 'opacity-100'
+        }`}
     >
       <h3 className="font-medium text-gray-900 mb-2">{task.title}</h3>
       {task.description && (
         <p className="text-sm text-gray-600 mb-3 line-clamp-2">{task.description}</p>
       )}
-      
+
       <div className="flex items-center justify-between text-sm">
         <div className="flex items-center gap-3 text-gray-600">
           {comments.length > 0 && (
@@ -73,7 +92,7 @@ function TaskCard({ task, onClick, users }: TaskCardProps) {
             </div>
           )}
         </div>
-        
+
         {assignee && (
           <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
             <span className="text-xs text-blue-600 font-medium">
@@ -133,9 +152,8 @@ function Column({ workUnit, tasks, onTaskClick, onDrop, onAddTask, users }: Colu
 
       <div
         ref={drop as any}
-        className={`flex-1 space-y-3 min-h-[200px] p-2 rounded-lg transition-colors ${
-          isOver ? 'bg-blue-50 border-2 border-dashed border-blue-300' : 'bg-transparent'
-        }`}
+        className={`flex-1 space-y-3 min-h-[200px] p-2 rounded-lg transition-colors ${isOver ? 'bg-blue-50 border-2 border-dashed border-blue-300' : 'bg-transparent'
+          }`}
       >
         {tasks.map((task) => (
           <TaskCard
@@ -163,8 +181,8 @@ export default function TaskBoard() {
     getTaskComments,
     getTaskAttachments,
     addComment,
-    addAttachment,
     loadProjectData,
+    getAllUserProjects,
   } = useData();
 
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -194,6 +212,21 @@ export default function TaskBoard() {
   const project = getProject(projectId);
   const workUnits = getProjectWorkUnits(projectId);
   const users = getAllUsers();
+  // Lấy userProject theo projectId
+  const allUserProjects = getAllUserProjects ? getAllUserProjects() : [];
+  const projectIdStr = String(projectId);
+  // Filter userProject by projectId
+  const projectUserProjects = allUserProjects.filter(up => {
+    const pid = String(up.projectId || '').trim();
+    return pid === projectIdStr;
+  });
+  // Get userIds
+  const memberIds = projectUserProjects.map(up => String(up.userId || '').trim());
+  // Filter users by memberIds
+  const projectMembers = users.filter(u => {
+    const userId = String(u.id || u._id || '').trim();
+    return memberIds.includes(userId);
+  });
 
   if (!project) return null;
 
@@ -246,8 +279,28 @@ export default function TaskBoard() {
     setTimeLog('');
   };
 
+  // Send notification when assigning
   const handleTaskChange = (field: keyof Task, value: any) => {
     setTaskChanges(prev => ({ ...prev, [field]: value }));
+
+    if (field === 'assigneeId' && selectedTask) {
+      const assignedUser = users.find(u => String(u.id || u._id) === String(value));
+      if (assignedUser) {
+        // Send notification
+        fetch('http://localhost:5000/api/notifications', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: assignedUser.id || assignedUser._id,
+            type: 'task',
+            title: `Assigned to Task: ${selectedTask.title}`,
+            message: `You have been assigned to task "${selectedTask.title}" in project ${project?.name}`,
+            relatedEntityId: selectedTask.id || selectedTask._id,
+            relatedEntityType: 'task',
+          }),
+        });
+      }
+    }
   };
 
   const handleSaveTask = () => {
@@ -280,6 +333,21 @@ export default function TaskBoard() {
   const selectedTaskId = selectedTask?.id || selectedTask?._id || '';
   const selectedTaskComments = selectedTask ? getTaskComments(selectedTaskId) : [];
   const selectedTaskAttachments = selectedTask ? getTaskAttachments(selectedTaskId) : [];
+
+
+  // Comments mapping
+  // Comments mapping: lấy đúng user từ allUsers
+  const updatedComments = (selectedTaskComments || []).map((comment: any) => {
+    const foundUser = comment.userId; // đã populate
+    return {
+      ...comment,
+      author: foundUser ? foundUser.fullName : 'Unknown User',
+      authorInitial: foundUser ? foundUser.fullName.charAt(0).toUpperCase() : '?',
+      content: comment.content || '',
+      createdAt: comment.createdAt || '',
+    };
+  });
+
 
   return (
     <DndProvider backend={HTML5Backend}>
@@ -373,19 +441,35 @@ export default function TaskBoard() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
                     <select
-                      value={taskChanges.assigneeId ?? selectedTask.assigneeId ?? ''}
-                      onChange={(e) => handleTaskChange('assigneeId', e.target.value || undefined)}
+                      value={(() => {
+                        // Nếu taskChanges có assigneeId thì dùng luôn
+                        if (taskChanges.assigneeId) return String(taskChanges.assigneeId);
+
+                        // Nếu selectedTask.assigneeId là object (populate) thì lấy id hoặc _id
+                        if (typeof selectedTask.assigneeId === 'object' && selectedTask.assigneeId !== null) {
+                          return String(selectedTask.assigneeId.id || selectedTask.assigneeId._id || '');
+                        }
+
+                        // Nếu là string thì trả về string
+                        return String(selectedTask.assigneeId || '');
+                      })()}
+                      onChange={(e) =>
+                        handleTaskChange('assigneeId', e.target.value !== '' ? String(e.target.value) : undefined)
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Unassigned</option>
-                      {users.map(u => {
-                        const userId = u.id || u._id || '';
+                      {projectMembers.map((u) => {
+                        const userId = String(u.id || u._id || '');
                         return (
-                          <option key={userId} value={userId}>{u.fullName}</option>
+                          <option key={userId} value={userId}>
+                            {u.fullName}
+                          </option>
                         );
                       })}
                     </select>
                   </div>
+
                 </div>
 
                 {/* Time Tracking */}
@@ -436,31 +520,28 @@ export default function TaskBoard() {
 
                 {/* Comments */}
                 <div>
-                  <h3 className="font-medium text-gray-900 mb-3">Comments ({selectedTaskComments.length})</h3>
+                  <h3 className="font-medium text-gray-900 mb-3">Comments ({updatedComments.length})</h3>
                   <div className="space-y-3 mb-4">
-                    {selectedTaskComments.map(comment => {
-                      const commentUser = users.find(u => String(u.id || u._id).trim() === String(comment.userId).trim());
-                      return (
-                        <div key={comment.id || comment._id} className="flex gap-3">
-                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                            <span className="text-sm text-blue-600 font-medium">
-                              {commentUser?.fullName?.charAt(0).toUpperCase()}
+                    {updatedComments.map((comment) => (
+                      <div key={comment.id || comment._id} className="flex gap-3">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                          <span className="text-sm text-blue-600 font-medium">
+                            {comment.authorInitial}
+                          </span>
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium text-gray-900">{comment.author}</span>
+                            <span className="text-xs text-gray-500">
+                              {new Date(comment.createdAt).toLocaleString()}
                             </span>
                           </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium text-gray-900">{commentUser?.fullName || 'Unknown User'}</span>
-                              <span className="text-xs text-gray-500">
-                                {new Date(comment.createdAt).toLocaleString()}
-                              </span>
-                            </div>
-                            <p className="text-gray-700">{comment.content}</p>
-                          </div>
+                          <p className="text-gray-700">{comment.content}</p>
                         </div>
-                      );
-                    })}
+                      </div>
+                    ))}
                   </div>
-                  
+
                   <div className="flex gap-3">
                     <input
                       type="text"
