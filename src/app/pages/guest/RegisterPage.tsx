@@ -17,27 +17,42 @@ export default function RegisterPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [success, setSuccess] = useState(false);
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    // Clear error when user types
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
   const validate = () => {
     const newErrors: Record<string, string> = {};
     
     if (!formData.fullName.trim()) {
-      newErrors.fullName = 'Full name is required';
+      newErrors.fullName = '*Họ tên là bắt buộc';
+    } else if (formData.fullName.trim().length < 2) {
+      newErrors.fullName = '*Họ tên cần ít nhất 2 ký tự';
     }
     
     if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
+      newErrors.email = '*Email là bắt buộc';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Invalid email format';
+      newErrors.email = '*Định dạng email không hợp lệ';
     }
     
     if (!formData.password) {
-      newErrors.password = 'Password is required';
+      newErrors.password = '*Mật khẩu là bắt buộc';
     } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
+      newErrors.password = '*Mật khẩu cần ít nhất 6 ký tự';
+    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
+      newErrors.password = '*Mật khẩu cần chứa chữ hoa, chữ thường và số';
     }
     
-    if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
+    if (!formData.confirmPassword) {
+      newErrors.confirmPassword = '*Xác nhận mật khẩu là bắt buộc';
+    } else if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = '*Mật khẩu xác nhận không khớp';
     }
     
     setErrors(newErrors);
@@ -49,25 +64,58 @@ export default function RegisterPage() {
     
     if (!validate()) return;
     
-    const success = await register(formData.fullName, formData.email, formData.password);
+    const registrationSuccess = await register(formData.fullName, formData.email, formData.password);
     
-    if (success) {
+    if (registrationSuccess) {
       setSuccess(true);
       setTimeout(() => {
         navigate('/login');
       }, 2000);
     } else {
-      setErrors({ email: 'Email already exists' });
+      setErrors({ email: '*Email đã tồn tại' });
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    // Clear error when user types
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
+  const handleBlur = (field: string) => {
+    // Validate individual field on blur
+    const tempData = { ...formData };
+    const tempErrors: Record<string, string> = {};
+    
+    if (field === 'fullName') {
+      if (!tempData.fullName.trim()) {
+        tempErrors.fullName = '*Họ tên là bắt buộc';
+      } else if (tempData.fullName.trim().length < 2) {
+        tempErrors.fullName = '*Họ tên cần ít nhất 2 ký tự';
+      }
     }
+    
+    if (field === 'email') {
+      if (!tempData.email.trim()) {
+        tempErrors.email = '*Email là bắt buộc';
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(tempData.email)) {
+        tempErrors.email = '*Định dạng email không hợp lệ';
+      }
+    }
+    
+    if (field === 'password') {
+      if (!tempData.password) {
+        tempErrors.password = '*Mật khẩu là bắt buộc';
+      } else if (tempData.password.length < 6) {
+        tempErrors.password = '*Mật khẩu cần ít nhất 6 ký tự';
+      } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(tempData.password)) {
+        tempErrors.password = '*Mật khẩu cần chứa chữ hoa, chữ thường và số';
+      }
+    }
+    
+    if (field === 'confirmPassword') {
+      if (!tempData.confirmPassword) {
+        tempErrors.confirmPassword = '*Xác nhận mật khẩu là bắt buộc';
+      } else if (tempData.password !== tempData.confirmPassword) {
+        tempErrors.confirmPassword = '*Mật khẩu xác nhận không khớp';
+      }
+    }
+    
+    setErrors(prev => ({ ...prev, [field]: tempErrors[field] || '' }));
   };
 
   return (
@@ -118,16 +166,14 @@ export default function RegisterPage() {
                   name="fullName"
                   value={formData.fullName}
                   onChange={handleChange}
+                  onBlur={() => handleBlur('fullName')}
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                     errors.fullName ? 'border-red-500' : 'border-gray-300'
                   }`}
-                  placeholder="John Doe"
+                  placeholder="Nguyễn Văn A"
                 />
                 {errors.fullName && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.fullName}
-                  </p>
+                  <p className="mt-1 text-sm text-red-600">{errors.fullName}</p>
                 )}
               </div>
 
@@ -141,16 +187,14 @@ export default function RegisterPage() {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
+                  onBlur={() => handleBlur('email')}
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                     errors.email ? 'border-red-500' : 'border-gray-300'
                   }`}
-                  placeholder="john@example.com"
+                  placeholder="nguyenvana@example.com"
                 />
                 {errors.email && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.email}
-                  </p>
+                  <p className="mt-1 text-sm text-red-600">{errors.email}</p>
                 )}
               </div>
 
@@ -164,16 +208,14 @@ export default function RegisterPage() {
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
+                  onBlur={() => handleBlur('password')}
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                     errors.password ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="••••••••"
                 />
                 {errors.password && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.password}
-                  </p>
+                  <p className="mt-1 text-sm text-red-600">{errors.password}</p>
                 )}
               </div>
 
@@ -187,16 +229,14 @@ export default function RegisterPage() {
                   name="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleChange}
+                  onBlur={() => handleBlur('confirmPassword')}
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                     errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="••••••••"
                 />
                 {errors.confirmPassword && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.confirmPassword}
-                  </p>
+                  <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
                 )}
               </div>
 

@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import bcrypt from 'bcrypt';
 
 const userSchema = new mongoose.Schema({
   _id: mongoose.Schema.Types.ObjectId,
@@ -42,10 +43,21 @@ const userSchema = new mongoose.Schema({
   }
 });
 
-// Update updatedAt before saving
-userSchema.pre('save', function(next) {
-  this.updatedAt = Date.now();
-  next();
+// Hash password before saving
+userSchema.pre('save', async function(next) {
+  // Only hash if password is modified
+  if (!this.isModified('password')) {
+    this.updatedAt = Date.now();
+    return next();
+  }
+
+  try {
+    this.password = await bcrypt.hash(this.password, 10);
+    this.updatedAt = Date.now();
+    next();
+  } catch (error) {
+    next(error);
+  }
 });
 
 export default mongoose.model('User', userSchema);

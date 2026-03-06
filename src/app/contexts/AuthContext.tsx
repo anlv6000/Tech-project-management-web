@@ -60,12 +60,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       const data = await response.json();
-      if (data.user) {
+      if (data.user && data.token) {
         // Convert MongoDB _id to id for consistency
         const userData = { ...data.user, id: data.user._id || data.user.id };
         setUser(userData as User);
         sessionStorage.setItem('currentUser', JSON.stringify(userData));
-        sessionStorage.setItem('token', data.token || '');
+        sessionStorage.setItem('token', data.token);
         return true;
       }
       return false;
@@ -114,10 +114,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     try {
       const userId = user.id || user._id;
+      const token = sessionStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify(updates),
       });

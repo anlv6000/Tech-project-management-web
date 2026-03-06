@@ -13,6 +13,7 @@ export default function LoginPage() {
   });
   
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -41,6 +42,27 @@ export default function LoginPage() {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     setError('');
+    setFieldErrors(prev => ({ ...prev, [name]: '' }));
+  };
+
+  const handleBlur = (field: string) => {
+    const tempErrors: Record<string, string> = {};
+    
+    if (field === 'email') {
+      if (!formData.email.trim()) {
+        tempErrors.email = '*Email là bắt buộc';
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+        tempErrors.email = '*Định dạng email không hợp lệ';
+      }
+    }
+    
+    if (field === 'password') {
+      if (!formData.password) {
+        tempErrors.password = '*Mật khẩu là bắt buộc';
+      }
+    }
+    
+    setFieldErrors(prev => ({ ...prev, [field]: tempErrors[field] || '' }));
   };
 
   return (
@@ -95,10 +117,16 @@ export default function LoginPage() {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="john@example.com"
+                  onBlur={() => handleBlur('email')}
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    fieldErrors.email ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="nguyenvana@example.com"
                   required
                 />
+                {fieldErrors.email && (
+                  <p className="mt-1 text-sm text-red-600">{fieldErrors.email}</p>
+                )}
               </div>
 
               <div>
@@ -111,10 +139,16 @@ export default function LoginPage() {
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onBlur={() => handleBlur('password')}
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    fieldErrors.password ? 'border-red-500' : 'border-gray-300'
+                  }`}
                   placeholder="••••••••"
                   required
                 />
+                {fieldErrors.password && (
+                  <p className="mt-1 text-sm text-red-600">{fieldErrors.password}</p>
+                )}
               </div>
 
               <div className="flex items-center justify-between">

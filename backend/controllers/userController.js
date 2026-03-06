@@ -1,5 +1,7 @@
 import User from '../models/User.js';
 import mongoose from 'mongoose';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 
 export const getAllUsers = async (req, res) => {
   try {
@@ -29,11 +31,13 @@ export const createUser = async (req, res) => {
       return res.status(400).json({ message: 'Email already exists' });
     }
 
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     const user = new User({
       _id: new mongoose.Types.ObjectId(),
       email,
       fullName,
-      password,
+      password: hashedPassword,
       role: role || 'user',
       avatar: avatar || null
     });
@@ -79,7 +83,12 @@ export const loginUser = async (req, res) => {
     const { email, password } = req.body;
     
     const user = await User.findOne({ email });
-    if (!user || user.password !== password) {
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
@@ -87,10 +96,16 @@ export const loginUser = async (req, res) => {
       return res.status(401).json({ message: 'User account is inactive' });
     }
 
+    const token = jwt.sign(
+      { userId: user._id, email: user.email, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
     const userResponse = user.toObject();
     delete userResponse.password;
     
-    res.json({ success: true, user: userResponse });
+    res.json({ success: true, user: userResponse, token });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -105,11 +120,13 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ message: 'Email already exists' });
     }
 
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     const user = new User({
       _id: new mongoose.Types.ObjectId(),
       email,
       fullName,
-      password,
+      password: hashedPassword,
       role: 'user',
       isActive: true
     });
