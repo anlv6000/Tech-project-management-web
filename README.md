@@ -1,7 +1,7 @@
 
-  # User Authentication and Dashboard
+  # Tech Project Management
 
-  This is a code bundle for User Authentication and Dashboard. The original project is available at https://www.figma.com/design/mHEWefVmE8eSIF17jmPA91/User-Authentication-and-Dashboard.
+  This repository contains a minimal, separate frontend (React) and backend (Node.js) implementation to demonstrate the use cases from the attached diagram. The backend currently runs with a file-backed fake database (db.json) for easy local development; later you can switch to MongoDB.
 
   ## Running the code
 
