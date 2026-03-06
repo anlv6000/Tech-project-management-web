@@ -110,6 +110,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         const userId = user.id || user._id;
         const [
           projectsRes,
+          userProjectsRes,
           workUnitsRes,
           tasksRes,
           commentsRes,
@@ -119,6 +120,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
           auditLogsRes,
         ] = await Promise.all([
           fetch(`${API_BASE_URL}/projects`),
+          fetch(`${API_BASE_URL}/user-projects`),
           fetch(`${API_BASE_URL}/work-units`),
           fetch(`${API_BASE_URL}/tasks`),
           fetch(`${API_BASE_URL}/comments`),
@@ -129,6 +131,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         ]);
 
         if (projectsRes.ok) setProjects(await projectsRes.json());
+        if (userProjectsRes.ok) setUserProjects(await userProjectsRes.json());
         if (workUnitsRes.ok) setWorkUnits(await workUnitsRes.json());
         if (tasksRes.ok) setTasks(await tasksRes.json());
         if (commentsRes.ok) setComments(await commentsRes.json());
@@ -147,20 +150,35 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   // Project methods
   const createProject = async (data: Omit<Project, 'id' | 'createdAt' | 'isArchived'>): Promise<Project> => {
     try {
+      const token = sessionStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/projects`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
         body: JSON.stringify({
           ...data,
           createdBy: user?.id || user?._id,
         }),
       });
 
-      if (!response.ok) throw new Error('Failed to create project');
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create project');
+      }
 
       const newProject = await response.json();
       const projectWithId = { ...newProject, id: newProject._id || newProject.id };
       setProjects(prev => [...prev, projectWithId]);
+
+      // Add the creator as an Admin in UserProject
+      const userProjectData = {
+        userId: user?.id || user?._id,
+        projectId: projectWithId.id || projectWithId._id,
+        role: 'Admin',
+      };
+      setUserProjects(prev => [...prev, userProjectData as any]);
 
       // Create default work units based on methodology
       createDefaultWorkUnits(projectWithId);

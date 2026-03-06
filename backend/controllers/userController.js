@@ -31,13 +31,11 @@ export const createUser = async (req, res) => {
       return res.status(400).json({ message: 'Email already exists' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
     const user = new User({
       _id: new mongoose.Types.ObjectId(),
       email,
       fullName,
-      password: hashedPassword,
+      password,
       role: role || 'user',
       avatar: avatar || null
     });
@@ -120,13 +118,11 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ message: 'Email already exists' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
     const user = new User({
       _id: new mongoose.Types.ObjectId(),
       email,
       fullName,
-      password: hashedPassword,
+      password,
       role: 'user',
       isActive: true
     });
@@ -138,5 +134,23 @@ export const registerUser = async (req, res) => {
     res.status(201).json({ success: true, user: userResponse });
   } catch (error) {
     res.status(400).json({ message: error.message });
+  }
+};
+
+export const searchUsers = async (req, res) => {
+  try {
+    const { email, fullName } = req.query;
+    let query = {};
+
+    if (email) {
+      query = { email: { $regex: email, $options: 'i' } };
+    } else if (fullName) {
+      query = { fullName: { $regex: fullName, $options: 'i' } };
+    }
+
+    const users = await User.find(query).select('-password').limit(10);
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };
