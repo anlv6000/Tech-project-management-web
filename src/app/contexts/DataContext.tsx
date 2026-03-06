@@ -41,7 +41,13 @@ interface DataContextType {
   updateWorkUnit: (id: string, updates: Partial<WorkUnit>) => void;
   deleteWorkUnit: (id: string) => void;
   getProjectWorkUnits: (projectId: string) => WorkUnit[];
-
+  createSprint: (
+    projectId: string,
+    name: string,
+    startDate?: string,
+    endDate?: string,
+    goal?: string
+  ) => Promise<WorkUnit>;
   // Tasks
   tasks: Task[];
   createTask: (data: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Task>;
@@ -435,6 +441,28 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       .filter(wu => String(wu.projectId || '').trim() === normalizedProjectId)
       .sort((a, b) => a.order - b.order);
   };
+const createSprint = async (
+  projectId: string,
+  name: string,
+  startDate?: string,
+  endDate?: string,
+  goal?: string
+): Promise<WorkUnit> => {
+  const response = await fetch(`${API_BASE_URL}/work-units/sprint`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectId, name, startDate, endDate, goal }),
+  });
+
+  if (!response.ok) throw new Error('Failed to create sprint');
+
+  const newSprint = await response.json();
+  const sprintWithId = { ...newSprint, id: newSprint._id || newSprint.id };
+  setWorkUnits(prev => [...prev, sprintWithId]);
+  return sprintWithId;
+};
+
+
 
   // Task methods
   const createTask = async (data: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>): Promise<Task> => {
@@ -694,6 +722,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     updateUserData,
     auditLogs,
     addAuditLog,
+    createSprint,
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

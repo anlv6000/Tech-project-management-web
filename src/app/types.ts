@@ -54,6 +54,7 @@ export interface WorkUnit {
   goal?: string;
   createdAt?: string;
   updatedAt?: string;
+  status?: string; // Added optional status property
 }
 
 export interface Task {

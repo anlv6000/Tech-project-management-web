@@ -16,6 +16,7 @@ import {
   Clock,
 } from 'lucide-react';
 
+
 const ItemType = 'TASK';
 
 interface TaskCardProps {
@@ -183,6 +184,7 @@ export default function TaskBoard() {
     addComment,
     loadProjectData,
     getAllUserProjects,
+    createSprint,
   } = useData();
 
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -230,9 +232,24 @@ export default function TaskBoard() {
 
   if (!project) return null;
 
-  const handleDrop = (taskId: string, newWorkUnitId: string) => {
-    updateTask(taskId, { workUnitId: newWorkUnitId });
+  const handleDrop = async (taskId: string, newWorkUnitId: string) => {
+    if (!taskId || !newWorkUnitId) return;
+
+    // Lấy danh sách task hiện có trong workUnit mới
+    const tasksInUnit = getTasksByWorkUnit(newWorkUnitId);
+
+    // Tính order mới = số lượng task hiện có
+    const newOrder = tasksInUnit.length;
+
+    try {
+      // Gọi updateTask để cập nhật cả workUnitId và order
+      await updateTask(taskId, { workUnitId: newWorkUnitId, order: newOrder });
+    } catch (err) {
+      console.error("Failed to move task:", err);
+    }
   };
+
+
 
   const handleAddTask = (workUnitId: string) => {
     setCreateWorkUnitId(workUnitId);
@@ -354,6 +371,21 @@ export default function TaskBoard() {
     return String(id);
   };
 
+  const handleCreateSprint = async () => {
+    try {
+      await createSprint(
+        projectId,
+        "Sprint mới",
+        undefined,
+        undefined,
+        "Goal cho sprint"
+      );
+    } catch (error) {
+      console.error("Failed to create sprint:", error);
+    }
+  };
+
+
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="h-full flex flex-col bg-gray-50">
@@ -372,14 +404,24 @@ export default function TaskBoard() {
                 <h1 className="text-2xl font-bold text-gray-900">{project.name}</h1>
                 <p className="text-sm text-gray-600 capitalize">{project.methodology} Board</p>
               </div>
+              {project.methodology === 'agile' && (
+                <button
+                  onClick={handleCreateSprint}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  ➕ New Sprint
+                </button>
+              )}
             </div>
           </div>
         </div>
+
 
         {/* Board */}
         <div className="flex-1 overflow-x-auto p-4">
           <div className="max-w-[1600px] mx-auto">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 h-full">
+
               {workUnits.map((workUnit) => {
                 const workUnitId = workUnit.id || workUnit._id || '';
                 const tasks = getTasksByWorkUnit(workUnitId);

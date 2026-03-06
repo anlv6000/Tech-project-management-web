@@ -8,5 +8,6 @@ router.get('/:id', workUnitController.getWorkUnitById);
 router.post('/', workUnitController.createWorkUnit);
 router.put('/:id', workUnitController.updateWorkUnit);
 router.delete('/:id', workUnitController.deleteWorkUnit);
+router.post('/sprint', workUnitController.createSprint);
 
 export default router;

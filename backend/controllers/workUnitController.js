@@ -13,6 +13,38 @@ export const getProjectWorkUnits = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+// workUnitController.js
+
+export const createSprint = async (req, res) => {
+  try {
+    const { projectId, name, startDate, endDate, goal } = req.body;
+    console.log("createSprint body:", req.body);
+
+    const lastSprint = await WorkUnit.find({ projectId, type: 'sprint' })
+      .sort({ order: -1 })
+      .limit(1);
+
+    const nextOrder = lastSprint.length > 0 ? lastSprint[0].order + 1 : 1;
+
+    const sprint = new WorkUnit({
+      projectId: new mongoose.Types.ObjectId(projectId), // ✅ convert
+      name,
+      type: 'sprint',
+      order: nextOrder,
+      startDate: startDate ? new Date(startDate) : null,
+      endDate: endDate ? new Date(endDate) : null,
+      goal: goal || null,
+    });
+
+    const saved = await sprint.save();
+    return res.status(201).json(saved);
+  } catch (error) {
+    console.error("createSprint error:", error);
+    return res.status(400).json({ message: error.message });
+  }
+};
+
+
 
 export const getWorkUnitById = async (req, res) => {
   try {
@@ -27,7 +59,7 @@ export const getWorkUnitById = async (req, res) => {
 export const createWorkUnit = async (req, res) => {
   try {
     const { projectId, name, type, order, startDate, endDate, goal } = req.body;
-    
+
     const workUnit = new WorkUnit({
       _id: new mongoose.Types.ObjectId(),
       projectId: new mongoose.Types.ObjectId(projectId),
@@ -49,7 +81,7 @@ export const createWorkUnit = async (req, res) => {
 export const updateWorkUnit = async (req, res) => {
   try {
     const { name, type, order, startDate, endDate, goal } = req.body;
-    
+
     const updated = await WorkUnit.findByIdAndUpdate(
       req.params.id,
       {
@@ -62,7 +94,7 @@ export const updateWorkUnit = async (req, res) => {
       },
       { new: true }
     );
-    
+
     if (!updated) return res.status(404).json({ message: 'WorkUnit not found' });
     res.json(updated);
   } catch (error) {

@@ -4,10 +4,11 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { Plus, Calendar, Users, TrendingUp, FolderKanban, X, AlertCircle, CheckCircle } from 'lucide-react';
 import { Methodology } from '../../types';
+import { WorkUnit } from '../../types';
 
 export default function ProjectList() {
   const { user } = useAuth();
-  const { getUserProjects, createProject, getProjectMembers, getTasksByProject } = useData();
+  const { getUserProjects, createProject, getProjectMembers, getTasksByProject, createWorkUnit } = useData();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
@@ -26,6 +27,8 @@ export default function ProjectList() {
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [createError, setCreateError] = useState('');
   const [createSuccess, setCreateSuccess] = useState(false);
+  const [newSprintName, setNewSprintName] = useState('');
+  const [workUnits, setWorkUnits] = useState<WorkUnit[]>([]);
 
   if (!user) return null;
 
@@ -156,6 +159,21 @@ export default function ProjectList() {
       setInviteError('Failed to invite user. Please try again.');
     } finally {
       setInviteLoading(false);
+    }
+  };
+
+  const handleAddSprint = async (projectId: string, sprintName: string) => {
+    try {
+      const newSprint = await createWorkUnit({
+        projectId,
+        name: sprintName,
+        type: 'sprint',
+        order: workUnits.length + 1,
+      });
+
+      setWorkUnits((prev: WorkUnit[]) => [...prev, newSprint]);
+    } catch (error) {
+      console.error('Failed to add sprint:', error);
     }
   };
 

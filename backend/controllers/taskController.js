@@ -70,10 +70,18 @@ export const createTask = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 };
-
 export const updateTask = async (req, res) => {
   try {
-    const { title, description, assigneeId, status, deadline, order, timeSpent } = req.body;
+    const { 
+      title, 
+      description, 
+      assigneeId, 
+      status, 
+      deadline, 
+      order, 
+      timeSpent,
+      workUnitId   // ✅ thêm vào đây
+    } = req.body;
     
     const updated = await Task.findByIdAndUpdate(
       req.params.id,
@@ -84,11 +92,13 @@ export const updateTask = async (req, res) => {
         status,
         deadline: deadline ? new Date(deadline) : undefined,
         order,
-        timeSpent
+        timeSpent,
+        workUnitId: workUnitId ? new mongoose.Types.ObjectId(workUnitId) : undefined // ✅ cập nhật
       },
       { new: true }
-    ).populate('assigneeId', '-password')
-     .populate('createdBy', '-password');
+    )
+    .populate('assigneeId', '-password')
+    .populate('createdBy', '-password');
     
     if (!updated) return res.status(404).json({ message: 'Task not found' });
     res.json(updated);
@@ -96,6 +106,7 @@ export const updateTask = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 };
+
 
 export const deleteTask = async (req, res) => {
   try {
