@@ -1,0 +1,123 @@
+[
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439001"},
+    "email": "admin@test.com",
+    "fullName": "Admin User",
+    "password": "admin123",
+    "role": "admin",
+    "avatar": null,
+    "isActive": true,
+    "createdAt": {"$date": "2026-01-01T08:00:00Z"},
+    "updatedAt": {"$date": "2026-01-01T08:00:00Z"}
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439002"},
+    "email": "john.doe@test.com",
+    "fullName": "John Doe",
+    "password": "demo123",
+    "role": "user",
+    "avatar": null,
+    "isActive": true,
+    "createdAt": {"$date": "2026-01-05T09:00:00Z"},
+    "updatedAt": {"$date": "2026-01-05T09:00:00Z"}
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439003"},
+    "email": "jane.smith@test.com",
+    "fullName": "Jane Smith",
+    "password": "demo123",
+    "role": "user",
+    "avatar": null,
+    "isActive": true,
+    "createdAt": {"$date": "2026-01-06T10:00:00Z"},
+    "updatedAt": {"$date": "2026-01-06T10:00:00Z"}
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439004"},
+    "email": "robert.wilson@test.com",
+    "fullName": "Robert Wilson",
+    "password": "demo123",
+    "role": "user",
+    "avatar": null,
+    "isActive": true,
+    "createdAt": {"$date": "2026-01-07T11:00:00Z"},
+    "updatedAt": {"$date": "2026-01-07T11:00:00Z"}
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439005"},
+    "email": "emily.johnson@test.com",
+    "fullName": "Emily Johnson",
+    "password": "demo123",
+    "role": "user",
+    "avatar": null,
+    "isActive": true,
+    "createdAt": {"$date": "2026-01-08T12:00:00Z"},
+    "updatedAt": {"$date": "2026-01-08T12:00:00Z"}
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439006"},
+    "email": "michael.brown@test.com",
+    "fullName": "Michael Brown",
+    "password": "demo123",
+    "role": "user",
+    "avatar": null,
+    "isActive": true,
+    "createdAt": {"$date": "2026-01-09T13:00:00Z"},
+    "updatedAt": {"$date": "2026-01-09T13:00:00Z"}
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439007"},
+    "email": "sarah.davis@test.com",
+    "fullName": "Sarah Davis",
+    "password": "demo123",
+    "role": "user",
+    "avatar": null,
+    "isActive": true,
+    "createdAt": {"$date": "2026-01-10T14:00:00Z"},
+    "updatedAt": {"$date": "2026-01-10T14:00:00Z"}
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439008"},
+    "email": "david.miller@test.com",
+    "fullName": "David Miller",
+    "password": "demo123",
+    "role": "user",
+    "avatar": null,
+    "isActive": true,
+    "createdAt": {"$date": "2026-01-11T15:00:00Z"},
+    "updatedAt": {"$date": "2026-01-11T15:00:00Z"}
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439009"},
+    "email": "lisa.anderson@test.com",
+    "fullName": "Lisa Anderson",
+    "password": "demo123",
+    "role": "user",
+    "avatar": null,
+    "isActive": true,
+    "createdAt": {"$date": "2026-01-12T16:00:00Z"},
+    "updatedAt": {"$date": "2026-01-12T16:00:00Z"}
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd79943900a"},
+    "email": "james.taylor@test.com",
+    "fullName": "James Taylor",
+    "password": "demo123",
+    "role": "user",
+    "avatar": null,
+    "isActive": true,
+    "createdAt": {"$date": "2026-01-13T17:00:00Z"},
+    "updatedAt": {"$date": "2026-01-13T17:00:00Z"}
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd79943900b"},
+    "email": "maria.thomas@test.com",
+    "fullName": "Maria Thomas",
+    "password": "demo123",
+    "role": "user",
+    "avatar": null,
+    "isActive": true,
+    "createdAt": {"$date": "2026-01-14T18:00:00Z"},
+    "updatedAt": {"$date": "2026-01-14T18:00:00Z"}
+  }
+]

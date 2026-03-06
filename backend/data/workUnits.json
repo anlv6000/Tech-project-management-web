@@ -1,0 +1,123 @@
+[
+  {
+    "_id": {"$oid": "807f1f77bcf86cd799439031"},
+    "projectId": {"$oid": "607f1f77bcf86cd799439011"},
+    "name": "Sprint 1",
+    "type": "sprint",
+    "order": 1,
+    "startDate": {"$date": "2026-03-01T00:00:00Z"},
+    "endDate": {"$date": "2026-03-14T00:00:00Z"},
+    "goal": "Setup and initial design mockups",
+    "createdAt": {"$date": "2026-02-15T08:00:00Z"},
+    "updatedAt": {"$date": "2026-02-15T08:00:00Z"}
+  },
+  {
+    "_id": {"$oid": "807f1f77bcf86cd799439032"},
+    "projectId": {"$oid": "607f1f77bcf86cd799439011"},
+    "name": "Sprint 2",
+    "type": "sprint",
+    "order": 2,
+    "startDate": {"$date": "2026-03-15T00:00:00Z"},
+    "endDate": {"$date": "2026-03-28T00:00:00Z"},
+    "goal": "Homepage implementation and styling",
+    "createdAt": {"$date": "2026-02-15T08:00:00Z"},
+    "updatedAt": {"$date": "2026-02-15T08:00:00Z"}
+  },
+  {
+    "_id": {"$oid": "807f1f77bcf86cd799439033"},
+    "projectId": {"$oid": "607f1f77bcf86cd799439011"},
+    "name": "Sprint 3",
+    "type": "sprint",
+    "order": 3,
+    "startDate": {"$date": "2026-03-29T00:00:00Z"},
+    "endDate": {"$date": "2026-04-11T00:00:00Z"},
+    "goal": "Inner pages and functionality",
+    "createdAt": {"$date": "2026-02-15T08:00:00Z"},
+    "updatedAt": {"$date": "2026-02-15T08:00:00Z"}
+  },
+  {
+    "_id": {"$oid": "807f1f77bcf86cd799439034"},
+    "projectId": {"$oid": "607f1f77bcf86cd799439011"},
+    "name": "Backlog",
+    "type": "sprint",
+    "order": 0,
+    "goal": "Upcoming work items",
+    "createdAt": {"$date": "2026-02-15T08:00:00Z"},
+    "updatedAt": {"$date": "2026-02-15T08:00:00Z"}
+  },
+  {
+    "_id": {"$oid": "807f1f77bcf86cd799439035"},
+    "projectId": {"$oid": "607f1f77bcf86cd799439012"},
+    "name": "To Do",
+    "type": "column",
+    "order": 1,
+    "createdAt": {"$date": "2026-01-20T09:00:00Z"},
+    "updatedAt": {"$date": "2026-01-20T09:00:00Z"}
+  },
+  {
+    "_id": {"$oid": "807f1f77bcf86cd799439036"},
+    "projectId": {"$oid": "607f1f77bcf86cd799439012"},
+    "name": "In Progress",
+    "type": "column",
+    "order": 2,
+    "createdAt": {"$date": "2026-01-20T09:00:00Z"},
+    "updatedAt": {"$date": "2026-01-20T09:00:00Z"}
+  },
+  {
+    "_id": {"$oid": "807f1f77bcf86cd799439037"},
+    "projectId": {"$oid": "607f1f77bcf86cd799439012"},
+    "name": "Done",
+    "type": "column",
+    "order": 3,
+    "createdAt": {"$date": "2026-01-20T09:00:00Z"},
+    "updatedAt": {"$date": "2026-01-20T09:00:00Z"}
+  },
+  {
+    "_id": {"$oid": "807f1f77bcf86cd799439038"},
+    "projectId": {"$oid": "607f1f77bcf86cd799439013"},
+    "name": "Requirements Phase",
+    "type": "phase",
+    "order": 1,
+    "startDate": {"$date": "2026-01-01T00:00:00Z"},
+    "endDate": {"$date": "2026-02-28T00:00:00Z"},
+    "goal": "Requirements gathering and analysis",
+    "createdAt": {"$date": "2025-12-10T10:00:00Z"},
+    "updatedAt": {"$date": "2025-12-10T10:00:00Z"}
+  },
+  {
+    "_id": {"$oid": "807f1f77bcf86cd799439039"},
+    "projectId": {"$oid": "607f1f77bcf86cd799439013"},
+    "name": "Design Phase",
+    "type": "phase",
+    "order": 2,
+    "startDate": {"$date": "2026-03-01T00:00:00Z"},
+    "endDate": {"$date": "2026-04-30T00:00:00Z"},
+    "goal": "System architecture and database design",
+    "createdAt": {"$date": "2025-12-10T10:00:00Z"},
+    "updatedAt": {"$date": "2025-12-10T10:00:00Z"}
+  },
+  {
+    "_id": {"$oid": "807f1f77bcf86cd79943903a"},
+    "projectId": {"$oid": "607f1f77bcf86cd799439013"},
+    "name": "Implementation Phase",
+    "type": "phase",
+    "order": 3,
+    "startDate": {"$date": "2026-05-01T00:00:00Z"},
+    "endDate": {"$date": "2026-09-30T00:00:00Z"},
+    "goal": "Development and integration",
+    "createdAt": {"$date": "2025-12-10T10:00:00Z"},
+    "updatedAt": {"$date": "2025-12-10T10:00:00Z"}
+  },
+  {
+    "_id": {"$oid": "807f1f77bcf86cd79943903b"},
+    "projectId": {"$oid": "607f1f77bcf86cd799439013"},
+    "name": "Testing & Deployment Phase",
+    "type": "phase",
+    "order": 4,
+    "startDate": {"$date": "2026-10-01T00:00:00Z"},
+    "endDate": {"$date": "2026-12-31T00:00:00Z"},
+    "goal": "Testing, UAT, and production deployment",
+    "createdAt": {"$date": "2025-12-10T10:00:00Z"},
+    "updatedAt": {"$date": "2025-12-10T10:00:00Z"}
+  }
+]

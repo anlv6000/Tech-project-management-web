@@ -1,0 +1,17 @@
+node_modules/
+.env
+.env.local
+.env.*.local
+dist/
+build/
+*.log
+logs/
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.prettierignore
+package-lock.json
+yarn.lock

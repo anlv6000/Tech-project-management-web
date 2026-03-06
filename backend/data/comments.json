@@ -1,0 +1,101 @@
+[
+  {
+    "_id": {"$oid": "a07f1f77bcf86cd799439051"},
+    "taskId": {"$oid": "907f1f77bcf86cd799439041"},
+    "userId": {"$oid": "507f1f77bcf86cd799439002"},
+    "content": "Repository is now live and CI/CD pipeline configured!",
+    "parentId": null,
+    "createdAt": {"$date": "2026-03-02T15:00:00Z"},
+    "updatedAt": {"$date": "2026-03-02T15:00:00Z"}
+  },
+  {
+    "_id": {"$oid": "a07f1f77bcf86cd799439052"},
+    "taskId": {"$oid": "907f1f77bcf86cd799439041"},
+    "userId": {"$oid": "507f1f77bcf86cd799439003"},
+    "content": "Great work! Can you share the repository link with the team?",
+    "parentId": {"$oid": "a07f1f77bcf86cd799439051"},
+    "createdAt": {"$date": "2026-03-02T15:30:00Z"},
+    "updatedAt": {"$date": "2026-03-02T15:30:00Z"}
+  },
+  {
+    "_id": {"$oid": "a07f1f77bcf86cd799439053"},
+    "taskId": {"$oid": "907f1f77bcf86cd799439042"},
+    "userId": {"$oid": "507f1f77bcf86cd799439003"},
+    "content": "First draft of mockups is ready for review. Please check the Figma link.",
+    "parentId": null,
+    "createdAt": {"$date": "2026-03-04T11:00:00Z"},
+    "updatedAt": {"$date": "2026-03-04T11:00:00Z"}
+  },
+  {
+    "_id": {"$oid": "a07f1f77bcf86cd799439054"},
+    "taskId": {"$oid": "907f1f77bcf86cd799439042"},
+    "userId": {"$oid": "507f1f77bcf86cd799439004"},
+    "content": "Looks good! Just a few adjustments needed on the mobile view.",
+    "parentId": {"$oid": "a07f1f77bcf86cd799439053"},
+    "createdAt": {"$date": "2026-03-04T14:00:00Z"},
+    "updatedAt": {"$date": "2026-03-04T14:00:00Z"}
+  },
+  {
+    "_id": {"$oid": "a07f1f77bcf86cd799439055"},
+    "taskId": {"$oid": "907f1f77bcf86cd799439043"},
+    "userId": {"$oid": "507f1f77bcf86cd799439004"},
+    "content": "Tailwind CSS and shadcn/ui components are now integrated successfully!",
+    "parentId": null,
+    "createdAt": {"$date": "2026-03-03T16:00:00Z"},
+    "updatedAt": {"$date": "2026-03-03T16:00:00Z"}
+  },
+  {
+    "_id": {"$oid": "a07f1f77bcf86cd799439056"},
+    "taskId": {"$oid": "907f1f77bcf86cd799439044"},
+    "userId": {"$oid": "507f1f77bcf86cd799439002"},
+    "content": "Started working on the navigation component. Will have a draft by end of day.",
+    "parentId": null,
+    "createdAt": {"$date": "2026-03-15T14:00:00Z"},
+    "updatedAt": {"$date": "2026-03-15T14:00:00Z"}
+  },
+  {
+    "_id": {"$oid": "a07f1f77bcf86cd799439057"},
+    "taskId": {"$oid": "907f1f77bcf86cd799439045"},
+    "userId": {"$oid": "507f1f77bcf86cd799439003"},
+    "content": "Homepage layout is 70% complete. Working on the hero section styling.",
+    "parentId": null,
+    "createdAt": {"$date": "2026-03-05T14:00:00Z"},
+    "updatedAt": {"$date": "2026-03-05T14:00:00Z"}
+  },
+  {
+    "_id": {"$oid": "a07f1f77bcf86cd799439058"},
+    "taskId": {"$oid": "907f1f77bcf86cd799439046"},
+    "userId": {"$oid": "507f1f77bcf86cd799439002"},
+    "content": "Need to start the authentication implementation. Backend API is ready.",
+    "parentId": null,
+    "createdAt": {"$date": "2026-02-25T10:00:00Z"},
+    "updatedAt": {"$date": "2026-02-25T10:00:00Z"}
+  },
+  {
+    "_id": {"$oid": "a07f1f77bcf86cd799439059"},
+    "taskId": {"$oid": "907f1f77bcf86cd799439047"},
+    "userId": {"$oid": "507f1f77bcf86cd799439005"},
+    "content": "API integration is progressing well. Most endpoints are working.",
+    "parentId": null,
+    "createdAt": {"$date": "2026-03-01T11:00:00Z"},
+    "updatedAt": {"$date": "2026-03-01T11:00:00Z"}
+  },
+  {
+    "_id": {"$oid": "a07f1f77bcf86cd79943905a"},
+    "taskId": {"$oid": "907f1f77bcf86cd799439049"},
+    "userId": {"$oid": "507f1f77bcf86cd799439003"},
+    "content": "All requirements gathered and documented in the requirements document.",
+    "parentId": null,
+    "createdAt": {"$date": "2026-02-20T16:00:00Z"},
+    "updatedAt": {"$date": "2026-02-20T16:00:00Z"}
+  },
+  {
+    "_id": {"$oid": "a07f1f77bcf86cd79943905b"},
+    "taskId": {"$oid": "907f1f77bcf86cd79943904a"},
+    "userId": {"$oid": "507f1f77bcf86cd799439007"},
+    "content": "System architecture design is 60% complete. Database schema finalized.",
+    "parentId": null,
+    "createdAt": {"$date": "2026-03-05T14:00:00Z"},
+    "updatedAt": {"$date": "2026-03-05T14:00:00Z"}
+  }
+]
