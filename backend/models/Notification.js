@@ -9,7 +9,7 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['task', 'comment', 'project', 'mention', 'system'],
+      enum: ['task', 'comment', 'project', 'mention', 'system', 'invitation'],
       required: true,
     },
     title: {
@@ -32,6 +32,10 @@ const notificationSchema = new mongoose.Schema(
       default: false,
     },
     actionLink: String,
+    data: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
   },
   { timestamps: true }
 );
