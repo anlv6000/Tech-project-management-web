@@ -4,6 +4,9 @@ import mongoose from 'mongoose';
 export const getProjectWorkUnits = async (req, res) => {
   try {
     const { projectId } = req.params;
+    if (!projectId || projectId === 'undefined') {
+      return res.json([]);
+    }
     const workUnits = await WorkUnit.find({ projectId }).sort('order');
     res.json(workUnits);
   } catch (error) {

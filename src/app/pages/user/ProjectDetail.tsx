@@ -35,8 +35,10 @@ export default function ProjectDetail() {
 
   // Load project data on mount
   React.useEffect(() => {
-    loadProjectData(projectId);
-  }, [projectId]);
+    if (projectId && projectId !== 'undefined') {
+      loadProjectData(projectId);
+    }
+  }, [projectId, loadProjectData]);
 
   const project = getProject(projectId);
   const members = getProjectMembers(projectId);

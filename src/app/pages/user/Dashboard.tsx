@@ -112,8 +112,8 @@ export default function Dashboard() {
 
                   return (
                     <Link
-                      key={project.id}
-                      to={`/app/projects/${project.id}`}
+                      key={projectId}
+                      to={`/app/projects/${projectId}`}
                       className="block p-4 border rounded-lg hover:shadow-md transition-shadow"
                     >
                       <div className="flex items-start justify-between mb-2">

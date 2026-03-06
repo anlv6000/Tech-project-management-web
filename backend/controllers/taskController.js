@@ -4,6 +4,9 @@ import mongoose from 'mongoose';
 export const getTasksByProject = async (req, res) => {
   try {
     const { projectId } = req.params;
+    if (!projectId || projectId === 'undefined') {
+      return res.json([]);
+    }
     const tasks = await Task.find({ projectId })
       .populate('assigneeId', '-password')
       .populate('createdBy', '-password')

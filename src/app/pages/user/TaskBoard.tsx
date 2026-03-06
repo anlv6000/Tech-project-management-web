@@ -178,7 +178,9 @@ export default function TaskBoard() {
 
   // Load project data on mount
   React.useEffect(() => {
-    loadProjectData(projectId);
+    if (projectId && projectId !== 'undefined') {
+      loadProjectData(projectId);
+    }
   }, [projectId, loadProjectData]);
 
   const project = getProject(projectId);

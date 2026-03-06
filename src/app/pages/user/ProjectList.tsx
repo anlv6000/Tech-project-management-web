@@ -200,8 +200,8 @@ export default function ProjectList() {
 
             return (
               <Link
-                key={project.id}
-                to={`/app/projects/${project.id}`}
+                key={projectId}
+                to={`/app/projects/${projectId}`}
                 className="bg-white p-6 rounded-lg border hover:shadow-lg transition-shadow"
               >
                 <div className="flex items-start justify-between mb-4">

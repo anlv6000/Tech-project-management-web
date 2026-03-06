@@ -316,6 +316,10 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
   // Load project data on-demand
   const loadProjectData = async (projectId: string) => {
+    if (!projectId || projectId.trim() === '') {
+      return;
+    }
+
     try {
       const [workUnitsRes, tasksRes] = await Promise.all([
         fetch(`${API_BASE_URL}/work-units/project/${projectId}`),
