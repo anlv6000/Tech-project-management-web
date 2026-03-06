@@ -10,6 +10,8 @@ import {
   Kanban,
   UserPlus,
   X,
+  AlertCircle,
+  CheckCircle,
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
@@ -29,7 +31,11 @@ export default function ProjectDetail() {
 
   const [activeTab, setActiveTab] = useState<'overview' | 'members' | 'reports'>('overview');
   const [showAddMember, setShowAddMember] = useState(false);
-  const [selectedUserId, setSelectedUserId] = useState('');
+  const [inviteData, setInviteData] = useState({ searchInput: '', role: 'Member' });
+  const [userSuggestions, setUserSuggestions] = useState<any[]>([]);
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteError, setInviteError] = useState('');
+  const [inviteSuccess, setInviteSuccess] = useState(false);
 
   if (!projectId) return null;
 
@@ -58,11 +64,68 @@ export default function ProjectDetail() {
     !members.some(m => m.userId === u.id) && u.isActive
   );
 
-  const handleAddMember = () => {
-    if (selectedUserId) {
-      addUserToProject(selectedUserId, projectId, 'member');
-      setShowAddMember(false);
-      setSelectedUserId('');
+  const handleSearchUser = async (input: string) => {
+    setInviteData({ ...inviteData, searchInput: input });
+
+    if (input.length < 2) {
+      setUserSuggestions([]);
+      return;
+    }
+
+    try {
+      const isEmail = input.includes('@');
+      const query = isEmail ? `email=${input}` : `fullName=${input}`;
+      const response = await fetch(`http://localhost:5000/api/users/search?${query}`);
+      
+      if (response.ok) {
+        const users = await response.json();
+        setUserSuggestions(users);
+      }
+    } catch (error) {
+      console.error('Search user error:', error);
+    }
+  };
+
+  const handleInviteUser = async (userOrEmail: any) => {
+    setInviteError('');
+    setInviteSuccess(false);
+    setInviteLoading(true);
+    try {
+      const invitePayload = typeof userOrEmail === 'string' 
+        ? { email: userOrEmail, role: 'Member' }
+        : { 
+            fullName: userOrEmail.fullName || userOrEmail.name,
+            email: userOrEmail.email,
+            role: 'Member'
+          };
+
+      const response = await fetch(
+        `http://localhost:5000/api/projects/${projectId}/invite`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(invitePayload)
+        }
+      );
+
+      if (response.ok) {
+        const result = await response.json();
+        setInviteSuccess(true);
+        setTimeout(() => {
+          setShowAddMember(false);
+          setUserSuggestions([]);
+          setInviteData({ searchInput: '', role: 'Member' });
+          setInviteSuccess(false);
+        }, 1500);
+      } else {
+        const error = await response.json();
+        setInviteError(error.message || 'Failed to invite user');
+      }
+    } catch (error) {
+      console.error('Invite error:', error);
+      setInviteError('Failed to invite user. Please try again.');
+    } finally {
+      setInviteLoading(false);
     }
   };
 
@@ -81,7 +144,7 @@ export default function ProjectDetail() {
 
   const workUnitData = workUnits.map(wu => ({
     name: wu.name,
-    tasks: tasks.filter(t => t.workUnitId === wu.id).length,
+    tasks: tasks.filter(t => String(t.workUnitId || '').trim() === String(wu.id || wu._id || '').trim()).length,
   }));
 
   return (
@@ -193,12 +256,13 @@ export default function ProjectDetail() {
                 </h2>
                 <div className="space-y-3">
                   {workUnits.map((wu) => {
-                    const unitTasks = tasks.filter(t => t.workUnitId === wu.id);
+                    const wuId = wu.id || wu._id || '';
+                    const unitTasks = tasks.filter(t => String(t.workUnitId || '').trim() === String(wuId).trim());
                     const unitCompleted = unitTasks.filter(t => t.status === 'done').length;
                     const unitProgress = unitTasks.length > 0 ? (unitCompleted / unitTasks.length) * 100 : 0;
 
                     return (
-                      <div key={wu.id} className="p-4 border rounded-lg">
+                      <div key={wuId} className="p-4 border rounded-lg">
                         <div className="flex items-center justify-between mb-2">
                           <div>
                             <h3 className="font-medium text-gray-900">{wu.name}</h3>
@@ -231,10 +295,9 @@ export default function ProjectDetail() {
                 <h2 className="text-xl font-bold text-gray-900">Team Members</h2>
                 <button
                   onClick={() => setShowAddMember(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  className="ml-2 px-3 py-1 text-sm bg-green-100 text-green-600 rounded hover:bg-green-200"
                 >
-                  <UserPlus className="w-5 h-5" />
-                  Add Member
+                  Invite
                 </button>
               </div>
               <div className="p-6">
@@ -312,42 +375,108 @@ export default function ProjectDetail() {
         </div>
       </div>
 
-      {/* Add Member Modal */}
+      {/* Invite User Modal */}
       {showAddMember && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-md w-full">
             <div className="p-6 border-b flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Add Team Member</h2>
-              <button onClick={() => setShowAddMember(false)} className="p-2 hover:bg-gray-100 rounded-lg">
+              <h2 className="text-xl font-bold text-gray-900">Invite to Project</h2>
+              <button
+                onClick={() => {
+                  setShowAddMember(false);
+                  setUserSuggestions([]);
+                  setInviteData({ searchInput: '', role: 'Member' });
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select User</label>
-              <select
-                value={selectedUserId}
-                onChange={(e) => setSelectedUserId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
-              >
-                <option value="">Choose a user...</option>
-                {availableUsers.map(u => (
-                  <option key={u.id} value={u.id}>{u.fullName} ({u.email})</option>
-                ))}
-              </select>
-              <div className="flex gap-3">
+
+            <div className="p-6 space-y-4">
+              {inviteError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h3 className="font-medium text-red-900">Error</h3>
+                    <p className="text-sm text-red-700 mt-1">{inviteError}</p>
+                  </div>
+                </div>
+              )}
+
+              {inviteSuccess && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h3 className="font-medium text-green-900">Success</h3>
+                    <p className="text-sm text-green-700 mt-1">User invited to project!</p>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Search by Email or Name
+                </label>
+                <input
+                  type="text"
+                  value={inviteData.searchInput}
+                  onChange={(e) => handleSearchUser(e.target.value)}
+                  disabled={inviteLoading}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                  placeholder="john@example.com hoặc John Doe"
+                />
+              </div>
+
+              {/* User Suggestions */}
+              {userSuggestions.length > 0 && (
+                <div className="border rounded-lg overflow-hidden bg-gray-50 max-h-48 overflow-y-auto">
+                  {userSuggestions.map((suggestion) => (
+                    <button
+                      key={suggestion._id || suggestion.id}
+                      onClick={() => handleInviteUser(suggestion)}
+                      disabled={inviteLoading}
+                      className="w-full text-left px-4 py-3 hover:bg-blue-100 disabled:hover:bg-gray-50 border-b last:border-b-0 transition-colors disabled:opacity-50"
+                    >
+                      <div className="font-medium text-gray-900">{suggestion.fullName}</div>
+                      <div className="text-sm text-gray-600">{suggestion.email}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* If email not found, allow direct invite */}
+              {inviteData.searchInput.includes('@') && userSuggestions.length === 0 && inviteData.searchInput.length > 2 && (
                 <button
-                  onClick={() => setShowAddMember(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  onClick={() => handleInviteUser(inviteData.searchInput)}
+                  disabled={inviteLoading}
+                  className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
                 >
-                  Cancel
+                  {inviteLoading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Inviting...
+                    </>
+                  ) : (
+                    `Invite ${inviteData.searchInput} (New User)`
+                  )}
                 </button>
-                <button
-                  onClick={handleAddMember}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  disabled={!selectedUserId}
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Role
+                </label>
+                <select
+                  value={inviteData.role}
+                  onChange={(e) => setInviteData({ ...inviteData, role: e.target.value })}
+                  disabled={inviteLoading}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                 >
-                  Add Member
-                </button>
+                  <option value="Member">Member</option>
+                  <option value="Lead">Lead</option>
+                  <option value="Admin">Admin</option>
+                </select>
               </div>
             </div>
           </div>

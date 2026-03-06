@@ -5,6 +5,7 @@ import LandingPage from './pages/guest/LandingPage';
 import RegisterPage from './pages/guest/RegisterPage';
 import LoginPage from './pages/guest/LoginPage';
 import ForgotPasswordPage from './pages/guest/ForgotPasswordPage';
+import AcceptInvitation from './pages/guest/AcceptInvitation';
 
 // User pages
 import UserLayout from './pages/user/UserLayout';
@@ -41,6 +42,10 @@ export const router = createBrowserRouter([
   {
     path: '/forgot-password',
     Component: ForgotPasswordPage,
+  },
+  {
+    path: '/accept-invitation',
+    Component: AcceptInvitation,
   },
   
   // User routes

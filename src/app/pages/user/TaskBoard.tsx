@@ -139,7 +139,7 @@ function Column({ workUnit, tasks, onTaskClick, onDrop, onAddTask, users }: Colu
       >
         {tasks.map((task) => (
           <TaskCard
-            key={task.id}
+            key={task.id || task._id}
             task={task}
             onClick={() => onTaskClick(task)}
             users={users}
@@ -174,6 +174,13 @@ export default function TaskBoard() {
   const [newTaskDesc, setNewTaskDesc] = useState('');
   const [newComment, setNewComment] = useState('');
   const [timeLog, setTimeLog] = useState('');
+  const [taskChanges, setTaskChanges] = useState<Partial<Task>>({});
+  const [showUnsavedChanges, setShowUnsavedChanges] = useState(false);
+
+  const handleTaskClick = (task: Task) => {
+    setSelectedTask(task);
+    setTaskChanges({});
+  };
 
   if (!projectId || !user) return null;
 
@@ -220,19 +227,54 @@ export default function TaskBoard() {
   };
 
   const handleAddComment = () => {
-    if (!selectedTask || !newComment.trim()) return;
-    addComment(selectedTask.id || selectedTask._id || '', newComment);
+    if (!newComment.trim() || !selectedTask) return;
+
+    addComment(selectedTaskId, newComment);
+
     setNewComment('');
   };
 
   const handleLogTime = () => {
-    if (!selectedTask || !timeLog) return;
+    if (!timeLog) return;
+
     const hours = parseFloat(timeLog);
-    if (isNaN(hours)) return;
-    
-    const currentTime = selectedTask.timeSpent || 0;
-    updateTask(selectedTask.id || selectedTask._id || '', { timeSpent: currentTime + hours });
+    if (isNaN(hours) || hours <= 0) return;
+
+    const currentTimeSpent = selectedTask?.timeSpent || 0;
+    updateTask(selectedTaskId, { timeSpent: currentTimeSpent + hours });
+
     setTimeLog('');
+  };
+
+  const handleTaskChange = (field: keyof Task, value: any) => {
+    setTaskChanges(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSaveTask = () => {
+    if (selectedTask && Object.keys(taskChanges).length > 0) {
+      updateTask(selectedTaskId, taskChanges);
+      setTaskChanges({});
+    }
+    setSelectedTask(null);
+  };
+
+  const handleCloseTaskModal = () => {
+    if (Object.keys(taskChanges).length > 0) {
+      setShowUnsavedChanges(true);
+    } else {
+      setSelectedTask(null);
+      setTaskChanges({});
+    }
+  };
+
+  const handleConfirmClose = () => {
+    setShowUnsavedChanges(false);
+    setSelectedTask(null);
+    setTaskChanges({});
+  };
+
+  const handleCancelClose = () => {
+    setShowUnsavedChanges(false);
   };
 
   const selectedTaskId = selectedTask?.id || selectedTask?._id || '';
@@ -273,7 +315,7 @@ export default function TaskBoard() {
                     <Column
                       workUnit={workUnit}
                       tasks={tasks}
-                      onTaskClick={setSelectedTask}
+                      onTaskClick={handleTaskClick}
                       onDrop={handleDrop}
                       onAddTask={handleAddTask}
                       users={users}
@@ -299,7 +341,7 @@ export default function TaskBoard() {
                   </div>
                 </div>
                 <button
-                  onClick={() => setSelectedTask(null)}
+                  onClick={handleCloseTaskModal}
                   className="p-2 hover:bg-gray-100 rounded-lg"
                 >
                   <X className="w-5 h-5" />
@@ -318,8 +360,8 @@ export default function TaskBoard() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                     <select
-                      value={selectedTask.status}
-                      onChange={(e) => updateTask(selectedTaskId, { status: e.target.value as any })}
+                      value={taskChanges.status ?? selectedTask.status}
+                      onChange={(e) => handleTaskChange('status', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="todo">To Do</option>
@@ -331,14 +373,17 @@ export default function TaskBoard() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
                     <select
-                      value={selectedTask.assigneeId || ''}
-                      onChange={(e) => updateTask(selectedTaskId, { assigneeId: e.target.value })}
+                      value={taskChanges.assigneeId ?? selectedTask.assigneeId ?? ''}
+                      onChange={(e) => handleTaskChange('assigneeId', e.target.value || undefined)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Unassigned</option>
-                      {users.map(u => (
-                        <option key={u.id} value={u.id}>{u.fullName}</option>
-                      ))}
+                      {users.map(u => {
+                        const userId = u.id || u._id || '';
+                        return (
+                          <option key={userId} value={userId}>{u.fullName}</option>
+                        );
+                      })}
                     </select>
                   </div>
                 </div>
@@ -394,17 +439,17 @@ export default function TaskBoard() {
                   <h3 className="font-medium text-gray-900 mb-3">Comments ({selectedTaskComments.length})</h3>
                   <div className="space-y-3 mb-4">
                     {selectedTaskComments.map(comment => {
-                      const commentUser = users.find(u => u.id === comment.userId);
+                      const commentUser = users.find(u => String(u.id || u._id).trim() === String(comment.userId).trim());
                       return (
-                        <div key={comment.id} className="flex gap-3">
+                        <div key={comment.id || comment._id} className="flex gap-3">
                           <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
                             <span className="text-sm text-blue-600 font-medium">
-                              {commentUser?.fullName.charAt(0).toUpperCase()}
+                              {commentUser?.fullName?.charAt(0).toUpperCase()}
                             </span>
                           </div>
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium text-gray-900">{commentUser?.fullName}</span>
+                              <span className="font-medium text-gray-900">{commentUser?.fullName || 'Unknown User'}</span>
                               <span className="text-xs text-gray-500">
                                 {new Date(comment.createdAt).toLocaleString()}
                               </span>
@@ -433,6 +478,42 @@ export default function TaskBoard() {
                     </button>
                   </div>
                 </div>
+              </div>
+
+              {/* Footer with Done button */}
+              <div className="p-6 border-t bg-gray-50 flex justify-end">
+                <button
+                  onClick={handleSaveTask}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Unsaved Changes Warning */}
+        {showUnsavedChanges && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-md w-full p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Unsaved Changes</h3>
+              <p className="text-gray-600 mb-6">
+                You have unsaved changes. Are you sure you want to close without saving?
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={handleCancelClose}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmClose}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                >
+                  Close Without Saving
+                </button>
               </div>
             </div>
           </div>

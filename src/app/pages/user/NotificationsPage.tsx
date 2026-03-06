@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
-import { Bell, Check, MessageSquare, FolderKanban, AlertCircle } from 'lucide-react';
+import { Bell, Check, MessageSquare, FolderKanban, AlertCircle, UserPlus } from 'lucide-react';
 
 export default function NotificationsPage() {
   const { user } = useAuth();
@@ -21,8 +21,32 @@ export default function NotificationsPage() {
         return <MessageSquare className="w-5 h-5" />;
       case 'project':
         return <FolderKanban className="w-5 h-5" />;
+      case 'invitation':
+        return <UserPlus className="w-5 h-5" />;
       default:
         return <Bell className="w-5 h-5" />;
+    }
+  };
+
+  const handleAcceptInvitation = async (notification: any) => {
+    try {
+      const response = await fetch('http://localhost:5000/api/projects/accept-invitation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          token: notification.data?.invitationToken
+        }),
+      });
+
+      if (response.ok) {
+        markAsRead(notification.id || notification._id || '');
+        // Refresh page or update state
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('Accept invitation error:', error);
     }
   };
 
@@ -48,7 +72,7 @@ export default function NotificationsPage() {
         <div className="space-y-3">
           {notifications.map((notification) => (
             <div
-              key={notification.id}
+              key={notification.id || notification._id}
               className={`bg-white p-4 rounded-lg border hover:shadow-md transition-shadow ${
                 !notification.isRead ? 'border-l-4 border-l-blue-600' : ''
               }`}
@@ -58,6 +82,7 @@ export default function NotificationsPage() {
                   notification.type === 'task' ? 'bg-green-100 text-green-600' :
                   notification.type === 'comment' ? 'bg-blue-100 text-blue-600' :
                   notification.type === 'project' ? 'bg-purple-100 text-purple-600' :
+                  notification.type === 'invitation' ? 'bg-orange-100 text-orange-600' :
                   'bg-gray-100 text-gray-600'
                 }`}>
                   {getIcon(notification.type)}
@@ -73,14 +98,24 @@ export default function NotificationsPage() {
                       </p>
                     </div>
 
-                    {!notification.isRead && (
-                      <button
-                        onClick={() => markAsRead(notification.id || notification._id || '')}
-                        className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded-lg"
-                      >
-                        Mark as read
-                      </button>
-                    )}
+                    <div className="flex gap-2">
+                      {notification.type === 'invitation' && notification.data?.status !== 'accepted' && (
+                        <button
+                          onClick={() => handleAcceptInvitation(notification)}
+                          className="px-3 py-1 text-sm bg-green-600 text-white hover:bg-green-700 rounded-lg"
+                        >
+                          Accept
+                        </button>
+                      )}
+                      {!notification.isRead && (
+                        <button
+                          onClick={() => markAsRead(notification.id || notification._id || '')}
+                          className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded-lg"
+                        >
+                          Mark as read
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

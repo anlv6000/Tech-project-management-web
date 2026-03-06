@@ -1,6 +1,7 @@
 import Project from '../models/Project.js';
 import UserProject from '../models/UserProject.js';
 import User from '../models/User.js';
+import Notification from '../models/Notification.js';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 
@@ -117,25 +118,54 @@ export const inviteUserToProject = async (req, res) => {
       user = await User.findOne({ fullName });
     }
 
-    // Nếu user tồn tại trong hệ, thêm vào project
-    if (user) {
-      const existingUserProject = await UserProject.findOne({ userId: user._id, projectId });
-      if (existingUserProject) {
-        return res.status(400).json({ message: 'User already in project' });
-      }
-
-      const userProject = new UserProject({
-        _id: new mongoose.Types.ObjectId(),
-        userId: user._id,
-        projectId: new mongoose.Types.ObjectId(projectId),
-        role
-      });
-      
-      await userProject.save();
-      return res.json({ success: true, message: 'User added to project', user });
+    // Tìm project để lấy tên
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
     }
 
-    // Nếu user chưa tồn tại, gửi email mời
+    // Nếu user tồn tại trong hệ thống, gửi notification mời
+    if (user) {
+      // Kiểm tra đã mời chưa
+      const existingInvitation = await Notification.findOne({
+        userId: user._id,
+        type: 'invitation',
+        'data.projectId': projectId,
+        'data.status': { $in: ['pending', 'accepted'] }
+      });
+
+      if (existingInvitation) {
+        return res.status(400).json({ message: 'User already invited or in project' });
+      }
+
+      // Tạo token mời
+      const invitationToken = jwt.sign(
+        { email: user.email, projectId, role },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+
+      // Tạo notification mời
+      const notification = new Notification({
+        _id: new mongoose.Types.ObjectId(),
+        userId: user._id,
+        type: 'invitation',
+        title: `Project Invitation: ${project.name}`,
+        message: `You have been invited to join the project "${project.name}" as ${role}`,
+        data: {
+          projectId,
+          projectName: project.name,
+          role,
+          status: 'pending',
+          invitationToken
+        }
+      });
+
+      await notification.save();
+      return res.json({ success: true, message: 'Invitation sent to existing user', user });
+    }
+
+    // Nếu user chưa tồn tại, tạo token mời và log link
     if (!user && email) {
       // Tạo token mời
       const invitationToken = jwt.sign(
@@ -144,21 +174,92 @@ export const inviteUserToProject = async (req, res) => {
         { expiresIn: '7d' }
       );
 
-      // TODO: Gửi email mời người dùng (cần nodemailer)
       const invitationLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/accept-invitation?token=${invitationToken}`;
-      
-      console.log('Invitation link (send via email):', invitationLink);
 
-      return res.json({ 
-        success: true, 
-        message: 'Invitation sent to email', 
-        invitationLink,
-        userFound: false 
+      console.log('Invitation link (send via email):', invitationLink);
+      console.log('Token details:', { email, projectId, role });
+
+      return res.json({
+        success: true,
+        message: 'Invitation link generated for new user',
+        invitationLink
       });
     }
 
-    res.status(404).json({ message: 'User not found' });
+    return res.status(400).json({ message: 'Email or full name is required' });
   } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const acceptInvitation = async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ message: 'Token is required' });
+    }
+
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { email, projectId, role } = decoded;
+
+    // Tìm user theo email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found. Please register first.' });
+    }
+
+    // Kiểm tra đã trong project chưa
+    const existingUserProject = await UserProject.findOne({ userId: user._id, projectId });
+    if (existingUserProject) {
+      return res.status(400).json({ message: 'You are already a member of this project' });
+    }
+
+    // Thêm user vào project
+    const userProject = new UserProject({
+      _id: new mongoose.Types.ObjectId(),
+      userId: user._id,
+      projectId: new mongoose.Types.ObjectId(projectId),
+      role
+    });
+
+    await userProject.save();
+
+    // Cập nhật notification thành accepted nếu có
+    await Notification.findOneAndUpdate(
+      {
+        userId: user._id,
+        type: 'invitation',
+        'data.projectId': projectId
+      },
+      {
+        'data.status': 'accepted',
+        isRead: true
+      }
+    );
+
+    // Tạo notification chào mừng
+    const project = await Project.findById(projectId);
+    const welcomeNotification = new Notification({
+      _id: new mongoose.Types.ObjectId(),
+      userId: user._id,
+      type: 'project',
+      title: `Welcome to ${project?.name || 'the project'}!`,
+      message: `You have successfully joined the project as ${role}`,
+      data: { projectId }
+    });
+
+    await welcomeNotification.save();
+
+    res.json({ success: true, message: 'Successfully joined the project', projectId });
+  } catch (error) {
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(400).json({ message: 'Invalid invitation token' });
+    }
+    if (error.name === 'TokenExpiredError') {
+      return res.status(400).json({ message: 'Invitation token has expired' });
+    }
     res.status(500).json({ message: error.message });
   }
 };
