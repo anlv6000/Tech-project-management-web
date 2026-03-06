@@ -103,11 +103,12 @@ interface ColumnProps {
 }
 
 function Column({ workUnit, tasks, onTaskClick, onDrop, onAddTask, users }: ColumnProps) {
+  const workUnitId = workUnit.id || workUnit._id || '';
   const [{ isOver }, drop] = useDrop({
     accept: ItemType,
     drop: (item: { id: string; workUnitId: string }) => {
-      if (item.workUnitId !== workUnit.id) {
-        onDrop(item.id, workUnit.id);
+      if (item.workUnitId !== workUnitId) {
+        onDrop(item.id, workUnitId);
       }
     },
     collect: (monitor) => ({
@@ -123,7 +124,7 @@ function Column({ workUnit, tasks, onTaskClick, onDrop, onAddTask, users }: Colu
           <p className="text-sm text-gray-600">{tasks.length} tasks</p>
         </div>
         <button
-          onClick={() => onAddTask(workUnit.id)}
+          onClick={() => onAddTask(workUnitId)}
           className="p-1.5 hover:bg-gray-100 rounded-lg"
         >
           <Plus className="w-5 h-5 text-gray-600" />
@@ -201,10 +202,11 @@ export default function TaskBoard() {
   const handleCreateTask = () => {
     if (!newTaskTitle.trim()) return;
 
-    const tasksInUnit = getTasksByWorkUnit(createWorkUnitId);
+    const normalizedWorkUnitId = String(createWorkUnitId).trim();
+    const tasksInUnit = getTasksByWorkUnit(normalizedWorkUnitId);
     createTask({
       projectId: projectId || '',
-      workUnitId: createWorkUnitId,
+      workUnitId: normalizedWorkUnitId,
       title: newTaskTitle,
       description: newTaskDesc,
       status: 'todo',
@@ -267,7 +269,7 @@ export default function TaskBoard() {
                 const workUnitId = workUnit.id || workUnit._id || '';
                 const tasks = getTasksByWorkUnit(workUnitId);
                 return (
-                  <div key={workUnit.id} className="bg-gray-100 p-4 rounded-lg">
+                  <div key={workUnitId} className="bg-gray-100 p-4 rounded-lg">
                     <Column
                       workUnit={workUnit}
                       tasks={tasks}

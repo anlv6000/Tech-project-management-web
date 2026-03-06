@@ -320,6 +320,8 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       return;
     }
 
+    const normalizedProjectId = String(projectId).trim();
+
     try {
       const [workUnitsRes, tasksRes] = await Promise.all([
         fetch(`${API_BASE_URL}/work-units/project/${projectId}`),
@@ -329,7 +331,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       if (workUnitsRes.ok) {
         const units = await workUnitsRes.json();
         setWorkUnits(prev => {
-          const existing = prev.filter(wu => wu.projectId !== projectId);
+          const existing = prev.filter(wu => String(wu.projectId || '').trim() !== normalizedProjectId);
           return [...existing, ...units];
         });
       }
@@ -337,7 +339,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       if (tasksRes.ok) {
         const tasksList = await tasksRes.json();
         setTasks(prev => {
-          const existing = prev.filter(t => t.projectId !== projectId);
+          const existing = prev.filter(t => String(t.projectId || '').trim() !== normalizedProjectId);
           return [...existing, ...tasksList];
         });
       }
