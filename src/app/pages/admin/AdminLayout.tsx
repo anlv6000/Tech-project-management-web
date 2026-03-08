@@ -65,7 +65,7 @@ export default function AdminLayout() {
             </div>
             <div>
               <span className="text-lg font-bold block">Admin Panel</span>
-              <span className="text-xs text-purple-200 hidden sm:block">ProjectFlow</span>
+              <span className="text-xs text-purple-200 hidden sm:block">Tech Task</span>
             </div>
           </Link>
         </div>

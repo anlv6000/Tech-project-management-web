@@ -75,7 +75,7 @@ export default function LoginPage() {
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <CheckCircle className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xl font-bold">ProjectFlow</span>
+              <span className="text-xl font-bold">Tech Task</span>
             </Link>
           </div>
         </div>
@@ -86,7 +86,7 @@ export default function LoginPage() {
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
-            <p className="text-gray-600">Login to your ProjectFlow account</p>
+            <p className="text-gray-600">Login to your Tech Task account</p>
           </div>
 
           {error && (
