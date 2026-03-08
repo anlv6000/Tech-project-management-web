@@ -288,10 +288,28 @@ export default function TaskBoard() {
   };
 
   const handleCreateTask = () => { // Ensure 'handleCreateTask' is defined
-    if (!newTaskTitle.trim()) return;
+    if (!newTaskTitle.trim()) {
+      alert('Task title is required');
+      return;
+    }
+
+    if (!newTaskDesc.trim()) {
+      alert('Task description is required');
+      return;
+    }
 
     const normalizedWorkUnitId = String(createWorkUnitId).trim();
     const tasksInUnit = getTasksByWorkUnit(normalizedWorkUnitId);
+
+    // Check for unique task title within the same column
+    const existingTask = tasksInUnit.find(
+      (task) => task.title.trim().toLowerCase() === newTaskTitle.trim().toLowerCase()
+    );
+    if (existingTask) {
+      alert('Task title must be unique within the same column');
+      return;
+    }
+
     createTask({
       projectId: projectId || '',
       workUnitId: normalizedWorkUnitId,

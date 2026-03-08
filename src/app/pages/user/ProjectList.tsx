@@ -49,16 +49,13 @@ export default function ProjectList() {
       setCreateError('Project description is required');
       return;
     }
-    if (!formData.startDate) {
-      setCreateError('Start date is required');
-      return;
-    }
-    if (!formData.endDate) {
-      setCreateError('End date is required');
-      return;
-    }
-    if (new Date(formData.startDate) >= new Date(formData.endDate)) {
-      setCreateError('End date must be after start date');
+
+    // Check for unique project name
+    const existingProject = projects.find(
+      (project) => project.name.trim().toLowerCase() === formData.name.trim().toLowerCase()
+    );
+    if (existingProject) {
+      setCreateError('Project name must be unique');
       return;
     }
 
