@@ -89,15 +89,6 @@ export default function LoginPage() {
             <p className="text-gray-600">Login to your ProjectFlow account</p>
           </div>
 
-          {/* Demo accounts info */}
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-blue-900 font-medium mb-2">Demo Accounts:</p>
-            <div className="text-sm text-blue-800 space-y-1">
-              <p><strong>User:</strong> john@demo.com / demo123</p>
-              <p><strong>Admin:</strong> admin@demo.com / admin123</p>
-            </div>
-          </div>
-
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />

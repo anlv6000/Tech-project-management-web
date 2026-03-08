@@ -30,6 +30,7 @@ export interface Project {
   createdBy: string;
   createdAt: string;
   isArchived: boolean;
+  isCompleted: boolean;
   updatedAt?: string;
 }
 

@@ -220,57 +220,15 @@ export default function ProjectList() {
               <Link
                 key={projectId}
                 to={`/app/projects/${projectId}`}
-                className="bg-white p-6 rounded-lg border hover:shadow-lg transition-shadow"
+                className={`bg-white p-6 rounded-lg border hover:shadow-lg transition-shadow ${project.isCompleted ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold text-gray-900 mb-1">{project.name}</h3>
-                    <span className="inline-block px-2 py-1 text-xs font-medium rounded-full capitalize bg-blue-100 text-blue-600">
-                      {project.methodology}
-                    </span>
-                  </div>
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setSelectedProjectId(project.id || project._id || '');
-                      setShowInviteModal(true);
-                    }}
-                    className="ml-2 px-3 py-1 text-sm bg-green-100 text-green-600 rounded hover:bg-green-200"
-                  >
-                    Invite
-                  </button>
-                </div>
-
-                <p className="text-gray-600 text-sm mb-4 line-clamp-2">{project.description}</p>
-
-                {/* Progress */}
-                <div className="mb-4">
-                  <div className="flex items-center justify-between mb-2 text-sm">
-                    <span className="text-gray-600">Progress</span>
-                    <span className="font-medium text-gray-900">{Math.round(progress)}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full transition-all"
-                      style={{ width: `${progress}%` }}
-                    ></div>
-                  </div>
-                </div>
-
-                {/* Metadata */}
-                <div className="space-y-2 text-sm text-gray-600">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    <span>Due {new Date(project.endDate).toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Users className="w-4 h-4" />
-                    <span>{members.length} members</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4" />
-                    <span>{projectTasks.length} tasks</span>
-                  </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">{project.name}</h3>
+                <p className="text-gray-600 mb-4">{project.description}</p>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <span>{Math.round(progress)}% Complete</span>
+                  {project.isCompleted && (
+                    <span className="px-2 py-1 bg-green-100 text-green-600 rounded-full text-xs">Completed</span>
+                  )}
                 </div>
               </Link>
             );

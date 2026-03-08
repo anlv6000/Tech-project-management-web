@@ -23,9 +23,10 @@ interface TaskCardProps {
   task: Task;
   onClick: () => void;
   users: any[];
+  isProjectCompleted: boolean; // Add this prop
 }
 
-function TaskCard({ task, onClick, users }: TaskCardProps) {
+function TaskCard({ task, onClick, users, isProjectCompleted }: TaskCardProps) {
   const [{ isDragging }, drag] = useDrag({
     type: ItemType,
     item: { id: task.id || task._id, workUnitId: task.workUnitId },
@@ -35,13 +36,11 @@ function TaskCard({ task, onClick, users }: TaskCardProps) {
   });
 
   const assigneeId = String(task.assigneeId || '');
-  // Lấy projectId từ task
   const projectId = String(task.projectId || '');
   const { getTaskComments, getTaskAttachments, getAllUsers, getAllUserProjects } = useData();
   const taskId = task.id || task._id || '';
   const comments = getTaskComments(taskId);
   const attachments = getTaskAttachments(taskId);
-  // Lấy đúng user cho assignee theo project
   const allUserProjects = getAllUserProjects ? getAllUserProjects() : [];
   const projectUserProjects = allUserProjects.filter(up => String(up.projectId || '').trim() === projectId);
   const memberIds = projectUserProjects.map(up => String(up.userId || '').trim());
@@ -53,7 +52,6 @@ function TaskCard({ task, onClick, users }: TaskCardProps) {
     (u) => String(u.id || u._id || '') === assigneeId
   );
 
-  // Color coding for status
   let statusColor = '';
   if (task.status === 'todo') statusColor = 'bg-gray-100 border-gray-300';
   else if (task.status === 'in-progress') statusColor = 'bg-yellow-100 border-yellow-300';
@@ -63,9 +61,8 @@ function TaskCard({ task, onClick, users }: TaskCardProps) {
   return (
     <div
       ref={drag as any}
-      onClick={onClick}
-      className={`p-4 rounded-lg border hover:shadow-md cursor-pointer transition-all ${statusColor} ${isDragging ? 'opacity-50' : 'opacity-100'
-        }`}
+      onClick={onClick} // Allow opening task details regardless of project completion
+      className={`p-4 rounded-lg border hover:shadow-md cursor-pointer transition-all ${statusColor} ${isDragging ? 'opacity-50' : 'opacity-100'} ${isProjectCompleted ? 'cursor-not-allowed' : ''}`}
     >
       <h3 className="font-medium text-gray-900 mb-2">{task.title}</h3>
       {task.description && (
@@ -120,9 +117,10 @@ interface ColumnProps {
   onDrop: (taskId: string, newWorkUnitId: string) => void;
   onAddTask: (workUnitId: string) => void;
   users: any[];
+  isProjectCompleted: boolean; // Add this prop
 }
 
-function Column({ workUnit, tasks, onTaskClick, onDrop, onAddTask, users }: ColumnProps) {
+function Column({ workUnit, tasks, onTaskClick, onDrop, onAddTask, users, isProjectCompleted }: ColumnProps) {
   const workUnitId = workUnit.id || workUnit._id || '';
   const [{ isOver }, drop] = useDrop({
     accept: ItemType,
@@ -143,12 +141,14 @@ function Column({ workUnit, tasks, onTaskClick, onDrop, onAddTask, users }: Colu
           <h2 className="text-lg font-bold text-gray-900">{workUnit.name}</h2>
           <p className="text-sm text-gray-600">{tasks.length} tasks</p>
         </div>
-        <button
-          onClick={() => onAddTask(workUnitId)}
-          className="p-1.5 hover:bg-gray-100 rounded-lg"
-        >
-          <Plus className="w-5 h-5 text-gray-600" />
-        </button>
+        {!isProjectCompleted && ( // Hide '+ Task' button if project is completed
+          <button
+            onClick={() => onAddTask(workUnitId)}
+            className="p-1.5 hover:bg-gray-100 rounded-lg"
+          >
+            <Plus className="w-5 h-5 text-gray-600" />
+          </button>
+        )}
       </div>
 
       <div
@@ -162,6 +162,7 @@ function Column({ workUnit, tasks, onTaskClick, onDrop, onAddTask, users }: Colu
             task={task}
             onClick={() => onTaskClick(task)}
             users={users}
+            isProjectCompleted={isProjectCompleted} // Pass the prop here
           />
         ))}
       </div>
@@ -212,51 +213,81 @@ export default function TaskBoard() {
   }, [projectId, loadProjectData]);
 
   const project = getProject(projectId);
-  const workUnits = getProjectWorkUnits(projectId);
-  const users = getAllUsers();
-  // Lấy userProject theo projectId
+  const isProjectCompleted = project?.isCompleted || false;
+  const workUnits = getProjectWorkUnits(projectId) || []; // Ensure 'workUnits' is defined
+  const users = getAllUsers() || []; // Ensure 'users' is defined
   const allUserProjects = getAllUserProjects ? getAllUserProjects() : [];
   const projectIdStr = String(projectId);
-  // Filter userProject by projectId
   const projectUserProjects = allUserProjects.filter(up => {
     const pid = String(up.projectId || '').trim();
     return pid === projectIdStr;
   });
-  // Get userIds
   const memberIds = projectUserProjects.map(up => String(up.userId || '').trim());
-  // Filter users by memberIds
-  const projectMembers = users.filter(u => {
+  const projectMembers = users.filter((u: any) => { // Ensure 'projectMembers' is defined and add type for 'u'
     const userId = String(u.id || u._id || '').trim();
     return memberIds.includes(userId);
   });
 
-  if (!project) return null;
+  if (!project) return null; // Ensure 'project' is defined before usage
 
-  const handleDrop = async (taskId: string, newWorkUnitId: string) => {
+  const normalizeId = (id: any) => { // Ensure 'normalizeId' is defined
+    if (!id) return '';
+    if (typeof id === 'object' && id._id) return String(id._id);
+    return String(id);
+  };
+
+  const handleDrop = async (taskId: string, newWorkUnitId: string) => { // Ensure 'handleDrop' is defined
     if (!taskId || !newWorkUnitId) return;
 
-    // Lấy danh sách task hiện có trong workUnit mới
     const tasksInUnit = getTasksByWorkUnit(newWorkUnitId);
-
-    // Tính order mới = số lượng task hiện có
     const newOrder = tasksInUnit.length;
 
     try {
-      // Gọi updateTask để cập nhật cả workUnitId và order
       await updateTask(taskId, { workUnitId: newWorkUnitId, order: newOrder });
     } catch (err) {
       console.error("Failed to move task:", err);
     }
   };
 
-
-
-  const handleAddTask = (workUnitId: string) => {
+  const handleAddTask = (workUnitId: string) => { // Ensure 'handleAddTask' is defined
     setCreateWorkUnitId(workUnitId);
     setShowCreateTask(true);
   };
 
-  const handleCreateTask = () => {
+  const handleCreateSprint = async () => { // Ensure 'handleCreateSprint' is defined
+    try {
+      await createSprint(
+        projectId,
+        "Sprint mới",
+        undefined,
+        undefined,
+        "Goal cho sprint"
+      );
+    } catch (error) {
+      console.error("Failed to create sprint:", error);
+    }
+  };
+
+  const handleCloseTaskModal = () => { // Ensure 'handleCloseTaskModal' is defined
+    if (Object.keys(taskChanges).length > 0) {
+      setShowUnsavedChanges(true);
+    } else {
+      setSelectedTask(null);
+      setTaskChanges({});
+    }
+  };
+
+  const handleCancelClose = () => { // Ensure 'handleCancelClose' is defined
+    setShowUnsavedChanges(false);
+  };
+
+  const handleConfirmClose = () => { // Ensure 'handleConfirmClose' is defined
+    setShowUnsavedChanges(false);
+    setSelectedTask(null);
+    setTaskChanges({});
+  };
+
+  const handleCreateTask = () => { // Ensure 'handleCreateTask' is defined
     if (!newTaskTitle.trim()) return;
 
     const normalizedWorkUnitId = String(createWorkUnitId).trim();
@@ -274,6 +305,29 @@ export default function TaskBoard() {
     setShowCreateTask(false);
     setNewTaskTitle('');
     setNewTaskDesc('');
+  };
+
+  const handleTaskChange = (field: keyof Task, value: any) => { // Ensure 'handleTaskChange' is defined
+    setTaskChanges(prev => ({ ...prev, [field]: value }));
+
+    if (field === 'assigneeId' && selectedTask) {
+      const assignedUser = users?.find((u: any) => String(u.id || u._id) === String(value));
+      if (assignedUser) {
+        // Send notification
+        fetch('http://localhost:5000/api/notifications', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: assignedUser.id || assignedUser._id,
+            type: 'task',
+            title: `Assigned to Task: ${selectedTask.title}`,
+            message: `You have been assigned to task "${selectedTask.title}" in project ${project?.name}`,
+            relatedEntityId: selectedTask.id || selectedTask._id,
+            relatedEntityType: 'task',
+          }),
+        });
+      }
+    }
   };
 
   const handleAddComment = () => {
@@ -296,30 +350,6 @@ export default function TaskBoard() {
     setTimeLog('');
   };
 
-  // Send notification when assigning
-  const handleTaskChange = (field: keyof Task, value: any) => {
-    setTaskChanges(prev => ({ ...prev, [field]: value }));
-
-    if (field === 'assigneeId' && selectedTask) {
-      const assignedUser = users.find(u => String(u.id || u._id) === String(value));
-      if (assignedUser) {
-        // Send notification
-        fetch('http://localhost:5000/api/notifications', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: assignedUser.id || assignedUser._id,
-            type: 'task',
-            title: `Assigned to Task: ${selectedTask.title}`,
-            message: `You have been assigned to task "${selectedTask.title}" in project ${project?.name}`,
-            relatedEntityId: selectedTask.id || selectedTask._id,
-            relatedEntityType: 'task',
-          }),
-        });
-      }
-    }
-  };
-
   const handleSaveTask = () => {
     if (selectedTask && Object.keys(taskChanges).length > 0) {
       updateTask(selectedTaskId, taskChanges);
@@ -328,32 +358,9 @@ export default function TaskBoard() {
     setSelectedTask(null);
   };
 
-  const handleCloseTaskModal = () => {
-    if (Object.keys(taskChanges).length > 0) {
-      setShowUnsavedChanges(true);
-    } else {
-      setSelectedTask(null);
-      setTaskChanges({});
-    }
-  };
-
-  const handleConfirmClose = () => {
-    setShowUnsavedChanges(false);
-    setSelectedTask(null);
-    setTaskChanges({});
-  };
-
-  const handleCancelClose = () => {
-    setShowUnsavedChanges(false);
-  };
-
   const selectedTaskId = selectedTask?.id || selectedTask?._id || '';
   const selectedTaskComments = selectedTask ? getTaskComments(selectedTaskId) : [];
   const selectedTaskAttachments = selectedTask ? getTaskAttachments(selectedTaskId) : [];
-
-
-  // Comments mapping
-  // Comments mapping: lấy đúng user từ allUsers
   const updatedComments = (selectedTaskComments || []).map((comment: any) => {
     const foundUser = comment.userId; // đã populate
     return {
@@ -364,28 +371,6 @@ export default function TaskBoard() {
       createdAt: comment.createdAt || '',
     };
   });
-
-  const normalizeId = (id: any) => {
-    if (!id) return '';
-    if (typeof id === 'object' && id._id) return String(id._id);
-    return String(id);
-  };
-
-  const handleCreateSprint = async () => {
-    try {
-      await createSprint(
-        projectId,
-        "Sprint mới",
-        undefined,
-        undefined,
-        "Goal cho sprint"
-      );
-    } catch (error) {
-      console.error("Failed to create sprint:", error);
-    }
-  };
-
-
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="h-full flex flex-col bg-gray-50">
@@ -401,10 +386,10 @@ export default function TaskBoard() {
             </Link>
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">{project.name}</h1>
-                <p className="text-sm text-gray-600 capitalize">{project.methodology} Board</p>
+                <h1 className="text-2xl font-bold text-gray-900">{project?.name}</h1> {/* Ensure 'project' is defined */}
+                <p className="text-sm text-gray-600 capitalize">{project?.methodology} Board</p> {/* Ensure 'project' is defined */}
               </div>
-              {project.methodology === 'agile' && (
+              {project?.methodology === 'agile' && !isProjectCompleted && ( // Ensure 'project' is defined
                 <button
                   onClick={handleCreateSprint}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -416,13 +401,11 @@ export default function TaskBoard() {
           </div>
         </div>
 
-
         {/* Board */}
         <div className="flex-1 overflow-x-auto p-4">
           <div className="max-w-[1600px] mx-auto">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 h-full">
-
-              {workUnits.map((workUnit) => {
+              {workUnits.map((workUnit: any) => { // Add type for 'workUnit'
                 const workUnitId = workUnit.id || workUnit._id || '';
                 const tasks = getTasksByWorkUnit(workUnitId);
                 return (
@@ -431,9 +414,13 @@ export default function TaskBoard() {
                       workUnit={workUnit}
                       tasks={tasks}
                       onTaskClick={handleTaskClick}
-                      onDrop={handleDrop}
+                      onDrop={(taskId, newWorkUnitId) => {
+                        if (isProjectCompleted) return; // bỏ qua nếu project complete
+                        return handleDrop(taskId, newWorkUnitId);
+                      }}
                       onAddTask={handleAddTask}
                       users={users}
+                      isProjectCompleted={isProjectCompleted}
                     />
                   </div>
                 );
@@ -470,14 +457,19 @@ export default function TaskBoard() {
                   <p className="text-gray-700">{selectedTask.description || 'No description'}</p>
                 </div>
 
+                {/* Disable all functionalities if project is completed */}
                 {/* Details */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                     <select
+                      disabled={isProjectCompleted}
                       value={taskChanges.status ?? selectedTask.status}
                       onChange={(e) => handleTaskChange('status', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${isProjectCompleted
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                        : "focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        }`}
                     >
                       <option value="todo">To Do</option>
                       <option value="in-progress">In Progress</option>
@@ -488,23 +480,21 @@ export default function TaskBoard() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
                     <select
-                      value={(() => {
-                        // Nếu taskChanges có assigneeId thì dùng luôn
-                        if (taskChanges.assigneeId) return normalizeId(taskChanges.assigneeId);
-
-                        // Nếu selectedTask.assigneeId là object (populate) hoặc string thì normalize luôn
-                        return normalizeId(selectedTask.assigneeId);
-                      })()}
+                      disabled={isProjectCompleted}
+                      value={taskChanges.assigneeId ?? selectedTask.assigneeId}
                       onChange={(e) =>
                         handleTaskChange(
                           'assigneeId',
                           e.target.value !== '' ? normalizeId(e.target.value) : undefined
                         )
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${isProjectCompleted
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                        : "focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        }`}
                     >
                       <option value="">Unassigned</option>
-                      {projectMembers.map((u) => {
+                      {projectMembers.map((u: any) => {
                         const userId = normalizeId(u.id || u._id);
                         return (
                           <option key={userId} value={userId}>
@@ -515,7 +505,6 @@ export default function TaskBoard() {
                     </select>
                   </div>
                 </div>
-
                 {/* Time Tracking */}
                 <div>
                   <h3 className="font-medium text-gray-900 mb-2">Time Tracking</h3>
@@ -534,8 +523,10 @@ export default function TaskBoard() {
                       className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     <button
+                      disabled={isProjectCompleted}
                       onClick={handleLogTime}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                      className={`px-4 py-2 rounded-lg ${isProjectCompleted ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-blue-600 text-white hover:bg-blue-700"
+                        }`}
                     >
                       Log Time
                     </button>

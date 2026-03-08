@@ -263,3 +263,21 @@ export const acceptInvitation = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+export const completeProject = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const project = await Project.findById(id);
+
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    project.isCompleted = true;
+    await project.save();
+
+    res.json({ message: 'Project marked as complete', project });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

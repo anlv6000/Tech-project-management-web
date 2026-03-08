@@ -11,5 +11,6 @@ router.post('/:projectId/invite', projectController.inviteUserToProject);
 router.post('/accept-invitation', projectController.acceptInvitation);
 router.put('/:id', projectController.updateProject);
 router.delete('/:id', projectController.deleteProject);
+router.post('/:id/complete', projectController.completeProject);
 
 export default router;

@@ -36,6 +36,8 @@ export default function ProjectDetail() {
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState('');
   const [inviteSuccess, setInviteSuccess] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [completionError, setCompletionError] = useState('');
 
   if (!projectId) return null;
 
@@ -126,6 +128,40 @@ export default function ProjectDetail() {
       setInviteError('Failed to invite user. Please try again.');
     } finally {
       setInviteLoading(false);
+    }
+  };
+
+  const handleCompleteProject = async () => {
+    if (tasks.some(task => task.status !== 'done')) {
+      alert(`Cannot complete project. ${tasks.filter(task => task.status !== 'done').length} tasks are not completed.`);
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to mark this project as complete? This action cannot be undone.')) {
+      return;
+    }
+
+    setIsCompleting(true);
+    setCompletionError('');
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/projects/${projectId}/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (response.ok) {
+        alert('Project marked as complete!');
+        window.location.reload();
+      } else {
+        const error = await response.json();
+        setCompletionError(error.message || 'Failed to complete project.');
+      }
+    } catch (error) {
+      console.error('Complete project error:', error);
+      setCompletionError('An error occurred while completing the project.');
+    } finally {
+      setIsCompleting(false);
     }
   };
 
@@ -482,6 +518,22 @@ export default function ProjectDetail() {
           </div>
         </div>
       )}
+
+      <div className="bg-white border-b p-6">
+        <div className="max-w-7xl mx-auto">
+          <button
+            onClick={handleCompleteProject}
+            disabled={isCompleting || project.isCompleted}
+            className={`px-4 py-2 rounded-lg ${project.isCompleted ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'} text-white`}
+          >
+            {isCompleting ? 'Completing...' : project.isCompleted ? 'Project Completed' : 'Mark as Complete'}
+          </button>
+
+          {completionError && (
+            <div className="text-red-600 mt-2">{completionError}</div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
