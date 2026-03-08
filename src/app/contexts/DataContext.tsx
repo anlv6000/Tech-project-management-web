@@ -63,9 +63,11 @@ interface DataContextType {
 
   // Attachments
   attachments: Attachment[];
-  addAttachment: (taskId: string, fileName: string, fileUrl: string, fileSize: number) => void;
+   addAttachment: (taskId: string, file: File) => Promise<void>;
   removeAttachment: (id: string) => void;
   getTaskAttachments: (taskId: string) => Attachment[];
+  getAttachmentById: (id: string) => Attachment | undefined;
+
 
   // Notifications
   notifications: Notification[];
@@ -441,26 +443,26 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       .filter(wu => String(wu.projectId || '').trim() === normalizedProjectId)
       .sort((a, b) => a.order - b.order);
   };
-const createSprint = async (
-  projectId: string,
-  name: string,
-  startDate?: string,
-  endDate?: string,
-  goal?: string
-): Promise<WorkUnit> => {
-  const response = await fetch(`${API_BASE_URL}/work-units/sprint`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ projectId, name, startDate, endDate, goal }),
-  });
+  const createSprint = async (
+    projectId: string,
+    name: string,
+    startDate?: string,
+    endDate?: string,
+    goal?: string
+  ): Promise<WorkUnit> => {
+    const response = await fetch(`${API_BASE_URL}/work-units/sprint`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectId, name, startDate, endDate, goal }),
+    });
 
-  if (!response.ok) throw new Error('Failed to create sprint');
+    if (!response.ok) throw new Error('Failed to create sprint');
 
-  const newSprint = await response.json();
-  const sprintWithId = { ...newSprint, id: newSprint._id || newSprint.id };
-  setWorkUnits(prev => [...prev, sprintWithId]);
-  return sprintWithId;
-};
+    const newSprint = await response.json();
+    const sprintWithId = { ...newSprint, id: newSprint._id || newSprint.id };
+    setWorkUnits(prev => [...prev, sprintWithId]);
+    return sprintWithId;
+  };
 
 
 
@@ -564,18 +566,16 @@ const createSprint = async (
   };
 
   // Attachment methods
-  const addAttachment = async (taskId: string, fileName: string, fileUrl: string, fileSize: number) => {
+  const addAttachment = async (taskId: string, file: File) => {
     try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('taskId', String(taskId));
+      formData.append('uploadedBy', String(user?.id || user?._id));
+
       const response = await fetch(`${API_BASE_URL}/attachments`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          taskId,
-          fileName,
-          fileUrl,
-          fileSize,
-          uploadedBy: user?.id || user?._id,
-        }),
+        body: formData,
       });
 
       if (!response.ok) throw new Error('Failed to add attachment');
@@ -587,6 +587,7 @@ const createSprint = async (
       console.error('Add attachment error:', error);
     }
   };
+
 
   const removeAttachment = async (id: string) => {
     try {
@@ -682,6 +683,10 @@ const createSprint = async (
       console.error('Add audit log error:', error);
     }
   };
+  const getAttachmentById = (id: string) => {
+    const normalizedId = String(id).trim();
+    return attachments.find(a => String(a.id || a._id).trim() === normalizedId);
+  };
 
   const value: DataContextType = {
     projects,
@@ -714,6 +719,7 @@ const createSprint = async (
     addAttachment,
     removeAttachment,
     getTaskAttachments,
+    getAttachmentById,
     notifications,
     markAsRead,
     getUserNotifications,

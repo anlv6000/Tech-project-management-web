@@ -186,6 +186,8 @@ export default function TaskBoard() {
     loadProjectData,
     getAllUserProjects,
     createSprint,
+    addAttachment,
+    removeAttachment,
   } = useData();
 
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -267,12 +269,17 @@ export default function TaskBoard() {
       console.error("Failed to create sprint:", error);
     }
   };
+
   const handleAddAttachment = async (file: File) => {
-    if (!selectedTask) return;
+    if (!selectedTask || !user) return;
+
+    const taskId = selectedTask.id || selectedTask._id;
+    if (!taskId) return;
 
     const formData = new FormData();
-    formData.append('file', file);
-    formData.append('taskId', selectedTask.id || selectedTask._id || '');
+    formData.append('file', file); // ✅ đúng với upload.single('file')
+    formData.append('taskId', String(taskId)); // ép kiểu string
+    formData.append('uploadedBy', String(user.id || user._id)); // ép kiểu string
 
     try {
       const response = await fetch('http://localhost:5000/api/attachments', {
@@ -282,14 +289,30 @@ export default function TaskBoard() {
 
       if (response.ok) {
         const newAttachment = await response.json();
-        selectedTaskAttachments.push(newAttachment);
+        addAttachment(taskId, file);
       } else {
-        console.error('Failed to upload attachment');
+        const errorText = await response.text();
+        console.error('Failed to upload attachment:', errorText);
       }
     } catch (error) {
       console.error('Error uploading attachment:', error);
     }
   };
+  const handleSaveTask = () => {
+    if (!selectedTask) return;
+
+    const selectedTaskId = String(selectedTask.id || selectedTask._id || '');
+    if (!selectedTaskId) return;
+
+    if (Object.keys(taskChanges).length > 0) {
+      updateTask(selectedTaskId, taskChanges);
+      setTaskChanges({});
+    }
+
+    setSelectedTask(null);
+  };
+
+
 
   const handleCloseTaskModal = () => { // Ensure 'handleCloseTaskModal' is defined
     if (Object.keys(taskChanges).length > 0) {
@@ -391,13 +414,6 @@ export default function TaskBoard() {
     setTimeLog('');
   };
 
-  const handleSaveTask = () => {
-    if (selectedTask && Object.keys(taskChanges).length > 0) {
-      updateTask(selectedTaskId, taskChanges);
-      setTaskChanges({});
-    }
-    setSelectedTask(null);
-  };
 
   const selectedTaskId = selectedTask?.id || selectedTask?._id || '';
   const selectedTaskComments = selectedTask ? getTaskComments(selectedTaskId) : [];
@@ -573,14 +589,15 @@ export default function TaskBoard() {
                     </button>
                   </div>
                 </div>
-
                 {/* Attachments */}
                 <div>
-                  <h3 className="font-medium text-gray-900 mb-2">Attachments ({selectedTaskAttachments.length})</h3>
+                  <h3 className="font-medium text-gray-900 mb-2">
+                    Attachments ({selectedTaskAttachments.length})
+                  </h3>
                   {selectedTaskAttachments.length > 0 ? (
                     <div className="space-y-2">
                       {selectedTaskAttachments.map(att => (
-                        <div key={att.id} className="flex items-center gap-3 p-3 border rounded-lg">
+                        <div key={normalizeId(att._id || att.id)} className="flex items-center gap-3 p-3 border rounded-lg">
                           <Paperclip className="w-4 h-4 text-gray-600" />
                           <div className="flex-1">
                             <p className="text-sm font-medium text-gray-900">{att.fileName}</p>

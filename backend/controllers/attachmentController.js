@@ -61,7 +61,8 @@ export const createAttachment = async (req, res) => {
     if (err) {
       return res.status(400).json({ message: err.message });
     }
-
+    console.log('BODY:', req.body);
+    console.log('FILE:', req.file);
     try {
       const { taskId, uploadedBy } = req.body;
       const fileName = req.file.originalname;

@@ -1,92 +1,226 @@
 [
   {
-    "_id": {"$oid": "b07f1f77bcf86cd799439061"},
-    "taskId": {"$oid": "907f1f77bcf86cd799439042"},
+    "_id": {
+      "$oid": "b07f1f77bcf86cd799439061"
+    },
+    "taskId": {
+      "$oid": "907f1f77bcf86cd799439042"
+    },
     "fileName": "homepage-mockup.fig",
     "fileUrl": "/uploads/homepage-mockup.fig",
     "fileSize": 2048000,
-    "uploadedBy": {"$oid": "507f1f77bcf86cd799439003"},
-    "uploadedAt": {"$date": "2026-03-03T14:00:00Z"}
+    "uploadedBy": {
+      "$oid": "507f1f77bcf86cd799439003"
+    },
+    "uploadedAt": {
+      "$date": "2026-03-03T14:00:00Z"
+    }
   },
   {
-    "_id": {"$oid": "b07f1f77bcf86cd799439062"},
-    "taskId": {"$oid": "907f1f77bcf86cd799439042"},
+    "_id": {
+      "$oid": "b07f1f77bcf86cd799439062"
+    },
+    "taskId": {
+      "$oid": "907f1f77bcf86cd799439042"
+    },
     "fileName": "design-guidelines.pdf",
     "fileUrl": "/uploads/design-guidelines.pdf",
     "fileSize": 1536000,
-    "uploadedBy": {"$oid": "507f1f77bcf86cd799439003"},
-    "uploadedAt": {"$date": "2026-03-04T09:00:00Z"}
+    "uploadedBy": {
+      "$oid": "507f1f77bcf86cd799439003"
+    },
+    "uploadedAt": {
+      "$date": "2026-03-04T09:00:00Z"
+    }
   },
   {
-    "_id": {"$oid": "b07f1f77bcf86cd799439063"},
-    "taskId": {"$oid": "907f1f77bcf86cd799439049"},
+    "_id": {
+      "$oid": "b07f1f77bcf86cd799439063"
+    },
+    "taskId": {
+      "$oid": "907f1f77bcf86cd799439049"
+    },
     "fileName": "requirements-document.pdf",
     "fileUrl": "/uploads/requirements-document.pdf",
     "fileSize": 1024000,
-    "uploadedBy": {"$oid": "507f1f77bcf86cd799439003"},
-    "uploadedAt": {"$date": "2026-02-15T16:00:00Z"}
+    "uploadedBy": {
+      "$oid": "507f1f77bcf86cd799439003"
+    },
+    "uploadedAt": {
+      "$date": "2026-02-15T16:00:00Z"
+    }
   },
   {
-    "_id": {"$oid": "b07f1f77bcf86cd799439064"},
-    "taskId": {"$oid": "907f1f77bcf86cd79943904a"},
+    "_id": {
+      "$oid": "b07f1f77bcf86cd799439064"
+    },
+    "taskId": {
+      "$oid": "907f1f77bcf86cd79943904a"
+    },
     "fileName": "system-architecture-diagram.png",
     "fileUrl": "/uploads/system-architecture-diagram.png",
     "fileSize": 756000,
-    "uploadedBy": {"$oid": "507f1f77bcf86cd799439007"},
-    "uploadedAt": {"$date": "2026-03-04T11:00:00Z"}
+    "uploadedBy": {
+      "$oid": "507f1f77bcf86cd799439007"
+    },
+    "uploadedAt": {
+      "$date": "2026-03-04T11:00:00Z"
+    }
   },
   {
-    "_id": {"$oid": "b07f1f77bcf86cd799439065"},
-    "taskId": {"$oid": "907f1f77bcf86cd79943904a"},
+    "_id": {
+      "$oid": "b07f1f77bcf86cd799439065"
+    },
+    "taskId": {
+      "$oid": "907f1f77bcf86cd79943904a"
+    },
     "fileName": "database-schema.sql",
     "fileUrl": "/uploads/database-schema.sql",
     "fileSize": 245000,
-    "uploadedBy": {"$oid": "507f1f77bcf86cd799439007"},
-    "uploadedAt": {"$date": "2026-03-05T14:00:00Z"}
+    "uploadedBy": {
+      "$oid": "507f1f77bcf86cd799439007"
+    },
+    "uploadedAt": {
+      "$date": "2026-03-05T14:00:00Z"
+    }
   },
   {
-    "_id": {"$oid": "b07f1f77bcf86cd799439066"},
-    "taskId": {"$oid": "907f1f77bcf86cd799439044"},
+    "_id": {
+      "$oid": "b07f1f77bcf86cd799439066"
+    },
+    "taskId": {
+      "$oid": "907f1f77bcf86cd799439044"
+    },
     "fileName": "navigation-component.tsx",
     "fileUrl": "/uploads/navigation-component.tsx",
     "fileSize": 512000,
-    "uploadedBy": {"$oid": "507f1f77bcf86cd799439002"},
-    "uploadedAt": {"$date": "2026-03-16T15:00:00Z"}
+    "uploadedBy": {
+      "$oid": "507f1f77bcf86cd799439002"
+    },
+    "uploadedAt": {
+      "$date": "2026-03-16T15:00:00Z"
+    }
   },
   {
-    "_id": {"$oid": "b07f1f77bcf86cd799439067"},
-    "taskId": {"$oid": "907f1f77bcf86cd799439045"},
+    "_id": {
+      "$oid": "b07f1f77bcf86cd799439067"
+    },
+    "taskId": {
+      "$oid": "907f1f77bcf86cd799439045"
+    },
     "fileName": "hero-section-mockup.fig",
     "fileUrl": "/uploads/hero-section-mockup.fig",
     "fileSize": 1789000,
-    "uploadedBy": {"$oid": "507f1f77bcf86cd799439003"},
-    "uploadedAt": {"$date": "2026-03-05T10:00:00Z"}
+    "uploadedBy": {
+      "$oid": "507f1f77bcf86cd799439003"
+    },
+    "uploadedAt": {
+      "$date": "2026-03-05T10:00:00Z"
+    }
   },
   {
-    "_id": {"$oid": "b07f1f77bcf86cd799439068"},
-    "taskId": {"$oid": "907f1f77bcf86cd799439046"},
+    "_id": {
+      "$oid": "b07f1f77bcf86cd799439068"
+    },
+    "taskId": {
+      "$oid": "907f1f77bcf86cd799439046"
+    },
     "fileName": "auth-api-docs.md",
     "fileUrl": "/uploads/auth-api-docs.md",
     "fileSize": 124000,
-    "uploadedBy": {"$oid": "507f1f77bcf86cd799439002"},
-    "uploadedAt": {"$date": "2026-02-25T11:00:00Z"}
+    "uploadedBy": {
+      "$oid": "507f1f77bcf86cd799439002"
+    },
+    "uploadedAt": {
+      "$date": "2026-02-25T11:00:00Z"
+    }
   },
   {
-    "_id": {"$oid": "b07f1f77bcf86cd799439069"},
-    "taskId": {"$oid": "907f1f77bcf86cd799439047"},
+    "_id": {
+      "$oid": "b07f1f77bcf86cd799439069"
+    },
+    "taskId": {
+      "$oid": "907f1f77bcf86cd799439047"
+    },
     "fileName": "api-integration-status.pdf",
     "fileUrl": "/uploads/api-integration-status.pdf",
     "fileSize": 856000,
-    "uploadedBy": {"$oid": "507f1f77bcf86cd799439005"},
-    "uploadedAt": {"$date": "2026-03-01T14:00:00Z"}
+    "uploadedBy": {
+      "$oid": "507f1f77bcf86cd799439005"
+    },
+    "uploadedAt": {
+      "$date": "2026-03-01T14:00:00Z"
+    }
   },
   {
-    "_id": {"$oid": "b07f1f77bcf86cd79943906a"},
-    "taskId": {"$oid": "907f1f77bcf86cd799439043"},
+    "_id": {
+      "$oid": "b07f1f77bcf86cd79943906a"
+    },
+    "taskId": {
+      "$oid": "907f1f77bcf86cd799439043"
+    },
     "fileName": "tailwind-config.js",
     "fileUrl": "/uploads/tailwind-config.js",
     "fileSize": 234000,
-    "uploadedBy": {"$oid": "507f1f77bcf86cd799439004"},
-    "uploadedAt": {"$date": "2026-03-03T17:00:00Z"}
+    "uploadedBy": {
+      "$oid": "507f1f77bcf86cd799439004"
+    },
+    "uploadedAt": {
+      "$date": "2026-03-03T17:00:00Z"
+    }
+  },
+  {
+    "_id": "69adcff560680d4a53fd9dcf",
+    "taskId": "69ad856ec3d5b3e9d13be23c",
+    "fileName": "z7582344580068_b67759fb25b5dcc2b27f742dbe1aad99.jpg",
+    "fileUrl": "/uploads/attachments/1772998645870-z7582344580068_b67759fb25b5dcc2b27f742dbe1aad99.jpg",
+    "fileSize": 142158,
+    "uploadedBy": "69aa8cce74b72d92a0836820",
+    "uploadedAt": "2026-03-08T19:37:25.881Z"
+  },
+  {
+    "_id": "69add04a1616b71ca349d147",
+    "taskId": "69ad856ec3d5b3e9d13be23c",
+    "fileName": "z7582282734209_64340037bb5c7dbf98ab95055b395b63.jpg",
+    "fileUrl": "/uploads/attachments/1772998730602-z7582282734209_64340037bb5c7dbf98ab95055b395b63.jpg",
+    "fileSize": 172605,
+    "uploadedBy": "69aa8cce74b72d92a0836820",
+    "uploadedAt": "2026-03-08T19:38:50.609Z"
+  },
+  {
+    "_id": "69add18be94bd3592696a3c9",
+    "taskId": "69ad856ec3d5b3e9d13be23c",
+    "fileName": "z7582344580068_b67759fb25b5dcc2b27f742dbe1aad99.jpg",
+    "fileUrl": "/uploads/attachments/1772999051237-z7582344580068_b67759fb25b5dcc2b27f742dbe1aad99.jpg",
+    "fileSize": 142158,
+    "uploadedBy": "69aa8cce74b72d92a0836820",
+    "uploadedAt": "2026-03-08T19:44:11.246Z"
+  },
+  {
+    "_id": "69add18be94bd3592696a3db",
+    "taskId": "69ad856ec3d5b3e9d13be23c",
+    "fileName": "z7582344580068_b67759fb25b5dcc2b27f742dbe1aad99.jpg",
+    "fileUrl": "/uploads/attachments/1772999051633-z7582344580068_b67759fb25b5dcc2b27f742dbe1aad99.jpg",
+    "fileSize": 142158,
+    "uploadedBy": "69aa8cce74b72d92a0836820",
+    "uploadedAt": "2026-03-08T19:44:11.636Z"
+  },
+  {
+    "_id": "69add373e94bd359269751b1",
+    "taskId": "69ad856ec3d5b3e9d13be23c",
+    "fileName": "ConceptERDJI213RA.drawio.png",
+    "fileUrl": "/uploads/attachments/1772999539498-ConceptERDJI213RA.drawio.png",
+    "fileSize": 168181,
+    "uploadedBy": "69aa8cce74b72d92a0836820",
+    "uploadedAt": "2026-03-08T19:52:19.506Z"
+  },
+  {
+    "_id": "69add373e94bd359269751c8",
+    "taskId": "69ad856ec3d5b3e9d13be23c",
+    "fileName": "ConceptERDJI213RA.drawio.png",
+    "fileUrl": "/uploads/attachments/1772999539987-ConceptERDJI213RA.drawio.png",
+    "fileSize": 168181,
+    "uploadedBy": "69aa8cce74b72d92a0836820",
+    "uploadedAt": "2026-03-08T19:52:19.990Z"
   }
 ]
