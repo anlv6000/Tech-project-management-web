@@ -222,5 +222,23 @@
     "fileSize": 168181,
     "uploadedBy": "69aa8cce74b72d92a0836820",
     "uploadedAt": "2026-03-08T19:52:19.990Z"
+  },
+  {
+    "_id": "69addad8e94bd3592697cd4b",
+    "taskId": "69aabebee00d1c880be073eb",
+    "fileName": "z7582344580068_b67759fb25b5dcc2b27f742dbe1aad99.jpg",
+    "fileUrl": "/uploads/attachments/1773001432326-z7582344580068_b67759fb25b5dcc2b27f742dbe1aad99.jpg",
+    "fileSize": 142158,
+    "uploadedBy": "69aa8cce74b72d92a0836820",
+    "uploadedAt": "2026-03-08T20:23:52.335Z"
+  },
+  {
+    "_id": "69addad8e94bd3592697cd61",
+    "taskId": "69aabebee00d1c880be073eb",
+    "fileName": "z7582344580068_b67759fb25b5dcc2b27f742dbe1aad99.jpg",
+    "fileUrl": "/uploads/attachments/1773001432635-z7582344580068_b67759fb25b5dcc2b27f742dbe1aad99.jpg",
+    "fileSize": 142158,
+    "uploadedBy": "69aa8cce74b72d92a0836820",
+    "uploadedAt": "2026-03-08T20:23:52.637Z"
   }
 ]

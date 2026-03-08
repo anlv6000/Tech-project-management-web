@@ -613,6 +613,7 @@ export default function TaskBoard() {
                   <div className="mt-4">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Add Attachment</label>
                     <input
+                      disabled={isProjectCompleted}
                       type="file"
                       onChange={(e) => {
                         if (e.target.files && e.target.files[0]) {
@@ -658,9 +659,10 @@ export default function TaskBoard() {
                       onKeyPress={(e) => e.key === 'Enter' && handleAddComment()}
                     />
                     <button
+                      disabled={isProjectCompleted}
                       onClick={handleAddComment}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                    >
+                      className={`px-4 py-2 rounded-lg ${isProjectCompleted ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-blue-600 text-white hover:bg-blue-700"
+                        }`} >
                       Comment
                     </button>
                   </div>
