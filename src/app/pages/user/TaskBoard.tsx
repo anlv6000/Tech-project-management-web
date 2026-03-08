@@ -267,6 +267,29 @@ export default function TaskBoard() {
       console.error("Failed to create sprint:", error);
     }
   };
+  const handleAddAttachment = async (file: File) => {
+    if (!selectedTask) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('taskId', selectedTask.id || selectedTask._id || '');
+
+    try {
+      const response = await fetch('http://localhost:5000/api/attachments', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        const newAttachment = await response.json();
+        selectedTaskAttachments.push(newAttachment);
+      } else {
+        console.error('Failed to upload attachment');
+      }
+    } catch (error) {
+      console.error('Error uploading attachment:', error);
+    }
+  };
 
   const handleCloseTaskModal = () => { // Ensure 'handleCloseTaskModal' is defined
     if (Object.keys(taskChanges).length > 0) {
@@ -499,12 +522,12 @@ export default function TaskBoard() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
                     <select
                       disabled={isProjectCompleted}
-                      value={taskChanges.assigneeId ?? selectedTask.assigneeId}
+                      value={(() => {
+                        if (taskChanges.assigneeId) return normalizeId(taskChanges.assigneeId);
+                        return normalizeId(selectedTask.assigneeId);
+                      })()}
                       onChange={(e) =>
-                        handleTaskChange(
-                          'assigneeId',
-                          e.target.value !== '' ? normalizeId(e.target.value) : undefined
-                        )
+                        handleTaskChange('assigneeId', e.target.value !== '' ? String(e.target.value) : undefined)
                       }
                       className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${isProjectCompleted
                         ? "bg-gray-100 text-gray-400 cursor-not-allowed"
@@ -569,6 +592,19 @@ export default function TaskBoard() {
                   ) : (
                     <p className="text-sm text-gray-600">No attachments</p>
                   )}
+
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Add Attachment</label>
+                    <input
+                      type="file"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          handleAddAttachment(e.target.files[0]);
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
                 </div>
 
                 {/* Comments */}
@@ -710,3 +746,5 @@ export default function TaskBoard() {
     </DndProvider>
   );
 }
+
+

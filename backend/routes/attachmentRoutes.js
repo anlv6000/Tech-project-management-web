@@ -1,11 +1,18 @@
 import express from 'express';
-import * as attachmentController from '../controllers/attachmentController.js';
+import { createAttachment, getTaskAttachments, getAttachmentById, deleteAttachment } from '../controllers/attachmentController.js';
 
 const router = express.Router();
 
-router.get('/task/:taskId', attachmentController.getTaskAttachments);
-router.get('/:id', attachmentController.getAttachmentById);
-router.post('/', attachmentController.createAttachment);
-router.delete('/:id', attachmentController.deleteAttachment);
+// Route to get all attachments for a task
+router.get('/task/:taskId', getTaskAttachments);
+
+// Route to get a specific attachment by ID
+router.get('/:id', getAttachmentById);
+
+// Route to create a new attachment with file upload
+router.post('/', createAttachment);
+
+// Route to delete an attachment by ID
+router.delete('/:id', deleteAttachment);
 
 export default router;
