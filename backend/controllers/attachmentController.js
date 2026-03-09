@@ -63,6 +63,7 @@ export const createAttachment = async (req, res) => {
     }
     console.log('BODY:', req.body);
     console.log('FILE:', req.file);
+    console.log("Upload route called, file:", req.file);
     try {
       const { taskId, uploadedBy } = req.body;
       const fileName = req.file.originalname;
