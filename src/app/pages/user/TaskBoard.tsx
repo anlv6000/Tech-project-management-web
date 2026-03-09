@@ -261,16 +261,24 @@ export default function TaskBoard() {
     setCreateWorkUnitId(workUnitId);
     setShowCreateTask(true);
   };
+  const [showSprintModal, setShowSprintModal] = useState(false);
+  const [sprintName, setSprintName] = useState("");
 
-  const handleCreateSprint = async () => { // Ensure 'handleCreateSprint' is defined
+  const handleOpenSprintModal = () => {
+    setSprintName("");
+    setShowSprintModal(true);
+  };
+
+  const handleCreateSprint = async () => {
     try {
       await createSprint(
         projectId,
-        "Sprint mới",
+        `Sprint ${sprintName}`, // tên do người dùng nhập
         undefined,
         undefined,
         "Goal cho sprint"
       );
+      setShowSprintModal(false);
     } catch (error) {
       console.error("Failed to create sprint:", error);
     }
@@ -495,13 +503,41 @@ export default function TaskBoard() {
                 <h1 className="text-2xl font-bold text-gray-900">{project?.name}</h1> {/* Ensure 'project' is defined */}
                 <p className="text-sm text-gray-600 capitalize">{project?.methodology} Board</p> {/* Ensure 'project' is defined */}
               </div>
-              {project?.methodology === 'agile' && !isProjectCompleted && ( // Ensure 'project' is defined
+              {project?.methodology === 'agile' && !isProjectCompleted && (
                 <button
-                  onClick={handleCreateSprint}
+                  onClick={handleOpenSprintModal} // mở modal thay vì gọi trực tiếp
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
                   ➕ New Sprint
                 </button>
+              )}
+              {showSprintModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                  <div className="bg-white p-6 rounded shadow-lg w-96">
+                    <h2 className="text-lg font-semibold mb-4">Tạo Sprint mới</h2>
+                    <input
+                      type="text"
+                      value={sprintName}
+                      onChange={(e) => setSprintName(e.target.value)}
+                      placeholder="Nhập tên sprint"
+                      className="w-full px-3 py-2 border rounded mb-4"
+                    />
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => setShowSprintModal(false)}
+                        className="px-4 py-2 bg-gray-300 rounded"
+                      >
+                        Hủy
+                      </button>
+                      <button
+                        onClick={handleCreateSprint}
+                        className="px-4 py-2 bg-blue-600 text-white rounded"
+                      >
+                        Tạo Sprint
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           </div>

@@ -519,5 +519,32 @@
     "fileSize": 83454,
     "uploadedBy": "69aa8cce74b72d92a0836820",
     "uploadedAt": "2026-03-09T02:12:11.567Z"
+  },
+  {
+    "_id": "69ae878fc556cef80ef62ce0",
+    "taskId": "69ad8575c3d5b3e9d13be490",
+    "fileName": "image (1).png",
+    "fileUrl": "/uploads/attachments/1773045647637-image (1).png",
+    "fileSize": 12850,
+    "uploadedBy": "69aa8cce74b72d92a0836820",
+    "uploadedAt": "2026-03-09T08:40:47.643Z"
+  },
+  {
+    "_id": "69ae8e93c556cef80ef62e03",
+    "taskId": "69ae8e7fc556cef80ef62dff",
+    "fileName": "c68.png",
+    "fileUrl": "/uploads/attachments/1773047443982-c68.png",
+    "fileSize": 484854,
+    "uploadedBy": "69aa8cce74b72d92a0836820",
+    "uploadedAt": "2026-03-09T09:10:43.991Z"
+  },
+  {
+    "_id": "69ae96cb90759836dcf49943",
+    "taskId": "69ad856ec3d5b3e9d13be23c",
+    "fileName": "5584a372c4b94cb2fccd4dc7705393f5.jpg",
+    "fileUrl": "/uploads/attachments/1773049547403-5584a372c4b94cb2fccd4dc7705393f5.jpg",
+    "fileSize": 156151,
+    "uploadedBy": "69aa8cce74b72d92a0836820",
+    "uploadedAt": "2026-03-09T09:45:47.412Z"
   }
 ]
