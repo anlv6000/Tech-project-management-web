@@ -5,6 +5,8 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Task } from '../../types';
+import { Attachment } from '../../types';
+
 import {
   ArrowLeft,
   Plus,
@@ -212,7 +214,7 @@ export default function TaskBoard() {
     if (projectId && projectId !== 'undefined') {
       loadProjectData(projectId);
     }
-  }, [projectId, loadProjectData]);
+  }, [projectId ]);
 
   const project = getProject(projectId);
   const isProjectCompleted = project?.isCompleted || false;
@@ -416,8 +418,22 @@ export default function TaskBoard() {
 
 
   const selectedTaskId = selectedTask?.id || selectedTask?._id || '';
+  const selectedTaskAttachments = selectedTaskId
+    ? getTaskAttachments(selectedTaskId)
+    : [];
+
+  const updatedAttachments = (selectedTaskAttachments || []).map((att: Attachment) => {
+    return {
+      ...att,
+      fileName: att.fileName || 'Unknown file',
+      fileSize: att.fileSize || 0,
+      fileUrl: att.fileUrl || '',
+      uploadedAt: att.uploadedAt || '',
+      uploadedBy: att.uploadedBy || '',
+    };
+  });
+
   const selectedTaskComments = selectedTask ? getTaskComments(selectedTaskId) : [];
-  const selectedTaskAttachments = selectedTask ? getTaskAttachments(selectedTaskId) : [];
   const updatedComments = (selectedTaskComments || []).map((comment: any) => {
     const foundUser = comment.userId; // đã populate
     return {
@@ -514,7 +530,6 @@ export default function TaskBoard() {
                   <p className="text-gray-700">{selectedTask.description || 'No description'}</p>
                 </div>
 
-                {/* Disable all functionalities if project is completed */}
                 {/* Details */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -592,23 +607,19 @@ export default function TaskBoard() {
                 {/* Attachments */}
                 <div>
                   <h3 className="font-medium text-gray-900 mb-2">
-                    Attachments ({selectedTaskAttachments.length})
+                    Attachments ({updatedAttachments.length})
                   </h3>
-                  {selectedTaskAttachments.length > 0 ? (
-                    <div className="space-y-2">
-                      {selectedTaskAttachments.map(att => (
-                        <div key={normalizeId(att._id || att.id)} className="flex items-center gap-3 p-3 border rounded-lg">
-                          <Paperclip className="w-4 h-4 text-gray-600" />
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-gray-900">{att.fileName}</p>
-                            <p className="text-xs text-gray-600">{(att.fileSize / 1024).toFixed(2)} KB</p>
-                          </div>
+                  <div className="space-y-2 mb-4">
+                    {updatedAttachments.map(att => (
+                      <div key={att.id || att._id} className="flex items-center gap-3 p-3 border rounded-lg">
+                        <Paperclip className="w-4 h-4 text-gray-600" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">{att.fileName}</p>
+                          <p className="text-xs text-gray-600">{(att.fileSize / 1024).toFixed(2)} KB</p>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-gray-600">No attachments</p>
-                  )}
+                      </div>
+                    ))}
+                  </div>
 
                   <div className="mt-4">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Add Attachment</label>
