@@ -20,6 +20,7 @@ import {
 
 
 const ItemType = 'TASK';
+const API_BASE_URL = "http://localhost:5000";
 
 interface TaskCardProps {
   task: Task;
@@ -190,6 +191,7 @@ export default function TaskBoard() {
     createSprint,
     addAttachment,
     removeAttachment,
+    deleteWorkUnit,
   } = useData();
 
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -201,6 +203,8 @@ export default function TaskBoard() {
   const [timeLog, setTimeLog] = useState('');
   const [taskChanges, setTaskChanges] = useState<Partial<Task>>({});
   const [showUnsavedChanges, setShowUnsavedChanges] = useState(false);
+  const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
+  const [fullscreenAttachment, setFullscreenAttachment] = useState<Attachment | null>(null);
 
   const handleTaskClick = (task: Task) => {
     setSelectedTask(task);
@@ -214,7 +218,7 @@ export default function TaskBoard() {
     if (projectId && projectId !== 'undefined') {
       loadProjectData(projectId);
     }
-  }, [projectId ]);
+  }, [projectId]);
 
   const project = getProject(projectId);
   const isProjectCompleted = project?.isCompleted || false;
@@ -273,33 +277,16 @@ export default function TaskBoard() {
   };
 
   const handleAddAttachment = async (file: File) => {
+    console.log("handleAddAttachment called with:", file.name);
     if (!selectedTask || !user) return;
 
     const taskId = selectedTask.id || selectedTask._id;
     if (!taskId) return;
 
-    const formData = new FormData();
-    formData.append('file', file); // ✅ đúng với upload.single('file')
-    formData.append('taskId', String(taskId)); // ép kiểu string
-    formData.append('uploadedBy', String(user.id || user._id)); // ép kiểu string
-
-    try {
-      const response = await fetch('http://localhost:5000/api/attachments', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (response.ok) {
-        const newAttachment = await response.json();
-        addAttachment(taskId, file);
-      } else {
-        const errorText = await response.text();
-        console.error('Failed to upload attachment:', errorText);
-      }
-    } catch (error) {
-      console.error('Error uploading attachment:', error);
-    }
+    // ✅ chỉ gọi lại addAttachment, không fetch trực tiếp nữa
+    await addAttachment(taskId, file);
   };
+
   const handleSaveTask = () => {
     if (!selectedTask) return;
 
@@ -444,6 +431,52 @@ export default function TaskBoard() {
       createdAt: comment.createdAt || '',
     };
   });
+
+  const handleOpenFullscreen = (attachment: Attachment) => {
+    const fullUrl = `${API_BASE_URL}${attachment.fileUrl}`;
+    console.log("Fullscreen image URL:", fullUrl);
+    setFullscreenImage(fullUrl);
+    setFullscreenAttachment(attachment);
+  };
+
+  const handleCloseFullscreen = () => {
+    setFullscreenImage(null);
+    setFullscreenAttachment(null);
+  };
+
+  const handleDeleteAttachment = async (attachmentId: string) => {
+    try {
+      await removeAttachment(attachmentId);
+      if (selectedTask) {
+        const taskId = selectedTask._id ?? selectedTask.id;
+        if (typeof taskId === 'string') {
+          getTaskAttachments(taskId);
+        }
+      }
+      // Đóng fullscreen sau khi xoá
+      handleCloseFullscreen();
+      // Hiện alert mặc định
+      alert('Attachment deleted successfully');
+    } catch (error) {
+      console.error('Failed to delete attachment:', error);
+      alert('Failed to delete attachment');
+    }
+  };
+
+  const handleDeleteWorkUnit = async (workUnitId: string) => {
+    if (!projectId) return;
+
+    const confirmDelete = window.confirm('Are you sure you want to delete this work unit? All tasks in this work unit will also be deleted.');
+    if (!confirmDelete) return;
+
+    try {
+      await deleteWorkUnit(workUnitId);
+      loadProjectData(projectId); // Refresh project data
+    } catch (error) {
+      console.error('Failed to delete work unit:', error);
+    }
+  };
+
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="h-full flex flex-col bg-gray-50">
@@ -482,7 +515,7 @@ export default function TaskBoard() {
                 const workUnitId = workUnit.id || workUnit._id || '';
                 const tasks = getTasksByWorkUnit(workUnitId);
                 return (
-                  <div key={workUnitId} className="bg-gray-100 p-4 rounded-lg">
+                  <div key={workUnitId} className="bg-gray-100 p-4 rounded-lg relative">
                     <Column
                       workUnit={workUnit}
                       tasks={tasks}
@@ -495,6 +528,14 @@ export default function TaskBoard() {
                       users={users}
                       isProjectCompleted={isProjectCompleted}
                     />
+                    {project?.methodology === 'agile' && !isProjectCompleted && (
+                      <button
+                        onClick={() => handleDeleteWorkUnit(workUnitId)}
+                        className="absolute bottom-2 right-2 text-xs text-red-600 hover:text-red-800"
+                      >
+                        Delete
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -604,23 +645,38 @@ export default function TaskBoard() {
                     </button>
                   </div>
                 </div>
+
                 {/* Attachments */}
                 <div>
                   <h3 className="font-medium text-gray-900 mb-2">
                     Attachments ({updatedAttachments.length})
                   </h3>
-                  <div className="space-y-2 mb-4">
-                    {updatedAttachments.map(att => (
-                      <div key={att.id || att._id} className="flex items-center gap-3 p-3 border rounded-lg">
-                        <Paperclip className="w-4 h-4 text-gray-600" />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">{att.fileName}</p>
-                          <p className="text-xs text-gray-600">{(att.fileSize / 1024).toFixed(2)} KB</p>
+
+                  {/* Hiển thị thumbnail ảnh hoặc file */}
+                  <div className="flex flex-wrap gap-3 mb-4">
+                    {updatedAttachments.map(att => {
+                      const isImage = att.fileUrl.match(/\.(jpg|jpeg|png|gif)$/i);
+                      return (
+                        <div key={att._id} className="relative">
+                          {isImage ? (
+                            <img
+                              src={`${API_BASE_URL}${att.fileUrl}`}
+                              alt={att.fileName}
+                              className="w-24 h-24 object-cover rounded cursor-pointer"
+                              onClick={() => handleOpenFullscreen(att)}
+                            />
+                          ) : (
+                            <div className="flex items-center gap-2 p-2 border rounded">
+                              <Paperclip className="w-4 h-4 text-gray-600" />
+                              <span className="text-sm">{att.fileName}</span>
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
+                  {/* Upload attachment */}
                   <div className="mt-4">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Add Attachment</label>
                     <input
@@ -635,6 +691,46 @@ export default function TaskBoard() {
                     />
                   </div>
                 </div>
+
+                {/* Fullscreen modal */}
+                {fullscreenImage && fullscreenAttachment && (
+                  <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+                    <div className="relative">
+                      <img
+                        src={fullscreenImage}
+                        alt={fullscreenAttachment.fileName}
+                        className="max-h-screen max-w-screen"
+                      />
+                      <div className="absolute top-2 right-2 flex gap-2">
+                        <a
+                          href={`${API_BASE_URL}${fullscreenAttachment.fileUrl}`}
+                          download={fullscreenAttachment.fileName}
+                          className="bg-white px-2 py-1 rounded text-sm"
+                        >
+                          Download
+                        </a>
+
+                        <button
+                          onClick={() => {
+                            if (fullscreenAttachment._id) {
+                              handleDeleteAttachment(fullscreenAttachment._id);
+                            }
+                          }}
+                          className="bg-red-600 text-white px-2 py-1 rounded text-sm"
+                        >
+                          Delete
+                        </button>
+                        <button
+                          onClick={handleCloseFullscreen}
+                          className="bg-gray-600 text-white px-2 py-1 rounded text-sm"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
 
                 {/* Comments */}
                 <div>

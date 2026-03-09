@@ -599,13 +599,20 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
   const removeAttachment = async (id: string) => {
     try {
+      const token = sessionStorage.getItem('token');
+      console.log("Deleting attachment _id:", id);
+
       const response = await fetch(`${API_BASE_URL}/attachments/${id}`, {
         method: 'DELETE',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       });
 
-      if (!response.ok) throw new Error('Failed to delete attachment');
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Failed to delete attachment: ${errText}`);
+      }
 
-      setAttachments(prev => prev.filter(a => a.id !== id && a._id !== id));
+      setAttachments(prev => prev.filter(a => a._id !== id));
     } catch (error) {
       console.error('Delete attachment error:', error);
     }
