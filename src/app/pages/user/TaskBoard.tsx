@@ -205,6 +205,8 @@ export default function TaskBoard() {
   const [showUnsavedChanges, setShowUnsavedChanges] = useState(false);
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
   const [fullscreenAttachment, setFullscreenAttachment] = useState<Attachment | null>(null);
+  const [showSprintModal, setShowSprintModal] = useState(false);
+  const [sprintName, setSprintName] = useState("");
 
   const handleTaskClick = (task: Task) => {
     setSelectedTask(task);
@@ -261,8 +263,6 @@ export default function TaskBoard() {
     setCreateWorkUnitId(workUnitId);
     setShowCreateTask(true);
   };
-  const [showSprintModal, setShowSprintModal] = useState(false);
-  const [sprintName, setSprintName] = useState("");
 
   const handleOpenSprintModal = () => {
     setSprintName("");
