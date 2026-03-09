@@ -63,7 +63,7 @@ interface DataContextType {
 
   // Attachments
   attachments: Attachment[];
-   addAttachment: (taskId: string, file: File) => Promise<void>;
+  addAttachment: (taskId: string, file: File) => Promise<void>;
   removeAttachment: (id: string) => void;
   getTaskAttachments: (taskId: string) => Attachment[];
   getAttachmentById: (id: string) => Attachment | undefined;
@@ -332,12 +332,15 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     const normalizedProjectId = String(projectId).trim();
 
     try {
-      // Lấy workUnits và tasks
-      const [workUnitsRes, tasksRes] = await Promise.all([
+      // Lấy workUnits, tasks, comments, attachments song song
+      const [workUnitsRes, tasksRes, commentsRes, attachmentsRes] = await Promise.all([
         fetch(`${API_BASE_URL}/work-units/project/${projectId}`),
         fetch(`${API_BASE_URL}/tasks/project/${projectId}`),
+        fetch(`${API_BASE_URL}/comments/project/${projectId}`),
+        fetch(`${API_BASE_URL}/attachments/project/${projectId}`),
       ]);
 
+      // WorkUnits
       if (workUnitsRes.ok) {
         const units = await workUnitsRes.json();
         setWorkUnits(prev => {
@@ -348,6 +351,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         });
       }
 
+      // Tasks
       let tasksList: Task[] = [];
       if (tasksRes.ok) {
         tasksList = await tasksRes.json();
@@ -359,31 +363,30 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         });
       }
 
-      // 🔥 Lấy comments cho từng task
-      const allComments: Comment[] = [];
-      for (const task of tasksList) {
-        const taskId = task.id || task._id;
-        const commentsRes = await fetch(`${API_BASE_URL}/comments/task/${taskId}`);
-        if (commentsRes.ok) {
-          const taskComments = await commentsRes.json();
-          allComments.push(...taskComments);
-        }
+      const projectTaskIds = tasksList.map(t => String(t.id || t._id));
+
+      // Comments
+      if (commentsRes.ok) {
+        const allComments: Comment[] = await commentsRes.json();
+        setComments(prev => {
+          const existing = prev.filter(c => !projectTaskIds.includes(String(c.taskId || '')));
+          return [...existing, ...allComments];
+        });
       }
 
-      // Lọc comment theo taskId thay vì projectId
-      const projectTaskIds = tasksList.map(t => String(t.id || t._id));
-      setComments(prev => {
-        const existing = prev.filter(
-          c => !projectTaskIds.includes(String(c.taskId || ''))
-        );
-        return [...existing, ...allComments];
-      });
+      // Attachments
+      if (attachmentsRes.ok) {
+        const allAttachments: Attachment[] = await attachmentsRes.json();
+        setAttachments(prev => {
+          const existing = prev.filter(a => !projectTaskIds.includes(String(a.taskId || '')));
+          return [...existing, ...allAttachments];
+        });
+      }
 
     } catch (error) {
       console.error('Failed to load project data:', error);
     }
   };
-
 
   // WorkUnit methods
   const createWorkUnit = async (data: Omit<WorkUnit, 'id'>): Promise<WorkUnit> => {
@@ -565,6 +568,11 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   };
 
+  const getTaskAttachments = (taskId: string) => {
+    const normalizedTaskId = String(taskId).trim();
+    return attachments.filter(a => String(a.taskId || '').trim() === normalizedTaskId);
+  };
+
   // Attachment methods
   const addAttachment = async (taskId: string, file: File) => {
     try {
@@ -603,10 +611,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }
   };
 
-  const getTaskAttachments = (taskId: string) => {
-    const normalizedTaskId = String(taskId).trim();
-    return attachments.filter(a => String(a.taskId || '').trim() === normalizedTaskId);
-  };
 
   // Notification methods
   const markAsRead = async (id: string) => {

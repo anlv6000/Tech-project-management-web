@@ -32,4 +32,6 @@ const attachmentSchema = new mongoose.Schema({
   }
 });
 
+attachmentSchema.index({ taskId: 1 });
+
 export default mongoose.model('Attachment', attachmentSchema);

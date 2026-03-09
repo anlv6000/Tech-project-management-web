@@ -46,7 +46,7 @@ export default function ProjectDetail() {
     if (projectId && projectId !== 'undefined') {
       loadProjectData(projectId);
     }
-  }, [projectId, loadProjectData]);
+  }, [projectId]);
 
   const project = getProject(projectId);
   const members = getProjectMembers(projectId);

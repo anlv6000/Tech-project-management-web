@@ -240,5 +240,149 @@
     "fileSize": 142158,
     "uploadedBy": "69aa8cce74b72d92a0836820",
     "uploadedAt": "2026-03-08T20:23:52.637Z"
+  },
+  {
+    "_id": "69adff31e94bd359269eb954",
+    "taskId": "69ad856ec3d5b3e9d13be23c",
+    "fileName": "z7582344580068_b67759fb25b5dcc2b27f742dbe1aad99.jpg",
+    "fileUrl": "/uploads/attachments/1773010737399-z7582344580068_b67759fb25b5dcc2b27f742dbe1aad99.jpg",
+    "fileSize": 142158,
+    "uploadedBy": "69aa8cce74b72d92a0836820",
+    "uploadedAt": "2026-03-08T22:58:57.409Z"
+  },
+  {
+    "_id": "69adff31e94bd359269eb96c",
+    "taskId": "69ad856ec3d5b3e9d13be23c",
+    "fileName": "z7582344580068_b67759fb25b5dcc2b27f742dbe1aad99.jpg",
+    "fileUrl": "/uploads/attachments/1773010737763-z7582344580068_b67759fb25b5dcc2b27f742dbe1aad99.jpg",
+    "fileSize": 142158,
+    "uploadedBy": "69aa8cce74b72d92a0836820",
+    "uploadedAt": "2026-03-08T22:58:57.765Z"
+  },
+  {
+    "_id": "69ae0162e94bd359269f1c54",
+    "taskId": "69ad856ec3d5b3e9d13be23c",
+    "fileName": "z7582344580068_b67759fb25b5dcc2b27f742dbe1aad99.jpg",
+    "fileUrl": "/uploads/attachments/1773011298440-z7582344580068_b67759fb25b5dcc2b27f742dbe1aad99.jpg",
+    "fileSize": 142158,
+    "uploadedBy": "69aa8cce74b72d92a0836820",
+    "uploadedAt": "2026-03-08T23:08:18.451Z"
+  },
+  {
+    "_id": "69ae0162e94bd359269f1c68",
+    "taskId": "69ad856ec3d5b3e9d13be23c",
+    "fileName": "z7582344580068_b67759fb25b5dcc2b27f742dbe1aad99.jpg",
+    "fileUrl": "/uploads/attachments/1773011298843-z7582344580068_b67759fb25b5dcc2b27f742dbe1aad99.jpg",
+    "fileSize": 142158,
+    "uploadedBy": "69aa8cce74b72d92a0836820",
+    "uploadedAt": "2026-03-08T23:08:18.845Z"
+  },
+  {
+    "_id": "69ae016ae94bd359269f1db5",
+    "taskId": "69ad856ec3d5b3e9d13be23c",
+    "fileName": "z7582282734209_64340037bb5c7dbf98ab95055b395b63.jpg",
+    "fileUrl": "/uploads/attachments/1773011306666-z7582282734209_64340037bb5c7dbf98ab95055b395b63.jpg",
+    "fileSize": 172605,
+    "uploadedBy": "69aa8cce74b72d92a0836820",
+    "uploadedAt": "2026-03-08T23:08:26.669Z"
+  },
+  {
+    "_id": "69ae016ae94bd359269f1dcc",
+    "taskId": "69ad856ec3d5b3e9d13be23c",
+    "fileName": "z7582282734209_64340037bb5c7dbf98ab95055b395b63.jpg",
+    "fileUrl": "/uploads/attachments/1773011306987-z7582282734209_64340037bb5c7dbf98ab95055b395b63.jpg",
+    "fileSize": 172605,
+    "uploadedBy": "69aa8cce74b72d92a0836820",
+    "uploadedAt": "2026-03-08T23:08:26.990Z"
+  },
+  {
+    "_id": "69ae0268e1375c04f2d1ab98",
+    "taskId": "69ad856ec3d5b3e9d13be23c",
+    "fileName": "z7582344580068_b67759fb25b5dcc2b27f742dbe1aad99.jpg",
+    "fileUrl": "/uploads/attachments/1773011560939-z7582344580068_b67759fb25b5dcc2b27f742dbe1aad99.jpg",
+    "fileSize": 142158,
+    "uploadedBy": "69aa8cce74b72d92a0836820",
+    "uploadedAt": "2026-03-08T23:12:40.952Z"
+  },
+  {
+    "_id": "69ae0269e1375c04f2d1abac",
+    "taskId": "69ad856ec3d5b3e9d13be23c",
+    "fileName": "z7582344580068_b67759fb25b5dcc2b27f742dbe1aad99.jpg",
+    "fileUrl": "/uploads/attachments/1773011561273-z7582344580068_b67759fb25b5dcc2b27f742dbe1aad99.jpg",
+    "fileSize": 142158,
+    "uploadedBy": "69aa8cce74b72d92a0836820",
+    "uploadedAt": "2026-03-08T23:12:41.276Z"
+  },
+  {
+    "_id": "69ae0516e1375c04f2d2bb61",
+    "taskId": "69ad856ec3d5b3e9d13be23c",
+    "fileName": "z7582344580068_b67759fb25b5dcc2b27f742dbe1aad99.jpg",
+    "fileUrl": "/uploads/attachments/1773012246747-z7582344580068_b67759fb25b5dcc2b27f742dbe1aad99.jpg",
+    "fileSize": 142158,
+    "uploadedBy": "69aa8cce74b72d92a0836820",
+    "uploadedAt": "2026-03-08T23:24:06.755Z"
+  },
+  {
+    "_id": "69ae0517e1375c04f2d2bb7a",
+    "taskId": "69ad856ec3d5b3e9d13be23c",
+    "fileName": "z7582344580068_b67759fb25b5dcc2b27f742dbe1aad99.jpg",
+    "fileUrl": "/uploads/attachments/1773012247042-z7582344580068_b67759fb25b5dcc2b27f742dbe1aad99.jpg",
+    "fileSize": 142158,
+    "uploadedBy": "69aa8cce74b72d92a0836820",
+    "uploadedAt": "2026-03-08T23:24:07.046Z"
+  },
+  {
+    "_id": "69ae058ee1375c04f2d2e72f",
+    "taskId": "69ad8568c3d5b3e9d13be073",
+    "fileName": "z7490328901828_987833b824dc6e5793c1caa49e0ae6e3.jpg",
+    "fileUrl": "/uploads/attachments/1773012366103-z7490328901828_987833b824dc6e5793c1caa49e0ae6e3.jpg",
+    "fileSize": 83454,
+    "uploadedBy": "69aa8cce74b72d92a0836820",
+    "uploadedAt": "2026-03-08T23:26:06.115Z"
+  },
+  {
+    "_id": "69ae059ae1375c04f2d2ea80",
+    "taskId": "69ad8568c3d5b3e9d13be073",
+    "fileName": "z7490328901828_987833b824dc6e5793c1caa49e0ae6e3.jpg",
+    "fileUrl": "/uploads/attachments/1773012378104-z7490328901828_987833b824dc6e5793c1caa49e0ae6e3.jpg",
+    "fileSize": 83454,
+    "uploadedBy": "69aa8cce74b72d92a0836820",
+    "uploadedAt": "2026-03-08T23:26:18.107Z"
+  },
+  {
+    "_id": "69ae05a3e1375c04f2d2ecba",
+    "taskId": "69ad8568c3d5b3e9d13be073",
+    "fileName": "c51.png",
+    "fileUrl": "/uploads/attachments/1773012387917-c51.png",
+    "fileSize": 482970,
+    "uploadedBy": "69aa8cce74b72d92a0836820",
+    "uploadedAt": "2026-03-08T23:26:27.921Z"
+  },
+  {
+    "_id": "69ae05a4e1375c04f2d2ecd2",
+    "taskId": "69ad8568c3d5b3e9d13be073",
+    "fileName": "c51.png",
+    "fileUrl": "/uploads/attachments/1773012388212-c51.png",
+    "fileSize": 482970,
+    "uploadedBy": "69aa8cce74b72d92a0836820",
+    "uploadedAt": "2026-03-08T23:26:28.218Z"
+  },
+  {
+    "_id": "69ae088de1375c04f2d4161c",
+    "taskId": "69ad856ec3d5b3e9d13be23c",
+    "fileName": "z7582282734209_64340037bb5c7dbf98ab95055b395b63.jpg",
+    "fileUrl": "/uploads/attachments/1773013133856-z7582282734209_64340037bb5c7dbf98ab95055b395b63.jpg",
+    "fileSize": 172605,
+    "uploadedBy": "69aa8cce74b72d92a0836820",
+    "uploadedAt": "2026-03-08T23:38:53.862Z"
+  },
+  {
+    "_id": "69ae088ee1375c04f2d41634",
+    "taskId": "69ad856ec3d5b3e9d13be23c",
+    "fileName": "z7582282734209_64340037bb5c7dbf98ab95055b395b63.jpg",
+    "fileUrl": "/uploads/attachments/1773013134243-z7582282734209_64340037bb5c7dbf98ab95055b395b63.jpg",
+    "fileSize": 172605,
+    "uploadedBy": "69aa8cce74b72d92a0836820",
+    "uploadedAt": "2026-03-08T23:38:54.245Z"
   }
 ]
