@@ -112,10 +112,12 @@ export interface Notification {
 export interface AuditLog {
   id?: string;
   _id?: string;
-  userId: string;
+  userId: string | { _id?: string; id?: string; fullName?: string; email?: string };
   action: string;
   entity: string;
   entityId: string;
   details: string;
-  timestamp: string;
+  timestamp?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
