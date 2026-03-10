@@ -46,7 +46,7 @@ interface DataContextType {
     name: string,
     startDate?: string,
     endDate?: string,
-    goal?: string
+    goal?: string,
   ) => Promise<WorkUnit>;
   // Tasks
   tasks: Task[];
@@ -117,28 +117,77 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       if (!user) return;
 
       try {
-        const token = sessionStorage.getItem('token');
+        const token = sessionStorage.getItem("token");
         const userId = user.id || user._id;
+
+        const authHeaders: HeadersInit = token
+          ? { Authorization: `Bearer ${token}` }
+          : {};
+
+        const requests: Promise<Response>[] = [
+          fetch(`${API_BASE_URL}/projects`),
+          fetch(`${API_BASE_URL}/user-projects`),
+          fetch(`${API_BASE_URL}/users`, {
+            headers: authHeaders,
+          }),
+          fetch(`${API_BASE_URL}/notifications/user/${userId}`),
+        ];
+
+        const isAdmin = user.role === "admin";
+
+        if (isAdmin) {
+          requests.push(
+            fetch(`${API_BASE_URL}/tasks`),
+            fetch(`${API_BASE_URL}/audit-logs`),
+          );
+        }
+
+        const responses = await Promise.all(requests);
+
         const [
           projectsRes,
           userProjectsRes,
           usersRes,
           notificationsRes,
-        ] = await Promise.all([
-          fetch(`${API_BASE_URL}/projects`),
-          fetch(`${API_BASE_URL}/user-projects`),
-          fetch(`${API_BASE_URL}/users`, {
-            headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-          }),
-          fetch(`${API_BASE_URL}/notifications/user/${userId}`),
-        ]);
+          tasksRes,
+          auditLogsRes,
+        ] = responses;
 
-        if (projectsRes.ok) setProjects(await projectsRes.json());
-        if (userProjectsRes.ok) setUserProjects(await userProjectsRes.json());
-        if (usersRes.ok) setUsers(await usersRes.json());
-        if (notificationsRes.ok) setNotifications(await notificationsRes.json());
+        if (projectsRes?.ok) {
+          const data = await projectsRes.json();
+          setProjects(data.map((p: any) => ({ ...p, id: p.id || p._id })));
+        }
+
+        if (userProjectsRes?.ok) {
+          const data = await userProjectsRes.json();
+          setUserProjects(
+            data.map((up: any) => ({ ...up, id: up.id || up._id })),
+          );
+        }
+
+        if (usersRes?.ok) {
+          const data = await usersRes.json();
+          setUsers(data.map((u: any) => ({ ...u, id: u.id || u._id })));
+        }
+
+        if (notificationsRes?.ok) {
+          const data = await notificationsRes.json();
+          setNotifications(data.map((n: any) => ({ ...n, id: n.id || n._id })));
+        }
+
+        if (isAdmin && tasksRes?.ok) {
+          const data = await tasksRes.json();
+          setTasks(data.map((t: any) => ({ ...t, id: t.id || t._id })));
+        }
+
+        if (isAdmin && auditLogsRes?.ok) {
+          const data = await auditLogsRes.json();
+          setAuditLogs(
+            data.map((log: any) => ({ ...log, id: log.id || log._id })),
+          );
+        }
       } catch (error) {
-        console.error('Failed to load data from API:', error);
+        console.error("Failed to load data from API:", error);
       }
     };
 
