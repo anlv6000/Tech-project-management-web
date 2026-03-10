@@ -135,3 +135,22 @@ export const getAllTasks = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+export const getTasksByUserId = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Lấy tất cả task do user tạo hoặc được assign
+    const tasks = await Task.find({
+      $or: [{ createdBy: userId }, { assigneeId: userId }],
+    })
+      .populate("assigneeId", "-password")
+      .populate("createdBy", "-password")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.json(tasks);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

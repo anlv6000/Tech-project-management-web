@@ -3,7 +3,7 @@ import { Link } from 'react-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { FolderKanban, ListTodo, Clock, TrendingUp, ArrowRight } from 'lucide-react';
-
+import { Task } from '../../types';
 export default function Dashboard() {
   const { user } = useAuth();
   const { getUserProjects, tasks, getTasksByProject, getUserNotifications } = useData();
@@ -12,14 +12,22 @@ export default function Dashboard() {
 
   const userId = user.id || user._id || '';
   const userProjects = getUserProjects(userId);
-  const userTasks = tasks.filter(t => t.assigneeId === user.id || t.assigneeId === user._id);
+  const userTasks = tasks.filter((t: Task) => {
+    if (typeof t.assigneeId === "string") {
+      return t.assigneeId === userId;
+    }
+    if (typeof t.assigneeId === "object" && t.assigneeId?._id) {
+      return t.assigneeId._id === userId;
+    }
+    return false;
+  });
   const inProgressTasks = userTasks.filter(t => t.status === 'in-progress');
   const completedTasks = userTasks.filter(t => t.status === 'done');
 
   // Get recent activity from notifications
   const notifications = getUserNotifications(userId);
   const recentActivity = notifications.slice(0, 3).map((notif, index) => ({
-    id:  notif.id || notif._id || index.toString(),
+    id: notif.id || notif._id || index.toString(),
     action: 'Notification',
     item: notif.message.substring(0, 30) + (notif.message.length > 30 ? '...' : ''),
     time: new Date(notif.createdAt).toLocaleDateString(),

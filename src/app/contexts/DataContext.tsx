@@ -111,7 +111,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
 
-  // Load data from API on mount and when user changes
   useEffect(() => {
     const loadData = async () => {
       if (!user) return;
@@ -124,34 +123,30 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
           ? { Authorization: `Bearer ${token}` }
           : {};
 
+        // Các request chung cho mọi user
         const requests: Promise<Response>[] = [
           fetch(`${API_BASE_URL}/projects`),
           fetch(`${API_BASE_URL}/user-projects`),
-          fetch(`${API_BASE_URL}/users`, {
-            headers: authHeaders,
-          }),
+          fetch(`${API_BASE_URL}/users`, { headers: authHeaders }),
           fetch(`${API_BASE_URL}/notifications/user/${userId}`),
         ];
 
-        const isAdmin = user.role === "admin";
+        let tasksRes: Response | undefined;
+        let auditLogsRes: Response | undefined;
 
-        if (isAdmin) {
-          requests.push(
+        if (user.role === "admin") {
+          // Admin: lấy toàn bộ tasks + audit logs
+          [tasksRes, auditLogsRes] = await Promise.all([
             fetch(`${API_BASE_URL}/tasks`),
             fetch(`${API_BASE_URL}/audit-logs`),
-          );
+          ]);
+        } else {
+          // User thường: chỉ lấy task của riêng họ
+          tasksRes = await fetch(`${API_BASE_URL}/tasks/user/${userId}`, { headers: authHeaders });
         }
 
         const responses = await Promise.all(requests);
-
-        const [
-          projectsRes,
-          userProjectsRes,
-          usersRes,
-          notificationsRes,
-          tasksRes,
-          auditLogsRes,
-        ] = responses;
+        const [projectsRes, userProjectsRes, usersRes, notificationsRes] = responses;
 
         if (projectsRes?.ok) {
           const data = await projectsRes.json();
@@ -160,9 +155,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
         if (userProjectsRes?.ok) {
           const data = await userProjectsRes.json();
-          setUserProjects(
-            data.map((up: any) => ({ ...up, id: up.id || up._id })),
-          );
+          setUserProjects(data.map((up: any) => ({ ...up, id: up.id || up._id })));
         }
 
         if (usersRes?.ok) {
@@ -175,16 +168,14 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
           setNotifications(data.map((n: any) => ({ ...n, id: n.id || n._id })));
         }
 
-        if (isAdmin && tasksRes?.ok) {
+        if (tasksRes?.ok) {
           const data = await tasksRes.json();
           setTasks(data.map((t: any) => ({ ...t, id: t.id || t._id })));
         }
 
-        if (isAdmin && auditLogsRes?.ok) {
+        if (user.role === "admin" && auditLogsRes?.ok) {
           const data = await auditLogsRes.json();
-          setAuditLogs(
-            data.map((log: any) => ({ ...log, id: log.id || log._id })),
-          );
+          setAuditLogs(data.map((log: any) => ({ ...log, id: log.id || log._id })));
         }
       } catch (error) {
         console.error("Failed to load data from API:", error);
@@ -192,7 +183,8 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     };
 
     loadData();
-  }, [user]);
+  }, [user?.id, user?.role]);
+
 
   // Project methods
   // UserProject: get all userProjects
@@ -436,6 +428,9 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       console.error('Failed to load project data:', error);
     }
   };
+  ([]);
+
+
 
   // WorkUnit methods
   const createWorkUnit = async (data: Omit<WorkUnit, 'id'>): Promise<WorkUnit> => {
