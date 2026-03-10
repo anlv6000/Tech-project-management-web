@@ -714,7 +714,7 @@ export default function TaskBoard() {
 
                   {/* Upload attachment */}
                   <div className="mt-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Add Attachment</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Add Attachment (only images)</label>
                     <input
                       disabled={isProjectCompleted}
                       type="file"
