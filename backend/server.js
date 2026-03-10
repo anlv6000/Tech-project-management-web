@@ -13,6 +13,7 @@ import auditLogRoutes from './routes/auditLogRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 
 dotenv.config();
 
@@ -43,6 +44,26 @@ app.use('/api/comments', commentRoutes);
 app.use('/api/attachments', attachmentRoutes);
 app.use('/api/audit-logs', auditLogRoutes);
 app.use('/api/notifications', notificationRoutes);
+
+// Route download file
+app.get('/download/:folder/:filename', (req, res) => {
+  const { folder, filename } = req.params;
+  const filePath = path.join(__dirname, 'uploads', folder, filename);
+
+  // Kiểm tra file tồn tại
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ message: 'File not found' });
+  }
+
+  // Gửi file với header Content-Disposition: attachment
+  res.download(filePath, filename, (err) => {
+    if (err) {
+      console.error('Download error:', err);
+      res.status(500).json({ message: 'Failed to download file' });
+    }
+  });
+});
+
 
 // Health check
 app.get('/api/health', (req, res) => {
