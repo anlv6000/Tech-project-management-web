@@ -739,8 +739,7 @@ export default function TaskBoard() {
                       />
                       <div className="absolute top-2 right-2 flex gap-2">
                         <a
-                          href={`${API_BASE_URL}${fullscreenAttachment.fileUrl}`}
-                          download={fullscreenAttachment.fileName}
+                          href={`${API_BASE_URL}/download/attachments/${fullscreenAttachment.fileUrl.split('/').pop()}`}
                           className="bg-white px-2 py-1 rounded text-sm"
                         >
                           Download
@@ -749,13 +748,19 @@ export default function TaskBoard() {
                         <button
                           onClick={() => {
                             if (fullscreenAttachment._id) {
-                              handleDeleteAttachment(fullscreenAttachment._id);
+                              const confirmDelete = window.confirm(
+                                "Bạn có chắc chắn muốn xoá file này không?"
+                              );
+                              if (confirmDelete) {
+                                handleDeleteAttachment(fullscreenAttachment._id);
+                              }
                             }
                           }}
                           className="bg-red-600 text-white px-2 py-1 rounded text-sm"
                         >
                           Delete
                         </button>
+
                         <button
                           onClick={handleCloseFullscreen}
                           className="bg-gray-600 text-white px-2 py-1 rounded text-sm"
