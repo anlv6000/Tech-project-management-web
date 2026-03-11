@@ -58,6 +58,11 @@ export interface WorkUnit {
   status?: string; // Added optional status property
 }
 
+export interface UserRef {
+  _id: string;
+  fullName?: string;
+}
+
 export interface Task {
   id?: string;
   _id?: string;
@@ -65,10 +70,10 @@ export interface Task {
   workUnitId: string;
   title: string;
   description: string;
-  assigneeId?: string;
+  assigneeId?: string | UserRef; // Can be a string ID or a populated user reference
   status: TaskStatus;
   deadline?: string;
-  createdBy: string;
+  createdBy: string | UserRef;
   createdAt: string;
   updatedAt: string;
   order: number;
@@ -112,10 +117,12 @@ export interface Notification {
 export interface AuditLog {
   id?: string;
   _id?: string;
-  userId: string;
+  userId: string | { _id?: string; id?: string; fullName?: string; email?: string };
   action: string;
   entity: string;
   entityId: string;
   details: string;
-  timestamp: string;
+  timestamp?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }

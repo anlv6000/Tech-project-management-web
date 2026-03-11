@@ -2,16 +2,17 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { CheckCircle, AlertCircle } from 'lucide-react';
+import { useEffect } from 'react';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const { login, user } = useAuth();
-  
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
-  
+
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -20,23 +21,26 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setIsLoading(true);
-    
+
     const success = await login(formData.email, formData.password);
-    
-    if (success) {
-      // Check if user is admin after successful login
-      setTimeout(() => {
-        if (user?.role === 'admin') {
-          navigate('/admin');
-        } else {
-          navigate('/app');
-        }
-      }, 100);
-    } else {
-      setError('Invalid credentials. Please check your email and password.');
+
+    if (!success) {
+      setError('Invalid credentials...');
       setIsLoading(false);
     }
   };
+
+  // Khi user thay đổi sau login, điều hướng theo role
+  useEffect(() => {
+    if (user) {
+      if (user.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/app');
+      }
+    }
+  }, [user, navigate]);
+
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -47,7 +51,7 @@ export default function LoginPage() {
 
   const handleBlur = (field: string) => {
     const tempErrors: Record<string, string> = {};
-    
+
     if (field === 'email') {
       if (!formData.email.trim()) {
         tempErrors.email = '*Email là bắt buộc';
@@ -55,13 +59,13 @@ export default function LoginPage() {
         tempErrors.email = '*Định dạng email không hợp lệ';
       }
     }
-    
+
     if (field === 'password') {
       if (!formData.password) {
         tempErrors.password = '*Mật khẩu là bắt buộc';
       }
     }
-    
+
     setFieldErrors(prev => ({ ...prev, [field]: tempErrors[field] || '' }));
   };
 
@@ -75,7 +79,7 @@ export default function LoginPage() {
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <CheckCircle className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xl font-bold">Tech Task</span>
+              <span className="text-xl font-bold">Tech-Task friendly</span>
             </Link>
           </div>
         </div>
@@ -109,9 +113,8 @@ export default function LoginPage() {
                   value={formData.email}
                   onChange={handleChange}
                   onBlur={() => handleBlur('email')}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    fieldErrors.email ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${fieldErrors.email ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   placeholder="nguyenvana@example.com"
                   required
                 />
@@ -131,9 +134,8 @@ export default function LoginPage() {
                   value={formData.password}
                   onChange={handleChange}
                   onBlur={() => handleBlur('password')}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    fieldErrors.password ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${fieldErrors.password ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   placeholder="••••••••"
                   required
                 />

@@ -44,4 +44,6 @@ commentSchema.pre('save', function(next) {
   next();
 });
 
+commentSchema.index({ taskId: 1 });
+
 export default mongoose.model('Comment', commentSchema);

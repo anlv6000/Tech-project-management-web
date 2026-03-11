@@ -46,7 +46,7 @@ interface DataContextType {
     name: string,
     startDate?: string,
     endDate?: string,
-    goal?: string
+    goal?: string,
   ) => Promise<WorkUnit>;
   // Tasks
   tasks: Task[];
@@ -63,7 +63,7 @@ interface DataContextType {
 
   // Attachments
   attachments: Attachment[];
-   addAttachment: (taskId: string, file: File) => Promise<void>;
+  addAttachment: (taskId: string, file: File) => Promise<void>;
   removeAttachment: (id: string) => void;
   getTaskAttachments: (taskId: string) => Attachment[];
   getAttachmentById: (id: string) => Attachment | undefined;
@@ -111,39 +111,80 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
 
-  // Load data from API on mount and when user changes
   useEffect(() => {
     const loadData = async () => {
       if (!user) return;
 
       try {
-        const token = sessionStorage.getItem('token');
+        const token = sessionStorage.getItem("token");
         const userId = user.id || user._id;
-        const [
-          projectsRes,
-          userProjectsRes,
-          usersRes,
-          notificationsRes,
-        ] = await Promise.all([
+
+        const authHeaders: HeadersInit = token
+          ? { Authorization: `Bearer ${token}` }
+          : {};
+
+        // Các request chung cho mọi user
+        const requests: Promise<Response>[] = [
           fetch(`${API_BASE_URL}/projects`),
           fetch(`${API_BASE_URL}/user-projects`),
-          fetch(`${API_BASE_URL}/users`, {
-            headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-          }),
+          fetch(`${API_BASE_URL}/users`, { headers: authHeaders }),
           fetch(`${API_BASE_URL}/notifications/user/${userId}`),
-        ]);
+        ];
 
-        if (projectsRes.ok) setProjects(await projectsRes.json());
-        if (userProjectsRes.ok) setUserProjects(await userProjectsRes.json());
-        if (usersRes.ok) setUsers(await usersRes.json());
-        if (notificationsRes.ok) setNotifications(await notificationsRes.json());
+        let tasksRes: Response | undefined;
+        let auditLogsRes: Response | undefined;
+
+        if (user.role === "admin") {
+          // Admin: lấy toàn bộ tasks + audit logs
+          [tasksRes, auditLogsRes] = await Promise.all([
+            fetch(`${API_BASE_URL}/tasks`),
+            fetch(`${API_BASE_URL}/audit-logs`),
+          ]);
+        } else {
+          // User thường: chỉ lấy task của riêng họ
+          tasksRes = await fetch(`${API_BASE_URL}/tasks/user/${userId}`, { headers: authHeaders });
+        }
+
+        const responses = await Promise.all(requests);
+        const [projectsRes, userProjectsRes, usersRes, notificationsRes] = responses;
+
+        if (projectsRes?.ok) {
+          const data = await projectsRes.json();
+          setProjects(data.map((p: any) => ({ ...p, id: p.id || p._id })));
+        }
+
+        if (userProjectsRes?.ok) {
+          const data = await userProjectsRes.json();
+          setUserProjects(data.map((up: any) => ({ ...up, id: up.id || up._id })));
+        }
+
+        if (usersRes?.ok) {
+          const data = await usersRes.json();
+          setUsers(data.map((u: any) => ({ ...u, id: u.id || u._id })));
+        }
+
+        if (notificationsRes?.ok) {
+          const data = await notificationsRes.json();
+          setNotifications(data.map((n: any) => ({ ...n, id: n.id || n._id })));
+        }
+
+        if (tasksRes?.ok) {
+          const data = await tasksRes.json();
+          setTasks(data.map((t: any) => ({ ...t, id: t.id || t._id })));
+        }
+
+        if (user.role === "admin" && auditLogsRes?.ok) {
+          const data = await auditLogsRes.json();
+          setAuditLogs(data.map((log: any) => ({ ...log, id: log.id || log._id })));
+        }
       } catch (error) {
-        console.error('Failed to load data from API:', error);
+        console.error("Failed to load data from API:", error);
       }
     };
 
     loadData();
-  }, [user]);
+  }, [user?.id, user?.role]);
+
 
   // Project methods
   // UserProject: get all userProjects
@@ -332,12 +373,15 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     const normalizedProjectId = String(projectId).trim();
 
     try {
-      // Lấy workUnits và tasks
-      const [workUnitsRes, tasksRes] = await Promise.all([
+      // Lấy workUnits, tasks, comments, attachments song song
+      const [workUnitsRes, tasksRes, commentsRes, attachmentsRes] = await Promise.all([
         fetch(`${API_BASE_URL}/work-units/project/${projectId}`),
         fetch(`${API_BASE_URL}/tasks/project/${projectId}`),
+        fetch(`${API_BASE_URL}/comments/project/${projectId}`),
+        fetch(`${API_BASE_URL}/attachments/project/${projectId}`),
       ]);
 
+      // WorkUnits
       if (workUnitsRes.ok) {
         const units = await workUnitsRes.json();
         setWorkUnits(prev => {
@@ -348,6 +392,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         });
       }
 
+      // Tasks
       let tasksList: Task[] = [];
       if (tasksRes.ok) {
         tasksList = await tasksRes.json();
@@ -359,30 +404,32 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         });
       }
 
-      // 🔥 Lấy comments cho từng task
-      const allComments: Comment[] = [];
-      for (const task of tasksList) {
-        const taskId = task.id || task._id;
-        const commentsRes = await fetch(`${API_BASE_URL}/comments/task/${taskId}`);
-        if (commentsRes.ok) {
-          const taskComments = await commentsRes.json();
-          allComments.push(...taskComments);
-        }
+      const projectTaskIds = tasksList.map(t => String(t.id || t._id));
+
+      // Comments
+      if (commentsRes.ok) {
+        const allComments: Comment[] = await commentsRes.json();
+        setComments(prev => {
+          const existing = prev.filter(c => !projectTaskIds.includes(String(c.taskId || '')));
+          return [...existing, ...allComments];
+        });
       }
 
-      // Lọc comment theo taskId thay vì projectId
-      const projectTaskIds = tasksList.map(t => String(t.id || t._id));
-      setComments(prev => {
-        const existing = prev.filter(
-          c => !projectTaskIds.includes(String(c.taskId || ''))
-        );
-        return [...existing, ...allComments];
-      });
+      // Attachments
+      if (attachmentsRes.ok) {
+        const allAttachments: Attachment[] = await attachmentsRes.json();
+        setAttachments(prev => {
+          const existing = prev.filter(a => !projectTaskIds.includes(String(a.taskId || '')));
+          return [...existing, ...allAttachments];
+        });
+      }
 
     } catch (error) {
       console.error('Failed to load project data:', error);
     }
   };
+  ([]);
+
 
 
   // WorkUnit methods
@@ -565,6 +612,11 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   };
 
+  const getTaskAttachments = (taskId: string) => {
+    const normalizedTaskId = String(taskId).trim();
+    return attachments.filter(a => String(a.taskId || '').trim() === normalizedTaskId);
+  };
+
   // Attachment methods
   const addAttachment = async (taskId: string, file: File) => {
     try {
@@ -591,22 +643,25 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
   const removeAttachment = async (id: string) => {
     try {
+      const token = sessionStorage.getItem('token');
+      console.log("Deleting attachment _id:", id);
+
       const response = await fetch(`${API_BASE_URL}/attachments/${id}`, {
         method: 'DELETE',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       });
 
-      if (!response.ok) throw new Error('Failed to delete attachment');
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Failed to delete attachment: ${errText}`);
+      }
 
-      setAttachments(prev => prev.filter(a => a.id !== id && a._id !== id));
+      setAttachments(prev => prev.filter(a => a._id !== id));
     } catch (error) {
       console.error('Delete attachment error:', error);
     }
   };
 
-  const getTaskAttachments = (taskId: string) => {
-    const normalizedTaskId = String(taskId).trim();
-    return attachments.filter(a => String(a.taskId || '').trim() === normalizedTaskId);
-  };
 
   // Notification methods
   const markAsRead = async (id: string) => {

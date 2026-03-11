@@ -5,6 +5,8 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Task } from '../../types';
+import { Attachment } from '../../types';
+
 import {
   ArrowLeft,
   Plus,
@@ -18,6 +20,7 @@ import {
 
 
 const ItemType = 'TASK';
+const API_BASE_URL = "http://localhost:5000";
 
 interface TaskCardProps {
   task: Task;
@@ -188,6 +191,7 @@ export default function TaskBoard() {
     createSprint,
     addAttachment,
     removeAttachment,
+    deleteWorkUnit,
   } = useData();
 
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -199,6 +203,10 @@ export default function TaskBoard() {
   const [timeLog, setTimeLog] = useState('');
   const [taskChanges, setTaskChanges] = useState<Partial<Task>>({});
   const [showUnsavedChanges, setShowUnsavedChanges] = useState(false);
+  const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
+  const [fullscreenAttachment, setFullscreenAttachment] = useState<Attachment | null>(null);
+  const [showSprintModal, setShowSprintModal] = useState(false);
+  const [sprintName, setSprintName] = useState("");
 
   const handleTaskClick = (task: Task) => {
     setSelectedTask(task);
@@ -212,7 +220,7 @@ export default function TaskBoard() {
     if (projectId && projectId !== 'undefined') {
       loadProjectData(projectId);
     }
-  }, [projectId, loadProjectData]);
+  }, [projectId]);
 
   const project = getProject(projectId);
   const isProjectCompleted = project?.isCompleted || false;
@@ -256,48 +264,37 @@ export default function TaskBoard() {
     setShowCreateTask(true);
   };
 
-  const handleCreateSprint = async () => { // Ensure 'handleCreateSprint' is defined
+  const handleOpenSprintModal = () => {
+    setSprintName("");
+    setShowSprintModal(true);
+  };
+
+  const handleCreateSprint = async () => {
     try {
       await createSprint(
         projectId,
-        "Sprint mới",
+        `Sprint ${sprintName}`, // tên do người dùng nhập
         undefined,
         undefined,
         "Goal cho sprint"
       );
+      setShowSprintModal(false);
     } catch (error) {
       console.error("Failed to create sprint:", error);
     }
   };
 
   const handleAddAttachment = async (file: File) => {
+    console.log("handleAddAttachment called with:", file.name);
     if (!selectedTask || !user) return;
 
     const taskId = selectedTask.id || selectedTask._id;
     if (!taskId) return;
 
-    const formData = new FormData();
-    formData.append('file', file); // ✅ đúng với upload.single('file')
-    formData.append('taskId', String(taskId)); // ép kiểu string
-    formData.append('uploadedBy', String(user.id || user._id)); // ép kiểu string
-
-    try {
-      const response = await fetch('http://localhost:5000/api/attachments', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (response.ok) {
-        const newAttachment = await response.json();
-        addAttachment(taskId, file);
-      } else {
-        const errorText = await response.text();
-        console.error('Failed to upload attachment:', errorText);
-      }
-    } catch (error) {
-      console.error('Error uploading attachment:', error);
-    }
+    // ✅ chỉ gọi lại addAttachment, không fetch trực tiếp nữa
+    await addAttachment(taskId, file);
   };
+
   const handleSaveTask = () => {
     if (!selectedTask) return;
 
@@ -416,8 +413,22 @@ export default function TaskBoard() {
 
 
   const selectedTaskId = selectedTask?.id || selectedTask?._id || '';
+  const selectedTaskAttachments = selectedTaskId
+    ? getTaskAttachments(selectedTaskId)
+    : [];
+
+  const updatedAttachments = (selectedTaskAttachments || []).map((att: Attachment) => {
+    return {
+      ...att,
+      fileName: att.fileName || 'Unknown file',
+      fileSize: att.fileSize || 0,
+      fileUrl: att.fileUrl || '',
+      uploadedAt: att.uploadedAt || '',
+      uploadedBy: att.uploadedBy || '',
+    };
+  });
+
   const selectedTaskComments = selectedTask ? getTaskComments(selectedTaskId) : [];
-  const selectedTaskAttachments = selectedTask ? getTaskAttachments(selectedTaskId) : [];
   const updatedComments = (selectedTaskComments || []).map((comment: any) => {
     const foundUser = comment.userId; // đã populate
     return {
@@ -428,6 +439,52 @@ export default function TaskBoard() {
       createdAt: comment.createdAt || '',
     };
   });
+
+  const handleOpenFullscreen = (attachment: Attachment) => {
+    const fullUrl = `${API_BASE_URL}${attachment.fileUrl}`;
+    console.log("Fullscreen image URL:", fullUrl);
+    setFullscreenImage(fullUrl);
+    setFullscreenAttachment(attachment);
+  };
+
+  const handleCloseFullscreen = () => {
+    setFullscreenImage(null);
+    setFullscreenAttachment(null);
+  };
+
+  const handleDeleteAttachment = async (attachmentId: string) => {
+    try {
+      await removeAttachment(attachmentId);
+      if (selectedTask) {
+        const taskId = selectedTask._id ?? selectedTask.id;
+        if (typeof taskId === 'string') {
+          getTaskAttachments(taskId);
+        }
+      }
+      // Đóng fullscreen sau khi xoá
+      handleCloseFullscreen();
+      // Hiện alert mặc định
+      alert('Attachment deleted successfully');
+    } catch (error) {
+      console.error('Failed to delete attachment:', error);
+      alert('Failed to delete attachment');
+    }
+  };
+
+  const handleDeleteWorkUnit = async (workUnitId: string) => {
+    if (!projectId) return;
+
+    const confirmDelete = window.confirm('Are you sure you want to delete this work unit? All tasks in this work unit will also be deleted.');
+    if (!confirmDelete) return;
+
+    try {
+      await deleteWorkUnit(workUnitId);
+      loadProjectData(projectId); // Refresh project data
+    } catch (error) {
+      console.error('Failed to delete work unit:', error);
+    }
+  };
+
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="h-full flex flex-col bg-gray-50">
@@ -446,13 +503,41 @@ export default function TaskBoard() {
                 <h1 className="text-2xl font-bold text-gray-900">{project?.name}</h1> {/* Ensure 'project' is defined */}
                 <p className="text-sm text-gray-600 capitalize">{project?.methodology} Board</p> {/* Ensure 'project' is defined */}
               </div>
-              {project?.methodology === 'agile' && !isProjectCompleted && ( // Ensure 'project' is defined
+              {project?.methodology === 'agile' && !isProjectCompleted && (
                 <button
-                  onClick={handleCreateSprint}
+                  onClick={handleOpenSprintModal} // mở modal thay vì gọi trực tiếp
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
                   ➕ New Sprint
                 </button>
+              )}
+              {showSprintModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                  <div className="bg-white p-6 rounded shadow-lg w-96">
+                    <h2 className="text-lg font-semibold mb-4">Tạo Sprint mới</h2>
+                    <input
+                      type="text"
+                      value={sprintName}
+                      onChange={(e) => setSprintName(e.target.value)}
+                      placeholder="Nhập tên sprint"
+                      className="w-full px-3 py-2 border rounded mb-4"
+                    />
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => setShowSprintModal(false)}
+                        className="px-4 py-2 bg-gray-300 rounded"
+                      >
+                        Hủy
+                      </button>
+                      <button
+                        onClick={handleCreateSprint}
+                        className="px-4 py-2 bg-blue-600 text-white rounded"
+                      >
+                        Tạo Sprint
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -466,7 +551,7 @@ export default function TaskBoard() {
                 const workUnitId = workUnit.id || workUnit._id || '';
                 const tasks = getTasksByWorkUnit(workUnitId);
                 return (
-                  <div key={workUnitId} className="bg-gray-100 p-4 rounded-lg">
+                  <div key={workUnitId} className="bg-gray-100 p-4 rounded-lg relative">
                     <Column
                       workUnit={workUnit}
                       tasks={tasks}
@@ -479,6 +564,14 @@ export default function TaskBoard() {
                       users={users}
                       isProjectCompleted={isProjectCompleted}
                     />
+                    {project?.methodology === 'agile' && !isProjectCompleted && (
+                      <button
+                        onClick={() => handleDeleteWorkUnit(workUnitId)}
+                        className="absolute bottom-2 right-2 text-xs text-red-600 hover:text-red-800"
+                      >
+                        Delete
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -514,7 +607,6 @@ export default function TaskBoard() {
                   <p className="text-gray-700">{selectedTask.description || 'No description'}</p>
                 </div>
 
-                {/* Disable all functionalities if project is completed */}
                 {/* Details */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -589,30 +681,42 @@ export default function TaskBoard() {
                     </button>
                   </div>
                 </div>
+
                 {/* Attachments */}
                 <div>
                   <h3 className="font-medium text-gray-900 mb-2">
-                    Attachments ({selectedTaskAttachments.length})
+                    Attachments ({updatedAttachments.length})
                   </h3>
-                  {selectedTaskAttachments.length > 0 ? (
-                    <div className="space-y-2">
-                      {selectedTaskAttachments.map(att => (
-                        <div key={normalizeId(att._id || att.id)} className="flex items-center gap-3 p-3 border rounded-lg">
-                          <Paperclip className="w-4 h-4 text-gray-600" />
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-gray-900">{att.fileName}</p>
-                            <p className="text-xs text-gray-600">{(att.fileSize / 1024).toFixed(2)} KB</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-gray-600">No attachments</p>
-                  )}
 
+                  {/* Hiển thị thumbnail ảnh hoặc file */}
+                  <div className="flex flex-wrap gap-3 mb-4">
+                    {updatedAttachments.map(att => {
+                      const isImage = att.fileUrl.match(/\.(jpg|jpeg|png|gif)$/i);
+                      return (
+                        <div key={att._id} className="relative">
+                          {isImage ? (
+                            <img
+                              src={`${API_BASE_URL}${att.fileUrl}`}
+                              alt={att.fileName}
+                              className="w-24 h-24 object-cover rounded cursor-pointer"
+                              onClick={() => handleOpenFullscreen(att)}
+                            />
+                          ) : (
+                            <div className="flex items-center gap-2 p-2 border rounded">
+                              <Paperclip className="w-4 h-4 text-gray-600" />
+                              <span className="text-sm">{att.fileName}</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Upload attachment */}
                   <div className="mt-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Add Attachment</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Add Attachment (only images)</label>
                     <input
+                      disabled={isProjectCompleted}
                       type="file"
                       onChange={(e) => {
                         if (e.target.files && e.target.files[0]) {
@@ -623,6 +727,51 @@ export default function TaskBoard() {
                     />
                   </div>
                 </div>
+
+                {/* Fullscreen modal */}
+                {fullscreenImage && fullscreenAttachment && (
+                  <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+                    <div className="relative">
+                      <img
+                        src={fullscreenImage}
+                        alt={fullscreenAttachment.fileName}
+                        className="max-h-screen max-w-screen"
+                      />
+                      <div className="absolute top-2 right-2 flex gap-2">
+                        <a
+                          href={`${API_BASE_URL}/download/attachments/${fullscreenAttachment.fileUrl.split('/').pop()}`}
+                          className="bg-white px-2 py-1 rounded text-sm"
+                        >
+                          Download
+                        </a>
+
+                        <button
+                          onClick={() => {
+                            if (fullscreenAttachment._id) {
+                              const confirmDelete = window.confirm(
+                                "Bạn có chắc chắn muốn xoá file này không?"
+                              );
+                              if (confirmDelete) {
+                                handleDeleteAttachment(fullscreenAttachment._id);
+                              }
+                            }
+                          }}
+                          className="bg-red-600 text-white px-2 py-1 rounded text-sm"
+                        >
+                          Delete
+                        </button>
+
+                        <button
+                          onClick={handleCloseFullscreen}
+                          className="bg-gray-600 text-white px-2 py-1 rounded text-sm"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
 
                 {/* Comments */}
                 <div>
@@ -658,9 +807,10 @@ export default function TaskBoard() {
                       onKeyPress={(e) => e.key === 'Enter' && handleAddComment()}
                     />
                     <button
+                      disabled={isProjectCompleted}
                       onClick={handleAddComment}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                    >
+                      className={`px-4 py-2 rounded-lg ${isProjectCompleted ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-blue-600 text-white hover:bg-blue-700"
+                        }`} >
                       Comment
                     </button>
                   </div>
