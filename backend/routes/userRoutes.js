@@ -11,6 +11,7 @@ router.post("/", userController.createUser);
 router.post("/auth/login", userController.loginUser);
 router.post("/auth/register", userController.registerUser);
 router.put("/:id", authenticateToken, requireAdmin, userController.updateUser);
+router.put("/:id/change-password", authenticateToken, userController.changePassword);
 router.delete(
   "/:id",
   authenticateToken,
