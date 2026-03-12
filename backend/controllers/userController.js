@@ -52,30 +52,48 @@ export const createUser = async (req, res) => {
 
 export const updateUser = async (req, res) => {
   try {
-    const { fullName, avatar, isActive } = req.body;
+    console.log("req.user:", req.user);
+    console.log("req.user._id:", req.user?._id?.toString());
+    console.log("req.params.id:", req.params.id);
+
+    // chỉ cho phép chính chủ sửa hồ sơ
+    if (!req.user || req.user._id.toString() !== req.params.id) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+
+    const { fullName, avatar, isActive, email } = req.body;
 
     const updateData = {};
     if (fullName !== undefined) updateData.fullName = fullName;
     if (avatar !== undefined) updateData.avatar = avatar;
     if (isActive !== undefined) updateData.isActive = isActive;
+    if (email !== undefined) {
+      const existingUser = await User.findOne({ email, _id: { $ne: req.params.id } });
+      if (existingUser) {
+        return res.status(409).json({ message: "Email đã tồn tại" });
+      }
+      updateData.email = email;
+    }
 
     const updatedUser = await User.findByIdAndUpdate(
       req.params.id,
       updateData,
-      { new: true, runValidators: true },
-    )
-      .select("-password")
-      .lean();
+      { new: true, runValidators: true }
+    ).select("-password").lean();
 
     if (!updatedUser) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: "User không tồn tại" });
     }
 
     res.json(updatedUser);
   } catch (error) {
+    console.error("Update user error:", error);
     res.status(400).json({ message: error.message });
   }
 };
+
+
 
 export const deleteUser = async (req, res) => {
   try {
@@ -111,6 +129,7 @@ export const loginUser = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: "24h" },
     );
+    console.log("Login success, userId in token:", user._id.toString());
 
     const userResponse = user.toObject();
     delete userResponse.password;
@@ -169,6 +188,10 @@ export const searchUsers = async (req, res) => {
 
 export const changePassword = async (req, res) => {
   try {
+    console.log("req.user:", req.user); // log toàn bộ user từ middleware
+    console.log("req.user.id:", req.user?.id);
+    console.log("req.params.id:", req.params.id);
+
     const { currentPassword, newPassword } = req.body;
     const user = await User.findById(req.params.id);
 
