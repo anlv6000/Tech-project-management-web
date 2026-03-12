@@ -18,5 +18,6 @@ router.delete(
   requireAdmin,
   userController.deleteUser,
 );
+router.put("/:id/change-password", authenticateToken, userController.changePassword);
 
 export default router;
