@@ -93,16 +93,17 @@ export const loginUser = async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json({ message: "Invalid credentials" });
+      return res.status(404).json({ message: "Email không tồn tại" });
+    }
+
+    // Kiểm tra trạng thái trước khi kiểm tra mật khẩu
+    if (!user.isActive) {
+      return res.status(403).json({ message: "Tài khoản đã bị khóa" });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
-
-    if (!user.isActive) {
-      return res.status(401).json({ message: "User account is inactive" });
+      return res.status(401).json({ message: "Sai mật khẩu" });
     }
 
     const token = jwt.sign(
@@ -116,7 +117,7 @@ export const loginUser = async (req, res) => {
 
     res.json({ success: true, user: userResponse, token });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: "Không kết nối được với server" });
   }
 };
 
@@ -185,6 +186,23 @@ export const changePassword = async (req, res) => {
     await user.save();
 
     res.json({ message: "Password updated successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Admin reset mật khẩu cho user
+export const resetPassword = async (req, res) => {
+  try {
+    const { newPassword } = req.body;
+    const user = await User.findById(req.params.id);
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    user.password = newPassword; // middleware sẽ tự hash
+    await user.save();
+
+    res.json({ message: "Password reset successfully by admin" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
