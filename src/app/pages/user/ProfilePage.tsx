@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { User, Lock, Mail, AlertCircle, CheckCircle } from 'lucide-react';
+import { User, Lock, Mail, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 
 
 export default function ProfilePage() {
@@ -19,18 +19,26 @@ export default function ProfilePage() {
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [avatarPreview, setAvatarPreview] = useState<string | null>(user?.avatar || null);
+  const [profileError, setProfileError] = useState<string | null>(null);
 
   if (!user) return null;
 
-  const handleProfileSubmit = (e: React.FormEvent) => {
+  const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateUser({
-      fullName: profileData.fullName,
-      email: profileData.email,
-    });
-    setProfileSuccess(true);
-    setTimeout(() => setProfileSuccess(false), 3000);
+    setProfileError(null);
+    try {
+      await updateUser({
+        fullName: profileData.fullName,
+        email: profileData.email,
+      });
+      setProfileSuccess(true);
+      setTimeout(() => setProfileSuccess(false), 3000);
+    } catch (err: any) {
+      setProfileError(err.message);
+    }
   };
+
+
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -147,6 +155,13 @@ export default function ProfilePage() {
                   </div>
                 )}
 
+                {profileError && (
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+                    <XCircle className="w-5 h-5 text-red-600 mt-0.5" />
+                    <p className="text-red-800">{profileError}</p>
+                  </div>
+                )}
+
                 {/* FULLNAME */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -174,18 +189,6 @@ export default function ProfilePage() {
                       setProfileData({ ...profileData, email: e.target.value })
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Account Status
-                  </label>
-                  <input
-                    type="text"
-                    value={user.isActive ? "Active" : "Disabled"}
-                    disabled
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
                   />
                 </div>
 
