@@ -57,7 +57,12 @@ const taskSchema = new mongoose.Schema({
   updatedAt: {
     type: Date,
     default: Date.now
-  }
+  },
+  parentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Task',
+    default: null
+  },
 });
 taskSchema.set('toJSON', {
   transform: (doc, ret) => {
@@ -67,7 +72,7 @@ taskSchema.set('toJSON', {
   }
 });
 
-taskSchema.pre('save', function(next) {
+taskSchema.pre('save', function (next) {
   this.updatedAt = Date.now();
   next();
 });

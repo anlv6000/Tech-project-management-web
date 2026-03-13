@@ -46,7 +46,8 @@ export const getTaskById = async (req, res) => {
 
 export const createTask = async (req, res) => {
   try {
-    const { projectId, workUnitId, title, description, assigneeId, status, deadline, createdBy, order, timeSpent } = req.body;
+    const { projectId, workUnitId, title, description,
+            assigneeId, status, deadline, createdBy, order, timeSpent, parentId } = req.body;
 
     const task = new Task({
       _id: new mongoose.Types.ObjectId(),
@@ -59,7 +60,8 @@ export const createTask = async (req, res) => {
       deadline: deadline ? new Date(deadline) : null,
       createdBy: new mongoose.Types.ObjectId(createdBy),
       order: order || 0,
-      timeSpent: timeSpent || 0
+      timeSpent: timeSpent || 0,
+      parentId: parentId ? new mongoose.Types.ObjectId(parentId) : null, // 👈 thêm dòng này
     });
 
     const saved = await task.save();
@@ -154,3 +156,18 @@ export const getTasksByUserId = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+export const getSubTasks = async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const subTasks = await Task.find({ parentId: taskId })
+      .populate("assigneeId", "-password")
+      .populate("createdBy", "-password")
+      .sort("order")
+      .lean();
+    res.json(subTasks);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};  
+
