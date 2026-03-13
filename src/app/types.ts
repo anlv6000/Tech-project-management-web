@@ -5,6 +5,14 @@ export type ProjectRole = 'owner' | 'member' | 'viewer' | 'Admin' | 'Manager' | 
 export type Methodology = 'agile' | 'kanban' | 'waterfall';
 export type TaskStatus = 'todo' | 'in-progress' | 'done' | 'backlog';
 export type WorkUnitType = 'sprint' | 'column' | 'phase';
+export type TaskType =
+  | "parent"
+  | "subtask"
+  | "epic"
+  | "milestone"
+  | "feature"
+  | "bug"
+  | "improvement";
 
 export interface User {
   id?: string;
@@ -78,6 +86,7 @@ export interface Task {
   updatedAt: string;
   order: number;
   timeSpent?: number; // in hours
+   type: TaskType;
 }
 
 export interface Comment {

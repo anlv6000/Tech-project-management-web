@@ -176,11 +176,10 @@ function Column({
 
       <div
         ref={drop as any}
-        className={`flex-1 space-y-3 min-h-[200px] p-2 rounded-lg transition-colors ${
-          isOver
-            ? "bg-blue-50 border-2 border-dashed border-blue-300"
-            : "bg-transparent"
-        }`}
+        className={`flex-1 space-y-3 min-h-[200px] p-2 rounded-lg transition-colors ${isOver
+          ? "bg-blue-50 border-2 border-dashed border-blue-300"
+          : "bg-transparent"
+          }`}
       >
         {tasks.map((task) => (
           <TaskCard
@@ -293,6 +292,7 @@ export default function TaskBoard() {
           createdBy: user?.id || user?._id,
           order: subTasks.length,
           parentId: parentId,
+          type: "subtask"   // 👈 thêm field type
         }),
       });
 
@@ -451,7 +451,6 @@ export default function TaskBoard() {
   const handleConfirmClose = () => {
     // Ensure 'handleConfirmClose' is defined
     setShowUnsavedChanges(false);
-    setSelectedTask(null);
     setTaskChanges({});
     setSubTasks([]);
   };
@@ -489,7 +488,9 @@ export default function TaskBoard() {
       status: "todo",
       createdBy: user.id || user._id || "",
       order: tasksInUnit.length,
+      type: "parent", // 👈 thêm field type
     });
+
 
     setShowCreateTask(false);
     setNewTaskTitle("");
@@ -828,11 +829,10 @@ export default function TaskBoard() {
                       onChange={(e) =>
                         handleTaskChange("status", e.target.value)
                       }
-                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${
-                        isProjectCompleted
-                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                          : "focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      }`}
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${isProjectCompleted
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                        : "focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        }`}
                     >
                       <option value="todo">To Do</option>
                       <option value="in-progress">In Progress</option>
@@ -859,11 +859,10 @@ export default function TaskBoard() {
                             : undefined,
                         )
                       }
-                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${
-                        isProjectCompleted
-                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                          : "focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      }`}
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${isProjectCompleted
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                        : "focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        }`}
                     >
                       <option value="">Unassigned</option>
                       {projectMembers.map((u: any) => {
@@ -902,11 +901,10 @@ export default function TaskBoard() {
                     <button
                       disabled={isProjectCompleted}
                       onClick={handleLogTime}
-                      className={`px-4 py-2 rounded-lg ${
-                        isProjectCompleted
-                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                          : "bg-blue-600 text-white hover:bg-blue-700"
-                      }`}
+                      className={`px-4 py-2 rounded-lg ${isProjectCompleted
+                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        : "bg-blue-600 text-white hover:bg-blue-700"
+                        }`}
                     >
                       Log Time
                     </button>
@@ -977,22 +975,20 @@ export default function TaskBoard() {
                           {/* ↓ Thêm onClick vào title để navigate */}
                           <span
                             onClick={() => handleSubTaskClick(subTask)}
-                            className={`flex-1 text-sm cursor-pointer hover:text-blue-600 hover:underline ${
-                              subTask.status === "done"
-                                ? "line-through text-gray-400"
-                                : "text-gray-700"
-                            }`}
+                            className={`flex-1 text-sm cursor-pointer hover:text-blue-600 hover:underline ${subTask.status === "done"
+                              ? "line-through text-gray-400"
+                              : "text-gray-700"
+                              }`}
                           >
                             {subTask.title}
                           </span>
                           <span
-                            className={`text-xs px-2 py-0.5 rounded-full ${
-                              subTask.status === "done"
-                                ? "bg-green-100 text-green-700"
-                                : subTask.status === "in-progress"
-                                  ? "bg-yellow-100 text-yellow-700"
-                                  : "bg-gray-100 text-gray-600"
-                            }`}
+                            className={`text-xs px-2 py-0.5 rounded-full ${subTask.status === "done"
+                              ? "bg-green-100 text-green-700"
+                              : subTask.status === "in-progress"
+                                ? "bg-yellow-100 text-yellow-700"
+                                : "bg-gray-100 text-gray-600"
+                              }`}
                           >
                             {subTask.status}
                           </span>
@@ -1177,11 +1173,10 @@ export default function TaskBoard() {
                     <button
                       disabled={isProjectCompleted}
                       onClick={handleAddComment}
-                      className={`px-4 py-2 rounded-lg ${
-                        isProjectCompleted
-                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                          : "bg-blue-600 text-white hover:bg-blue-700"
-                      }`}
+                      className={`px-4 py-2 rounded-lg ${isProjectCompleted
+                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        : "bg-blue-600 text-white hover:bg-blue-700"
+                        }`}
                     >
                       Comment
                     </button>

@@ -15,6 +15,7 @@ import {
 } from '../types';
 import { useAuth } from './AuthContext';
 
+//@ts-ignore
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) || 'http://localhost:5000/api';
 
 interface DataContextType {
@@ -570,7 +571,10 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   const getTasksByWorkUnit = (workUnitId: string) => {
     const normalizedWorkUnitId = String(workUnitId).trim();
     return tasks
-      .filter(t => String(t.workUnitId || '').trim() === normalizedWorkUnitId)
+      .filter(t =>
+        String(t.workUnitId || '').trim() === normalizedWorkUnitId
+        && t.type !== "subtask" // 👈 loại bỏ subtasks khỏi column
+      )
       .sort((a, b) => a.order - b.order);
   };
 
