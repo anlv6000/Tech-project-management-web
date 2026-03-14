@@ -38,6 +38,9 @@ export default function ProjectDetail() {
   const [inviteSuccess, setInviteSuccess] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const [completionError, setCompletionError] = useState('');
+  const [editMode, setEditMode] = useState(false);
+  const [updateLoading, setUpdateLoading] = useState(false);
+  const [updateError, setUpdateError] = useState('');
 
   if (!projectId) return null;
 
@@ -54,6 +57,11 @@ export default function ProjectDetail() {
   const tasks = getTasksByProject(projectId);
   const allUsers = getAllUsers();
 
+  const [updatedProject, setUpdatedProject] = useState({
+    name: project?.name || "",
+    description: project?.description || ""
+  });
+
   if (!project) {
     return (
       <div className="p-6">
@@ -62,7 +70,7 @@ export default function ProjectDetail() {
     );
   }
 
-  const availableUsers = allUsers.filter(u => 
+  const availableUsers = allUsers.filter(u =>
     !members.some(m => m.userId === u.id) && u.isActive
   );
 
@@ -78,7 +86,7 @@ export default function ProjectDetail() {
       const isEmail = input.includes('@');
       const query = isEmail ? `email=${input}` : `fullName=${input}`;
       const response = await fetch(`http://localhost:5000/api/users/search?${query}`);
-      
+
       if (response.ok) {
         const users = await response.json();
         setUserSuggestions(users);
@@ -93,13 +101,13 @@ export default function ProjectDetail() {
     setInviteSuccess(false);
     setInviteLoading(true);
     try {
-      const invitePayload = typeof userOrEmail === 'string' 
+      const invitePayload = typeof userOrEmail === 'string'
         ? { email: userOrEmail, role: 'Member' }
-        : { 
-            fullName: userOrEmail.fullName || userOrEmail.name,
-            email: userOrEmail.email,
-            role: 'Member'
-          };
+        : {
+          fullName: userOrEmail.fullName || userOrEmail.name,
+          email: userOrEmail.email,
+          role: 'Member'
+        };
 
       const response = await fetch(
         `http://localhost:5000/api/projects/${projectId}/invite`,
@@ -165,6 +173,32 @@ export default function ProjectDetail() {
     }
   };
 
+  const handleUpdateProject = async () => {
+    setUpdateLoading(true);
+    setUpdateError('');
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/projects/${projectId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedProject),
+      });
+
+      if (response.ok) {
+        alert('Project updated successfully!');
+        window.location.reload();
+      } else {
+        const error = await response.json();
+        setUpdateError(error.message || 'Failed to update project.');
+      }
+    } catch (error) {
+      console.error('Update project error:', error);
+      setUpdateError('An error occurred while updating the project.');
+    } finally {
+      setUpdateLoading(false);
+    }
+  };
+
   // Calculate stats
   const completedTasks = tasks.filter(t => t.status === 'done').length;
   const inProgressTasks = tasks.filter(t => t.status === 'in-progress').length;
@@ -180,8 +214,12 @@ export default function ProjectDetail() {
 
   const workUnitData = workUnits.map(wu => ({
     name: wu.name,
-    tasks: tasks.filter(t => String(t.workUnitId || '').trim() === String(wu.id || wu._id || '').trim()).length,
+    tasks: tasks.filter(
+      t => String(t.workUnitId || '').trim() === String(wu.id || wu._id || '').trim()
+        && t.type !== "subtask"
+    ).length,
   }));
+
 
   return (
     <div className="h-full flex flex-col">
@@ -195,18 +233,67 @@ export default function ProjectDetail() {
 
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">{project.name}</h1>
-              <p className="text-gray-600 mb-4">{project.description}</p>
-              <div className="flex items-center gap-4">
-                <span className="inline-block px-3 py-1 text-sm font-medium rounded-full capitalize bg-blue-100 text-blue-600">
-                  {project.methodology}
-                </span>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Calendar className="w-4 h-4" />
-                  {new Date(project.startDate).toLocaleDateString()} - {new Date(project.endDate).toLocaleDateString()}
+              {editMode ? (
+                // Modal overlay
+                <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
+                  <div className="bg-white p-6 rounded-lg shadow-lg w-[500px]">
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-lg font-semibold">Edit Project</h2>
+                      <button onClick={() => setEditMode(false)}>
+                        <X className="w-5 h-5 text-gray-600" />
+                      </button>
+                    </div>
+                    <div className="space-y-4">
+                      <input
+                        type="text"
+                        value={updatedProject.name}
+                        onChange={(e) =>
+                          setUpdatedProject({ ...updatedProject, name: e.target.value })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Project Name"
+                      />
+                      <textarea
+                        value={updatedProject.description}
+                        onChange={(e) =>
+                          setUpdatedProject({ ...updatedProject, description: e.target.value })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Project Description"
+                      />
+                      {updateError && <p className="text-red-600">{updateError}</p>}
+                      <div className="flex gap-4 justify-end">
+                        <button
+                          onClick={handleUpdateProject}
+                          disabled={updateLoading}
+                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                        >
+                          {updateLoading ? "Updating..." : "Save Changes"}
+                        </button>
+                        <button
+                          onClick={() => setEditMode(false)}
+                          className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <>
+                  <h1 className="text-3xl font-bold text-gray-900 mb-2">{project.name}</h1>
+                  <p className="text-gray-600 mb-4">{project.description}</p>
+                  <button
+                    onClick={() => setEditMode(true)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Edit Project
+                  </button>
+                </>
+              )}
             </div>
+
 
             <Link to={`/app/projects/${projectId}/board`}>
               <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
@@ -232,11 +319,10 @@ export default function ProjectDetail() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center gap-2 px-4 py-4 border-b-2 transition-colors ${
-                    activeTab === tab.id
-                      ? 'border-blue-600 text-blue-600'
-                      : 'border-transparent text-gray-600 hover:text-gray-900'
-                  }`}
+                  className={`flex items-center gap-2 px-4 py-4 border-b-2 transition-colors ${activeTab === tab.id
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                    }`}
                 >
                   <Icon className="w-5 h-5" />
                   {tab.label}
@@ -343,7 +429,7 @@ export default function ProjectDetail() {
                     if (!memberUser) return null;
 
                     return (
-                      <div key={member.id || member._id}className="flex items-center justify-between p-4 border rounded-lg">
+                      <div key={member.id || member._id} className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
                             <span className="text-blue-600 font-medium">
@@ -412,112 +498,114 @@ export default function ProjectDetail() {
       </div>
 
       {/* Invite User Modal */}
-      {showAddMember && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full">
-            <div className="p-6 border-b flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Invite to Project</h2>
-              <button
-                onClick={() => {
-                  setShowAddMember(false);
-                  setUserSuggestions([]);
-                  setInviteData({ searchInput: '', role: 'Member' });
-                }}
-                className="p-2 hover:bg-gray-100 rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              {inviteError && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <h3 className="font-medium text-red-900">Error</h3>
-                    <p className="text-sm text-red-700 mt-1">{inviteError}</p>
-                  </div>
-                </div>
-              )}
-
-              {inviteSuccess && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <h3 className="font-medium text-green-900">Success</h3>
-                    <p className="text-sm text-green-700 mt-1">User invited to project!</p>
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Search by Email or Name
-                </label>
-                <input
-                  type="text"
-                  value={inviteData.searchInput}
-                  onChange={(e) => handleSearchUser(e.target.value)}
-                  disabled={inviteLoading}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                  placeholder="john@example.com hoặc John Doe"
-                />
+      {
+        showAddMember && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-md w-full">
+              <div className="p-6 border-b flex items-center justify-between">
+                <h2 className="text-xl font-bold text-gray-900">Invite to Project</h2>
+                <button
+                  onClick={() => {
+                    setShowAddMember(false);
+                    setUserSuggestions([]);
+                    setInviteData({ searchInput: '', role: 'Member' });
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-lg"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              {/* User Suggestions */}
-              {userSuggestions.length > 0 && (
-                <div className="border rounded-lg overflow-hidden bg-gray-50 max-h-48 overflow-y-auto">
-                  {userSuggestions.map((suggestion) => (
-                    <button
-                      key={suggestion._id || suggestion.id}
-                      onClick={() => handleInviteUser(suggestion)}
-                      disabled={inviteLoading}
-                      className="w-full text-left px-4 py-3 hover:bg-blue-100 disabled:hover:bg-gray-50 border-b last:border-b-0 transition-colors disabled:opacity-50"
-                    >
-                      <div className="font-medium text-gray-900">{suggestion.fullName}</div>
-                      <div className="text-sm text-gray-600">{suggestion.email}</div>
-                    </button>
-                  ))}
+              <div className="p-6 space-y-4">
+                {inviteError && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex gap-3">
+                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <h3 className="font-medium text-red-900">Error</h3>
+                      <p className="text-sm text-red-700 mt-1">{inviteError}</p>
+                    </div>
+                  </div>
+                )}
+
+                {inviteSuccess && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex gap-3">
+                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <h3 className="font-medium text-green-900">Success</h3>
+                      <p className="text-sm text-green-700 mt-1">User invited to project!</p>
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Search by Email or Name
+                  </label>
+                  <input
+                    type="text"
+                    value={inviteData.searchInput}
+                    onChange={(e) => handleSearchUser(e.target.value)}
+                    disabled={inviteLoading}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                    placeholder="john@example.com hoặc John Doe"
+                  />
                 </div>
-              )}
 
-              {/* If email not found, allow direct invite */}
-              {inviteData.searchInput.includes('@') && userSuggestions.length === 0 && inviteData.searchInput.length > 2 && (
-                <button
-                  onClick={() => handleInviteUser(inviteData.searchInput)}
-                  disabled={inviteLoading}
-                  className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
-                >
-                  {inviteLoading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Inviting...
-                    </>
-                  ) : (
-                    `Invite ${inviteData.searchInput} (New User)`
-                  )}
-                </button>
-              )}
+                {/* User Suggestions */}
+                {userSuggestions.length > 0 && (
+                  <div className="border rounded-lg overflow-hidden bg-gray-50 max-h-48 overflow-y-auto">
+                    {userSuggestions.map((suggestion) => (
+                      <button
+                        key={suggestion._id || suggestion.id}
+                        onClick={() => handleInviteUser(suggestion)}
+                        disabled={inviteLoading}
+                        className="w-full text-left px-4 py-3 hover:bg-blue-100 disabled:hover:bg-gray-50 border-b last:border-b-0 transition-colors disabled:opacity-50"
+                      >
+                        <div className="font-medium text-gray-900">{suggestion.fullName}</div>
+                        <div className="text-sm text-gray-600">{suggestion.email}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Role
-                </label>
-                <select
-                  value={inviteData.role}
-                  onChange={(e) => setInviteData({ ...inviteData, role: e.target.value })}
-                  disabled={inviteLoading}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                >
-                  <option value="Member">Member</option>
-                  <option value="Lead">Lead</option>
-                  <option value="Admin">Admin</option>
-                </select>
+                {/* If email not found, allow direct invite */}
+                {inviteData.searchInput.includes('@') && userSuggestions.length === 0 && inviteData.searchInput.length > 2 && (
+                  <button
+                    onClick={() => handleInviteUser(inviteData.searchInput)}
+                    disabled={inviteLoading}
+                    className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
+                  >
+                    {inviteLoading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Inviting...
+                      </>
+                    ) : (
+                      `Invite ${inviteData.searchInput} (New User)`
+                    )}
+                  </button>
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Role
+                  </label>
+                  <select
+                    value={inviteData.role}
+                    onChange={(e) => setInviteData({ ...inviteData, role: e.target.value })}
+                    disabled={inviteLoading}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                  >
+                    <option value="Member">Member</option>
+                    <option value="Lead">Lead</option>
+                    <option value="Admin">Admin</option>
+                  </select>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       <div className="bg-white border-b p-6">
         <div className="max-w-7xl mx-auto">
@@ -534,6 +622,6 @@ export default function ProjectDetail() {
           )}
         </div>
       </div>
-    </div>
+    </div >
   );
 }
