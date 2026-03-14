@@ -10,6 +10,8 @@ router.get("/:id", authenticateToken, userController.getUserById);
 router.post("/", userController.createUser);
 router.post("/auth/login", userController.loginUser);
 router.post("/auth/register", userController.registerUser);
+router.post("/auth/verify-otp", userController.verifyOtp);
+router.post("/auth/resend-otp", userController.resendOtp);
 router.put("/:id", authenticateToken, userController.updateUser);
 router.delete(
   "/:id",

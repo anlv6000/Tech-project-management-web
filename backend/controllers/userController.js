@@ -1,7 +1,10 @@
 import User from "../models/User.js";
+import Otp from "../models/Otp.js";
+import nodemailer from "nodemailer";
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+
 
 export const getAllUsers = async (req, res) => {
   try {
@@ -27,7 +30,7 @@ export const createUser = async (req, res) => {
 
   try {
     const existingUser = await User.findOne({ email });
-    if (existingUser) {
+    if (existingUser && existingUser.isActive) {
       return res.status(400).json({ message: "Email already exists" });
     }
 
@@ -145,28 +148,179 @@ export const registerUser = async (req, res) => {
     const { email, fullName, password } = req.body;
 
     const existingUser = await User.findOne({ email });
-    if (existingUser) {
+    if (existingUser && existingUser.isActive) {
       return res.status(400).json({ message: "Email already exists" });
     }
 
+    const existingOtp = await Otp.findOne({ email });
+
+    if (existingOtp && existingOtp.resendAfter > Date.now()) {
+      return res.status(429).json({
+        message: "Please wait 30 seconds before requesting another OTP"
+      });
+    }
+
+    // tạo OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    await Otp.deleteMany({ email });
+
+    await Otp.create({
+      email,
+      otp,
+      attempts: 0,
+      resendAfter: new Date(Date.now() + 30 * 1000),
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000)
+    });
+
+    // tạo user nhưng chưa verify
     const user = new User({
       _id: new mongoose.Types.ObjectId(),
       email,
       fullName,
       password,
       role: "user",
-      isActive: true,
+      isActive: false
     });
 
     const savedUser = await user.save();
+
+    // gửi email OTP
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+
+    await transporter.sendMail({
+      from: process.env.EMAIL,
+      to: email,
+      subject: "OTP Verification",
+      text: `Your OTP code is: ${otp}`
+    });
+
     const userResponse = savedUser.toObject();
     delete userResponse.password;
 
-    res.status(201).json({ success: true, user: userResponse });
+    res.status(201).json({
+      success: true,
+      message: "User created. Please verify OTP sent to email.",
+      user: userResponse
+    });
+
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 };
+
+
+export const verifyOtp = async (req, res) => {
+  try {
+
+    const { email, otp } = req.body;
+
+    const record = await Otp.findOne({ email });
+
+    if (!record) {
+      return res.status(400).json({
+        message: "OTP expired or not found"
+      });
+    }
+
+    if (record.attempts >= 5) {
+      await Otp.deleteOne({ email });
+
+      return res.status(403).json({
+        message: "Too many incorrect attempts"
+      });
+    }
+
+    if (record.otp !== otp) {
+
+      record.attempts += 1;
+      await record.save();
+
+      return res.status(400).json({
+        message: `Incorrect OTP (${record.attempts}/5)`
+      });
+    }
+
+    // OTP đúng → kích hoạt user
+    await User.updateOne(
+      { email },
+      { isActive: true }
+    );
+
+    await Otp.deleteOne({ email });
+
+    res.json({
+      success: true,
+      message: "Email verified successfully"
+    });
+
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+export const resendOtp = async (req, res) => {
+  try {
+
+    const { email } = req.body;
+
+    const record = await Otp.findOne({ email });
+
+    if (!record) {
+      return res.status(404).json({
+        message: "OTP not found. Please register again."
+      });
+    }
+
+    if (record.resendAfter > Date.now()) {
+      return res.status(429).json({
+        message: "Please wait 30 seconds before requesting another OTP"
+      });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    await Otp.deleteMany({ email });
+
+    await Otp.create({
+      email,
+      otp,
+      attempts: 0,
+      resendAfter: new Date(Date.now() + 30 * 1000),
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000)
+    });
+
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+
+    await transporter.sendMail({
+      from: process.env.EMAIL,
+      to: email,
+      subject: "Resend OTP Verification",
+      text: `Your new OTP code is: ${otp}`
+    });
+
+    res.json({
+      success: true,
+      message: "OTP resent successfully"
+    });
+
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
 
 export const searchUsers = async (req, res) => {
   try {
