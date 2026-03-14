@@ -15,7 +15,7 @@ import {
 } from '../types';
 import { useAuth } from './AuthContext';
 
-// @ts-ignore - Vite environment variable
+//@ts-ignore
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) || 'http://localhost:5000/api';
 
 interface DataContextType {
@@ -78,7 +78,7 @@ interface DataContextType {
   users: User[];
   getAllUsers: () => User[];
   updateUserData: (id: string, updates: Partial<User>) => void;
-
+  resetUserPassword: (id: string, newPassword: string) => Promise<void>;
   // Audit Logs
   auditLogs: AuditLog[];
   addAuditLog: (action: string, entity: string, entityId: string, details: string) => void;
@@ -571,7 +571,10 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   const getTasksByWorkUnit = (workUnitId: string) => {
     const normalizedWorkUnitId = String(workUnitId).trim();
     return tasks
-      .filter(t => String(t.workUnitId || '').trim() === normalizedWorkUnitId)
+      .filter(t =>
+        String(t.workUnitId || '').trim() === normalizedWorkUnitId
+        && t.type !== "subtask" // 👈 loại bỏ subtasks khỏi column
+      )
       .sort((a, b) => a.order - b.order);
   };
 
@@ -697,21 +700,49 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
   const updateUserData = async (id: string, updates: Partial<User>) => {
     try {
+      const token = sessionStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/users/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,   // thêm dòng này
+        },
         body: JSON.stringify(updates),
       });
 
       if (!response.ok) throw new Error('Failed to update user');
 
       const updated = await response.json();
-      setUsers(prev => prev.map(u => u.id === id || u._id === id ? { ...updated, id: updated._id || updated.id } : u));
+      setUsers(prev =>
+        prev.map(u =>
+          (u.id === id || u._id === id)
+            ? { ...updated, id: updated._id || updated.id }
+            : u
+        )
+      );
     } catch (error) {
       console.error('Update user error:', error);
     }
   };
+  const resetUserPassword = async (id: string, newPassword: string) => {
+    try {
+      const token = sessionStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/users/${id}/reset-password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ newPassword }),
+      });
 
+      if (!response.ok) throw new Error('Failed to reset password');
+      return await response.json();
+    } catch (error) {
+      console.error('Reset password error:', error);
+      throw error;
+    }
+  };
   // Audit log methods
   const addAuditLog = async (action: string, entity: string, entityId: string, details: string) => {
     try {
@@ -781,6 +812,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     users,
     getAllUsers,
     updateUserData,
+    resetUserPassword,
     auditLogs,
     addAuditLog,
     createSprint,
