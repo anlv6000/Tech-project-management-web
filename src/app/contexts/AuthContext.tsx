@@ -178,3 +178,53 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+
+
+export const registerUser = async (
+  fullName: string,
+  email: string,
+  password: string
+) => {
+  const res = await fetch(`${API_BASE_URL}/users/auth/register`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      fullName,
+      email,
+      password,
+    }),
+  });
+
+  return res.json();
+};
+
+export const verifyOtp = async (email: string, otp: string) => {
+  const res = await fetch(`${API_BASE_URL}/users/auth/verify-otp`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      email,
+      otp,
+    }),
+  });
+
+  return res.json();
+};
+
+export const resendOtp = async (email: string) => {
+  const res = await fetch(`${API_BASE_URL}/users/auth/resend-otp`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      email,
+    }),
+  });
+
+  return res.json();
+};
