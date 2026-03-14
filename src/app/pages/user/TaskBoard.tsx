@@ -16,6 +16,7 @@ import {
   MessageSquare,
   Paperclip,
   Clock,
+  Pencil,
 } from "lucide-react";
 
 const ItemType = "TASK";
@@ -37,55 +38,74 @@ function TaskCard({ task, onClick, users, isProjectCompleted }: TaskCardProps) {
     }),
   });
 
-  const assigneeId = String(task.assigneeId || "");
-  const projectId = String(task.projectId || "");
-  const {
-    getTaskComments,
-    getTaskAttachments,
-    getAllUsers,
-    getAllUserProjects,
-  } = useData();
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editTaskData, setEditTaskData] = useState({
+    title: task.title,
+    description: task.description,
+  });
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState("");
+
+  const handleSaveEdit = async () => {
+    setEditLoading(true);
+    setEditError("");
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/tasks/${task.id || task._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editTaskData),
+      });
+      if (response.ok) {
+        alert("Task updated successfully!");
+        setShowEditModal(false);
+        window.location.reload();
+      } else {
+        const error = await response.json();
+        setEditError(error.message || "Failed to update task.");
+      }
+    } catch (error) {
+      console.error("Edit task error:", error);
+      setEditError("An error occurred while updating the task.");
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const { getTaskComments, getTaskAttachments } = useData();
   const taskId = task.id || task._id || "";
   const comments = getTaskComments(taskId);
   const attachments = getTaskAttachments(taskId);
-  const allUserProjects = getAllUserProjects ? getAllUserProjects() : [];
-  const projectUserProjects = allUserProjects.filter(
-    (up) => String(up.projectId || "").trim() === projectId,
-  );
-  const memberIds = projectUserProjects.map((up) =>
-    String(up.userId || "").trim(),
-  );
-  const projectMembers = getAllUsers().filter((u) => {
-    const userId = String(u.id || u._id || "").trim();
-    return memberIds.includes(userId);
-  });
-  const assignee = projectMembers.find(
-    (u) => String(u.id || u._id || "") === assigneeId,
-  );
 
   let statusColor = "";
   if (task.status === "todo") statusColor = "bg-gray-100 border-gray-300";
-  else if (task.status === "in-progress")
-    statusColor = "bg-yellow-100 border-yellow-300";
-  else if (task.status === "done")
-    statusColor = "bg-green-100 border-green-300";
+  else if (task.status === "in-progress") statusColor = "bg-yellow-100 border-yellow-300";
+  else if (task.status === "done") statusColor = "bg-green-100 border-green-300";
   else statusColor = "bg-white border-gray-300";
 
   return (
-    <div
-      ref={drag as any}
-      onClick={onClick} // Allow opening task details regardless of project completion
-      className={`p-4 rounded-lg border hover:shadow-md cursor-pointer transition-all ${statusColor} ${isDragging ? "opacity-50" : "opacity-100"} ${isProjectCompleted ? "cursor-not-allowed" : ""}`}
-    >
-      <h3 className="font-medium text-gray-900 mb-2">{task.title}</h3>
-      {task.description && (
-        <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-          {task.description}
-        </p>
-      )}
-
-      <div className="flex items-center justify-between text-sm">
-        <div className="flex items-center gap-3 text-gray-600">
+    <>
+      <div
+        ref={drag as any}
+        onClick={onClick}
+        className={`p-4 rounded-lg border hover:shadow-md cursor-pointer transition-all ${statusColor} ${isDragging ? "opacity-50" : "opacity-100"} ${isProjectCompleted ? "cursor-not-allowed" : ""}`}
+      >
+        <div className="flex justify-between items-start">
+          <h3 className="font-medium text-gray-900 mb-2">{task.title}</h3>
+          <button
+            onClick={(e) => {
+              e.stopPropagation(); // tránh trigger detail
+              setShowEditModal(true);
+            }}
+            className="text-gray-600 hover:text-gray-800"
+          >
+            <Pencil className="w-4 h-4" />
+          </button>
+        </div>
+        {task.description && (
+          <p className="text-sm text-gray-600 mb-3 line-clamp-2">{task.description}</p>
+        )}
+        {/* giữ nguyên phần comments, attachments, deadline */}
+        <div className="flex items-center gap-3 text-gray-600 text-sm">
           {comments.length > 0 && (
             <div className="flex items-center gap-1">
               <MessageSquare className="w-4 h-4" />
@@ -105,23 +125,56 @@ function TaskCard({ task, onClick, users, isProjectCompleted }: TaskCardProps) {
             </div>
           )}
         </div>
-
-        {assignee && (
-          <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-            <span className="text-xs text-blue-600 font-medium">
-              {assignee.fullName.charAt(0).toUpperCase()}
-            </span>
+        {task.deadline && (
+          <div className="flex items-center gap-1 text-xs text-gray-500 mt-2">
+            <Calendar className="w-3 h-3" />
+            {new Date(task.deadline).toLocaleDateString()}
           </div>
         )}
       </div>
 
-      {task.deadline && (
-        <div className="flex items-center gap-1 text-xs text-gray-500 mt-2">
-          <Calendar className="w-3 h-3" />
-          {new Date(task.deadline).toLocaleDateString()}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-[400px] bg-opacity-90">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold">Edit Task</h2>
+              <button onClick={() => setShowEditModal(false)}>
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+            <input
+              type="text"
+              value={editTaskData.title}
+              onChange={(e) => setEditTaskData({ ...editTaskData, title: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3"
+              placeholder="Task Title"
+            />
+            <textarea
+              value={editTaskData.description}
+              onChange={(e) => setEditTaskData({ ...editTaskData, description: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3"
+              placeholder="Task Description"
+            />
+            {editError && <p className="text-red-600 mb-2">{editError}</p>}
+            <div className="flex justify-end gap-4">
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={editLoading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {editLoading ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
@@ -657,8 +710,8 @@ export default function TaskBoard() {
                 </button>
               )}
               {showSprintModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                  <div className="bg-white p-6 rounded shadow-lg w-96">
+                <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
+                  <div className="bg-white p-6 rounded-lg shadow-lg w-[400px] bg-opacity-90">
                     <h2 className="text-lg font-semibold mb-4">
                       Tạo Sprint mới
                     </h2>
