@@ -200,6 +200,26 @@ export const registerUser = async (
   return res.json();
 };
 
+export const createUser = async (
+  fullName: string,
+  email: string,
+  password: string
+) => {
+  const res = await fetch(`${API_BASE_URL}/users/auth/create-user`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      fullName,
+      email,
+      password,
+    }),
+  });
+
+  return res.json();
+};
+
 export const verifyOtp = async (email: string, otp: string) => {
   const res = await fetch(`${API_BASE_URL}/users/auth/verify-otp`, {
     method: "POST",

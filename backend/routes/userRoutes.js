@@ -13,6 +13,11 @@ router.post("/auth/register", userController.registerUser);
 router.post("/auth/verify-otp", userController.verifyOtp);
 router.post("/auth/resend-otp", userController.resendOtp);
 router.put("/:id", authenticateToken, userController.updateUser);
+router.post("/auth/create-user", userController.createUser);
+router.post("/auth/forgot-password", userController.forgotPassword);
+router.post("/auth/verify-reset-otp", userController.verifyResetOtp);
+router.put("/auth/forgot-reset-password", userController.forgotResetPassword);
+
 router.delete(
   "/:id",
   authenticateToken,
