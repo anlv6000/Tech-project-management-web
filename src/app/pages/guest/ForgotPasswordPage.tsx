@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Link } from 'react-router';
 import { CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
 
+const API_BASE_URL = "http://localhost:5000/api/users/auth";
+
 export default function ForgotPasswordPage() {
   const [step, setStep] = useState<'email' | 'otp' | 'reset'>('email');
   const [email, setEmail] = useState('');
@@ -11,33 +13,60 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
-  const handleSendOTP = (e: React.FormEvent) => {
+  // Gửi OTP cho forgot password
+  const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     if (!email) {
       setError('Email is required');
       return;
     }
-    // Simulate sending OTP
-    setError('');
-    setStep('otp');
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setStep('otp');
+      } else {
+        setError(data.message || "Failed to send OTP");
+      }
+    } catch {
+      setError("Server error while sending OTP");
+    }
   };
 
-  const handleVerifyOTP = (e: React.FormEvent) => {
+  // Verify OTP cho forgot password
+  const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     if (!otp) {
       setError('OTP is required');
       return;
     }
-    // Simulate OTP verification
-    if (otp === '123456') {
-      setError('');
-      setStep('reset');
-    } else {
-      setError('Invalid OTP. Try 123456 for demo.');
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/verify-reset-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otp }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setStep('reset');
+      } else {
+        setError(data.message || "Invalid OTP");
+      }
+    } catch {
+      setError("Server error while verifying OTP");
     }
   };
 
-  const handleResetPassword = (e: React.FormEvent) => {
+  // Reset mật khẩu sau khi verify OTP
+  const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -45,20 +74,32 @@ export default function ForgotPasswordPage() {
       setError('All fields are required');
       return;
     }
-
     if (newPassword.length < 6) {
       setError('Password must be at least 6 characters');
       return;
     }
-
     if (newPassword !== confirmPassword) {
       setError('Passwords do not match');
       return;
     }
 
-    // Simulate password reset
-    setSuccess(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/forgot-reset-password`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, newPassword }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSuccess(true);
+      } else {
+        setError(data.message || "Failed to reset password");
+      }
+    } catch {
+      setError("Server error while resetting password");
+    }
   };
+
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex flex-col">
@@ -80,7 +121,7 @@ export default function ForgotPasswordPage() {
       <div className="flex-1 flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Reset Password</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Forgot Password</h1>
             <p className="text-gray-600">
               {step === 'email' && 'Enter your email to receive a verification code'}
               {step === 'otp' && 'Enter the OTP sent to your email'}
@@ -138,12 +179,6 @@ export default function ForgotPasswordPage() {
 
               {step === 'otp' && (
                 <form onSubmit={handleVerifyOTP} className="space-y-5">
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-sm text-blue-800">
-                      Demo OTP: <strong>123456</strong>
-                    </p>
-                  </div>
-
                   <div>
                     <label htmlFor="otp" className="block text-sm font-medium text-gray-700 mb-1">
                       Verification Code

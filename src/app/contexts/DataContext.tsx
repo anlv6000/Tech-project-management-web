@@ -21,7 +21,7 @@ import {
 } from "../types";
 import { useAuth } from "./AuthContext";
 
-// @ts-ignore - Vite environment variable
+//@ts-ignore
 const API_BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ||
   "http://localhost:5000/api";
@@ -89,7 +89,7 @@ interface DataContextType {
   users: User[];
   getAllUsers: () => User[];
   updateUserData: (id: string, updates: Partial<User>) => void;
-
+  resetUserPassword: (id: string, newPassword: string) => Promise<void>;
   // Audit Logs
   auditLogs: AuditLog[];
   addAuditLog: (
@@ -127,7 +127,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
 
-  // Load data from API on mount and when user changes
   useEffect(() => {
     const loadData = async () => {
       if (!user) return;
@@ -140,34 +139,33 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
           ? { Authorization: `Bearer ${token}` }
           : {};
 
+        // Các request chung cho mọi user
         const requests: Promise<Response>[] = [
           fetch(`${API_BASE_URL}/projects`),
           fetch(`${API_BASE_URL}/user-projects`),
-          fetch(`${API_BASE_URL}/users`, {
-            headers: authHeaders,
-          }),
+          fetch(`${API_BASE_URL}/users`, { headers: authHeaders }),
           fetch(`${API_BASE_URL}/notifications/user/${userId}`),
         ];
 
-        const isAdmin = user.role === "admin";
+        let tasksRes: Response | undefined;
+        let auditLogsRes: Response | undefined;
 
-        if (isAdmin) {
-          requests.push(
+        if (user.role === "admin") {
+          // Admin: lấy toàn bộ tasks + audit logs
+          [tasksRes, auditLogsRes] = await Promise.all([
             fetch(`${API_BASE_URL}/tasks`),
             fetch(`${API_BASE_URL}/audit-logs`),
-          );
+          ]);
+        } else {
+          // User thường: chỉ lấy task của riêng họ
+          tasksRes = await fetch(`${API_BASE_URL}/tasks/user/${userId}`, {
+            headers: authHeaders,
+          });
         }
 
         const responses = await Promise.all(requests);
-
-        const [
-          projectsRes,
-          userProjectsRes,
-          usersRes,
-          notificationsRes,
-          tasksRes,
-          auditLogsRes,
-        ] = responses;
+        const [projectsRes, userProjectsRes, usersRes, notificationsRes] =
+          responses;
 
         if (projectsRes?.ok) {
           const data = await projectsRes.json();
@@ -191,12 +189,12 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
           setNotifications(data.map((n: any) => ({ ...n, id: n.id || n._id })));
         }
 
-        if (isAdmin && tasksRes?.ok) {
+        if (tasksRes?.ok) {
           const data = await tasksRes.json();
           setTasks(data.map((t: any) => ({ ...t, id: t.id || t._id })));
         }
 
-        if (isAdmin && auditLogsRes?.ok) {
+        if (user.role === "admin" && auditLogsRes?.ok) {
           const data = await auditLogsRes.json();
           setAuditLogs(
             data.map((log: any) => ({ ...log, id: log.id || log._id })),
@@ -208,7 +206,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     };
 
     loadData();
-  }, [user]);
+  }, [user?.id, user?.role]);
 
   // Project methods
   // UserProject: get all userProjects
@@ -485,6 +483,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       console.error("Failed to load project data:", error);
     }
   };
+  [];
 
   // WorkUnit methods
   const createWorkUnit = async (
@@ -644,7 +643,11 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   const getTasksByWorkUnit = (workUnitId: string) => {
     const normalizedWorkUnitId = String(workUnitId).trim();
     return tasks
-      .filter((t) => String(t.workUnitId || "").trim() === normalizedWorkUnitId)
+      .filter(
+        (t) =>
+          String(t.workUnitId || "").trim() === normalizedWorkUnitId &&
+          t.type !== "subtask", // 👈 loại bỏ subtasks khỏi column
+      )
       .sort((a, b) => a.order - b.order);
   };
 
@@ -795,12 +798,11 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   const updateUserData = async (id: string, updates: Partial<User>) => {
     try {
       const token = sessionStorage.getItem("token");
-
       const response = await fetch(`${API_BASE_URL}/users/${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token}`, // thêm dòng này
         },
         body: JSON.stringify(updates),
       });
@@ -811,7 +813,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       }
 
       const updated = await response.json();
-
       setUsers((prev) =>
         prev.map((u) =>
           u.id === id || u._id === id
@@ -824,7 +825,28 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       alert(error instanceof Error ? error.message : "Failed to update user");
     }
   };
+  const resetUserPassword = async (id: string, newPassword: string) => {
+    try {
+      const token = sessionStorage.getItem("token");
+      const response = await fetch(
+        `${API_BASE_URL}/users/${id}/reset-password`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ newPassword }),
+        },
+      );
 
+      if (!response.ok) throw new Error("Failed to reset password");
+      return await response.json();
+    } catch (error) {
+      console.error("Reset password error:", error);
+      throw error;
+    }
+  };
   // Audit log methods
   const addAuditLog = async (
     action: string,
@@ -901,6 +923,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     users,
     getAllUsers,
     updateUserData,
+    resetUserPassword,
     auditLogs,
     addAuditLog,
     createSprint,

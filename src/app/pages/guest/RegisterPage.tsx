@@ -1,19 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { useAuth } from '../../contexts/AuthContext';
 import { CheckCircle, AlertCircle } from 'lucide-react';
+import { useAuth, registerUser, verifyOtp, resendOtp } from "../../contexts/AuthContext";
+import { createUser } from '../../contexts/AuthContext';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
   const { register } = useAuth();
-  
+  const [step, setStep] = useState<'register' | 'otp'>('register');
+  const [otp, setOtp] = useState('');
+  const [emailForOtp, setEmailForOtp] = useState('');
+  const [countdown, setCountdown] = useState(30);
+  const [canResend, setCanResend] = useState(false);
+
+  useEffect(() => {
+    if (step !== "otp") return;
+
+    if (countdown <= 0) {
+      setCanResend(true);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setCountdown((prev) => prev - 1);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [countdown, step]);
+
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     password: '',
     confirmPassword: '',
   });
-  
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [success, setSuccess] = useState(false);
 
@@ -28,19 +49,19 @@ export default function RegisterPage() {
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
-    
+
     if (!formData.fullName.trim()) {
       newErrors.fullName = '*Họ tên là bắt buộc';
     } else if (formData.fullName.trim().length < 2) {
       newErrors.fullName = '*Họ tên cần ít nhất 2 ký tự';
     }
-    
+
     if (!formData.email.trim()) {
       newErrors.email = '*Email là bắt buộc';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = '*Định dạng email không hợp lệ';
     }
-    
+
     if (!formData.password) {
       newErrors.password = '*Mật khẩu là bắt buộc';
     } else if (formData.password.length < 6) {
@@ -48,39 +69,86 @@ export default function RegisterPage() {
     } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
       newErrors.password = '*Mật khẩu cần chứa chữ hoa, chữ thường và số';
     }
-    
+
     if (!formData.confirmPassword) {
       newErrors.confirmPassword = '*Xác nhận mật khẩu là bắt buộc';
     } else if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = '*Mật khẩu xác nhận không khớp';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!validate()) return;
-    
-    const registrationSuccess = await register(formData.fullName, formData.email, formData.password);
-    
-    if (registrationSuccess) {
-      setSuccess(true);
-      setTimeout(() => {
-        navigate('/login');
-      }, 2000);
+
+    const res = await registerUser(
+      formData.fullName,
+      formData.email,
+      formData.password
+    );
+
+
+    if (res.success) {
+      setEmailForOtp(formData.email);
+      setStep('otp');
+      setCountdown(30);
+      setCanResend(false);
+
+      // lưu tạm thông tin để tạo user sau khi verify
+      localStorage.setItem("pendingUser", JSON.stringify(formData));
     } else {
-      setErrors({ email: '*Email đã tồn tại' });
+      setErrors({ email: res.message });
     }
   };
+
+
+  const handleVerifyOtp = async () => {
+    const res = await verifyOtp(emailForOtp, otp);
+
+    if (res.success) {
+      const pendingUser = JSON.parse(localStorage.getItem("pendingUser") || "{}");
+      const createRes = await createUser(
+        pendingUser.fullName,
+        pendingUser.email,
+        pendingUser.password
+      );
+
+      if (createRes.success) {
+        localStorage.removeItem("pendingUser");
+        setSuccess(true);
+        setTimeout(() => navigate("/login"), 1500);
+      } else {
+        alert(createRes.message);
+      }
+    } else {
+      alert(res.message);
+    }
+  };
+
+
+  const handleResendOtp = async () => {
+    if (!canResend) return;
+
+    const res = await resendOtp(emailForOtp);
+
+    if (res.success) {
+      setCountdown(30);
+      setCanResend(false);
+    } else {
+      alert(res.message);
+    }
+  };
+
+
 
   const handleBlur = (field: string) => {
     // Validate individual field on blur
     const tempData = { ...formData };
     const tempErrors: Record<string, string> = {};
-    
+
     if (field === 'fullName') {
       if (!tempData.fullName.trim()) {
         tempErrors.fullName = '*Họ tên là bắt buộc';
@@ -88,7 +156,7 @@ export default function RegisterPage() {
         tempErrors.fullName = '*Họ tên cần ít nhất 2 ký tự';
       }
     }
-    
+
     if (field === 'email') {
       if (!tempData.email.trim()) {
         tempErrors.email = '*Email là bắt buộc';
@@ -96,7 +164,7 @@ export default function RegisterPage() {
         tempErrors.email = '*Định dạng email không hợp lệ';
       }
     }
-    
+
     if (field === 'password') {
       if (!tempData.password) {
         tempErrors.password = '*Mật khẩu là bắt buộc';
@@ -106,7 +174,7 @@ export default function RegisterPage() {
         tempErrors.password = '*Mật khẩu cần chứa chữ hoa, chữ thường và số';
       }
     }
-    
+
     if (field === 'confirmPassword') {
       if (!tempData.confirmPassword) {
         tempErrors.confirmPassword = '*Xác nhận mật khẩu là bắt buộc';
@@ -114,7 +182,7 @@ export default function RegisterPage() {
         tempErrors.confirmPassword = '*Mật khẩu xác nhận không khớp';
       }
     }
-    
+
     setErrors(prev => ({ ...prev, [field]: tempErrors[field] || '' }));
   };
 
@@ -139,7 +207,7 @@ export default function RegisterPage() {
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h1>
-            <p className="text-gray-600">Join ProjectFlow and start managing your projects</p>
+            <p className="text-gray-600">Join Tech Task and start managing your projects</p>
           </div>
 
           {success && (
@@ -155,100 +223,135 @@ export default function RegisterPage() {
           )}
 
           <div className="bg-white p-8 rounded-lg shadow-lg border">
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div>
-                <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-1">
-                  Full Name
-                </label>
+            {step === "register" && (
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div>
+                  <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-1">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    id="fullName"
+                    name="fullName"
+                    value={formData.fullName}
+                    onChange={handleChange}
+                    onBlur={() => handleBlur('fullName')}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.fullName ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                    placeholder="Nguyễn Văn A"
+                  />
+                  {errors.fullName && (
+                    <p className="mt-1 text-sm text-red-600">{errors.fullName}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    onBlur={() => handleBlur('email')}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.email ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                    placeholder="nguyenvana@example.com"
+                  />
+                  {errors.email && (
+                    <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                    Password
+                  </label>
+                  <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    onBlur={() => handleBlur('password')}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.password ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                    placeholder="••••••••"
+                  />
+                  {errors.password && (
+                    <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
+                    Confirm Password
+                  </label>
+                  <input
+                    type="password"
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    onBlur={() => handleBlur('confirmPassword')}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                    placeholder="••••••••"
+                  />
+                  {errors.confirmPassword && (
+                    <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                  disabled={success}
+                >
+                  {success ? 'Success!' : 'Register'}
+                </button>
+              </form>
+            )}
+            {step === "otp" && (
+              <div className="space-y-5">
+
+                <p className="text-sm text-gray-600">
+                  OTP đã gửi tới <b>{emailForOtp}</b>
+                </p>
+
                 <input
                   type="text"
-                  id="fullName"
-                  name="fullName"
-                  value={formData.fullName}
-                  onChange={handleChange}
-                  onBlur={() => handleBlur('fullName')}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.fullName ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  placeholder="Nguyễn Văn A"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="Enter OTP"
+                  className="w-full px-3 py-2 border rounded-lg"
                 />
-                {errors.fullName && (
-                  <p className="mt-1 text-sm text-red-600">{errors.fullName}</p>
-                )}
+
+                <button
+                  onClick={handleVerifyOtp}
+                  disabled={otp.length !== 6}
+                  className={`w-full py-3 rounded-lg text-white ${otp.length === 6
+                    ? "bg-blue-600 hover:bg-blue-700"
+                    : "bg-gray-400 cursor-not-allowed"
+                    }`}
+                >
+                  Verify OTP
+                </button>
+
+                <button
+                  onClick={handleResendOtp}
+                  disabled={!canResend}
+                  className={`w-full ${canResend ? "text-blue-600 hover:underline" : "text-gray-400 cursor-not-allowed"
+                    }`}
+                >
+                  {canResend ? "Resend OTP" : `Resend OTP in ${countdown}s`}
+                </button>
+
+
               </div>
-
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  onBlur={() => handleBlur('email')}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.email ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  placeholder="nguyenvana@example.com"
-                />
-                {errors.email && (
-                  <p className="mt-1 text-sm text-red-600">{errors.email}</p>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  id="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  onBlur={() => handleBlur('password')}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.password ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  placeholder="••••••••"
-                />
-                {errors.password && (
-                  <p className="mt-1 text-sm text-red-600">{errors.password}</p>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                  Confirm Password
-                </label>
-                <input
-                  type="password"
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  onBlur={() => handleBlur('confirmPassword')}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  placeholder="••••••••"
-                />
-                {errors.confirmPassword && (
-                  <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
-                )}
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-                disabled={success}
-              >
-                {success ? 'Success!' : 'Register'}
-              </button>
-            </form>
-
+            )}
             <div className="mt-6 text-center">
               <p className="text-gray-600">
                 Already have an account?{' '}

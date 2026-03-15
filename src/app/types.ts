@@ -5,6 +5,14 @@ export type ProjectRole = 'owner' | 'member' | 'viewer' | 'Admin' | 'Manager' | 
 export type Methodology = 'agile' | 'kanban' | 'waterfall';
 export type TaskStatus = 'todo' | 'in-progress' | 'done' | 'backlog';
 export type WorkUnitType = 'sprint' | 'column' | 'phase';
+export type TaskType =
+  | "parent"
+  | "subtask"
+  | "epic"
+  | "milestone"
+  | "feature"
+  | "bug"
+  | "improvement";
 
 export interface User {
   id?: string;
@@ -58,6 +66,11 @@ export interface WorkUnit {
   status?: string; // Added optional status property
 }
 
+export interface UserRef {
+  _id: string;
+  fullName?: string;
+}
+
 export interface Task {
   id?: string;
   _id?: string;
@@ -65,14 +78,15 @@ export interface Task {
   workUnitId: string;
   title: string;
   description: string;
-  assigneeId?: string;
+  assigneeId?: string | UserRef; // Can be a string ID or a populated user reference
   status: TaskStatus;
   deadline?: string;
-  createdBy: string;
+  createdBy: string | UserRef;
   createdAt: string;
   updatedAt: string;
   order: number;
   timeSpent?: number; // in hours
+   type: TaskType;
 }
 
 export interface Comment {

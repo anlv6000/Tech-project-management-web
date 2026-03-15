@@ -10,7 +10,7 @@ interface AuthContextType {
   logout: () => void;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  updateUser: (updates: Partial<User>) => void;
+  updateUser: (updates: Partial<User>) => Promise<boolean>;
   loading: boolean;
 }
 
@@ -109,12 +109,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     sessionStorage.removeItem('token');
   };
 
-  const updateUser = async (updates: Partial<User>) => {
-    if (!user) return;
+  const updateUser = async (updates: Partial<User>): Promise<boolean> => {
+    if (!user) return false;
 
     try {
-      const userId = user.id || user._id;
+      // ép luôn thành string từ _id
+      const userId = user.id ? user.id.toString() : user._id?.toString();
       const token = sessionStorage.getItem('token');
+
+      console.log("UpdateUser request →");
+      console.log("userId:", userId);
+      console.log("token:", token);
+      console.log("updates:", updates);
+
       const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
         method: 'PUT',
         headers: {
@@ -124,16 +131,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         body: JSON.stringify(updates),
       });
 
-      if (!response.ok) return;
+      console.log("Response status:", response.status);
+
+      if (!response.ok) {
+        if (response.status === 409) {
+          throw new Error("Email đã tồn tại, vui lòng chọn email khác");
+        }
+        if (response.status === 404) {
+          throw new Error("User không tồn tại");
+        }
+        if (response.status === 403) {
+          throw new Error("Bạn không có quyền cập nhật hồ sơ này");
+        }
+        throw new Error("Cập nhật thất bại");
+      }
 
       const updatedData = await response.json();
-      const updatedUser = { ...updatedData, id: updatedData._id || updatedData.id };
+      console.log("Updated data from server:", updatedData);
+
+      // chuẩn hóa lại user object, chỉ giữ id dạng string
+      const updatedUser = {
+        ...updatedData,
+        id: updatedData._id?.toString() || updatedData.id
+      };
+
       setUser(updatedUser as User);
       sessionStorage.setItem('currentUser', JSON.stringify(updatedUser));
-    } catch (error) {
+      return true;
+    } catch (error: any) {
       console.error('Update user error:', error);
+      throw error;
     }
   };
+
 
   const value: AuthContextType = {
     user,
@@ -147,4 +177,74 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
+
+export const registerUser = async (
+  fullName: string,
+  email: string,
+  password: string
+) => {
+  const res = await fetch(`${API_BASE_URL}/users/auth/register`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      fullName,
+      email,
+      password,
+    }),
+  });
+
+  return res.json();
+};
+
+export const createUser = async (
+  fullName: string,
+  email: string,
+  password: string
+) => {
+  const res = await fetch(`${API_BASE_URL}/users/auth/create-user`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      fullName,
+      email,
+      password,
+    }),
+  });
+
+  return res.json();
+};
+
+export const verifyOtp = async (email: string, otp: string) => {
+  const res = await fetch(`${API_BASE_URL}/users/auth/verify-otp`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      email,
+      otp,
+    }),
+  });
+
+  return res.json();
+};
+
+export const resendOtp = async (email: string) => {
+  const res = await fetch(`${API_BASE_URL}/users/auth/resend-otp`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      email,
+    }),
+  });
+
+  return res.json();
 };

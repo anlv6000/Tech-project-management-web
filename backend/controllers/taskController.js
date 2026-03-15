@@ -57,12 +57,14 @@ export const createTask = async (req, res) => {
       createdBy,
       order,
       timeSpent,
+      parentId,
+      type,
     } = req.body;
 
     const task = new Task({
       _id: new mongoose.Types.ObjectId(),
       projectId: new mongoose.Types.ObjectId(projectId),
-      workUnitId: new mongoose.Types.ObjectId(workUnitId),
+      workUnitId: workUnitId ? new mongoose.Types.ObjectId(workUnitId) : null,
       title,
       description,
       assigneeId: assigneeId ? new mongoose.Types.ObjectId(assigneeId) : null,
@@ -71,6 +73,8 @@ export const createTask = async (req, res) => {
       createdBy: new mongoose.Types.ObjectId(createdBy),
       order: order || 0,
       timeSpent: timeSpent || 0,
+      parentId: parentId ? new mongoose.Types.ObjectId(parentId) : null,
+      type: type || "parent",
     });
 
     const saved = await task.save();
@@ -83,6 +87,7 @@ export const createTask = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 };
+
 export const updateTask = async (req, res) => {
   try {
     const {
@@ -93,7 +98,8 @@ export const updateTask = async (req, res) => {
       deadline,
       order,
       timeSpent,
-      workUnitId, // ✅ thêm vào đây
+      workUnitId,
+      type,
     } = req.body;
 
     const updated = await Task.findByIdAndUpdate(
@@ -109,6 +115,10 @@ export const updateTask = async (req, res) => {
         workUnitId: workUnitId
           ? new mongoose.Types.ObjectId(workUnitId)
           : undefined, // ✅ cập nhật
+        workUnitId: workUnitId
+          ? new mongoose.Types.ObjectId(workUnitId)
+          : undefined,
+        type: type || undefined,
       },
       { new: true },
     )
@@ -141,6 +151,39 @@ export const getAllTasks = async (req, res) => {
       .lean();
 
     res.json(tasks);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const getTasksByUserId = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Lấy tất cả task do user tạo hoặc được assign
+    const tasks = await Task.find({
+      $or: [{ createdBy: userId }, { assigneeId: userId }],
+    })
+      .populate("assigneeId", "-password")
+      .populate("createdBy", "-password")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.json(tasks);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const getSubTasks = async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const subTasks = await Task.find({ parentId: taskId })
+      .populate("assigneeId", "-password")
+      .populate("createdBy", "-password")
+      .sort("order")
+      .lean();
+    res.json(subTasks);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

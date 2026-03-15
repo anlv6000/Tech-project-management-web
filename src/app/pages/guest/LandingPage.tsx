@@ -102,9 +102,9 @@ export default function LandingPage() {
       {/* About Section */}
       <section id="about" className="py-20 px-4">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">About ProjectFlow</h2>
+          <h2 className="text-3xl md:text-4xl font-bold mb-6">About Tech Task</h2>
           <p className="text-lg text-gray-600 mb-4">
-            ProjectFlow is a modern project management platform designed to adapt to your team's workflow. 
+            Tech Task is a modern project management platform designed to adapt to your team's workflow. 
             Whether you're running sprints, managing a continuous flow, or following a structured waterfall approach, 
             we've got you covered.
           </p>
@@ -123,7 +123,7 @@ export default function LandingPage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <div className="text-gray-600">
-              <strong>Email:</strong> contact@projectflow.demo
+              <strong>Email:</strong> contact@Tech Task.demo
             </div>
             <div className="text-gray-600">
               <strong>Phone:</strong> +1 (555) 123-4567
@@ -140,11 +140,11 @@ export default function LandingPage() {
               <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
                 <CheckCircle className="w-4 h-4 text-white" />
               </div>
-              <span className="font-bold">ProjectFlow</span>
+              <span className="font-bold">Tech Task</span>
             </div>
             
             <div className="text-gray-600 text-sm">
-              © 2026 ProjectFlow. All rights reserved.
+              © 2026 Tech Task. All rights reserved.
             </div>
 
             <div className="flex gap-6">

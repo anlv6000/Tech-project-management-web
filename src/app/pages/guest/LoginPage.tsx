@@ -3,11 +3,13 @@ import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { CheckCircle, AlertCircle } from 'lucide-react';
 import { useEffect } from 'react';
-
+import { useData } from '../../contexts/DataContext';
 export default function LoginPage() {
   const navigate = useNavigate();
   const { login, user } = useAuth();
 
+  const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) || 'http://localhost:5000/api';
+  
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -22,13 +24,37 @@ export default function LoginPage() {
     setError('');
     setIsLoading(true);
 
-    const success = await login(formData.email, formData.password);
+    try {
+      const response = await fetch(`${API_BASE_URL}/users/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
 
-    if (!success) {
-      setError('Invalid credentials...');
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 404) setError("Email không tồn tại");
+        else if (response.status === 401) setError("Sai mật khẩu");
+        else if (response.status === 403) setError("Tài khoản đã bị khóa");
+        else if (response.status === 500) setError("Không kết nối được với server");
+        else setError(data.message || "Đăng nhập thất bại");
+        setIsLoading(false);
+        return;
+      }
+
+      // thành công
+      const success = await login(formData.email, formData.password);
+      if (!success) {
+        setError("Đăng nhập thất bại");
+        setIsLoading(false);
+      }
+    } catch (err) {
+      setError("Không kết nối được với server");
       setIsLoading(false);
     }
   };
+
 
   // Khi user thay đổi sau login, điều hướng theo role
   useEffect(() => {
@@ -90,7 +116,7 @@ export default function LoginPage() {
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
-            <p className="text-gray-600">Login to your ProjectFlow account</p>
+            <p className="text-gray-600">Login to your Tech Task account</p>
           </div>
 
           {error && (

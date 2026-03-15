@@ -61,9 +61,7 @@ export const createAttachment = async (req, res) => {
     if (err) {
       return res.status(400).json({ message: err.message });
     }
-    console.log('BODY:', req.body);
-    console.log('FILE:', req.file);
-    console.log("Upload route called, file:", req.file);
+
     try {
       const { taskId, uploadedBy } = req.body;
       const fileName = req.file.originalname;
@@ -80,35 +78,21 @@ export const createAttachment = async (req, res) => {
         uploadedAt: new Date().toISOString(),
       };
 
-      // Save to MongoDB
+      // ✅ Chỉ lưu vào MongoDB
       const attachment = new Attachment(newAttachment);
       const saved = await attachment.save();
+
+      // Populate để trả về thông tin user (trừ password)
       const populated = await Attachment.findById(saved._id).populate('uploadedBy', '-password');
 
-      // Save to JSON file
-      fs.readFile(attachmentsFilePath, 'utf8', (readErr, data) => {
-        if (readErr && readErr.code !== 'ENOENT') {
-          console.error('Error reading attachments file:', readErr);
-          return res.status(500).json({ message: 'Failed to save attachment metadata.' });
-        }
-
-        const attachments = data ? JSON.parse(data) : [];
-        attachments.push(newAttachment);
-
-        fs.writeFile(attachmentsFilePath, JSON.stringify(attachments, null, 2), (writeErr) => {
-          if (writeErr) {
-            console.error('Error writing to attachments file:', writeErr);
-            return res.status(500).json({ message: 'Failed to save attachment metadata.' });
-          }
-
-          res.status(201).json(populated);
-        });
-      });
+      res.status(201).json(populated);
     } catch (error) {
+      console.error('Error creating attachment:', error);
       res.status(400).json({ message: error.message });
     }
   });
 };
+
 
 export const deleteAttachment = async (req, res) => {
   try {

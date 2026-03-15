@@ -12,53 +12,24 @@ const taskSchema = new mongoose.Schema({
     ref: 'WorkUnit',
     required: true
   },
-  title: {
+  title: { type: String, required: true, trim: true },
+  description: { type: String, required: true, trim: true },
+  assigneeId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  status: { type: String, enum: ['todo', 'in-progress', 'done', 'backlog'], default: 'todo' },
+  deadline: { type: Date, default: null },
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  order: { type: Number, required: true, default: 0 },
+  timeSpent: { type: Number, default: 0 },
+  parentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Task', default: null },
+  type: {
     type: String,
-    required: true,
-    trim: true
+    enum: ['parent', 'subtask', 'epic', 'milestone', 'feature', 'bug', 'improvement'],
+    default: 'parent'
   },
-  description: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  assigneeId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    default: null
-  },
-  status: {
-    type: String,
-    enum: ['todo', 'in-progress', 'done', 'backlog'],
-    default: 'todo'
-  },
-  deadline: {
-    type: Date,
-    default: null
-  },
-  createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  order: {
-    type: Number,
-    required: true,
-    default: 0
-  },
-  timeSpent: {
-    type: Number,
-    default: 0
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
-  }
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
 });
+
 taskSchema.set('toJSON', {
   transform: (doc, ret) => {
     ret.id = ret._id.toString();
@@ -67,7 +38,7 @@ taskSchema.set('toJSON', {
   }
 });
 
-taskSchema.pre('save', function(next) {
+taskSchema.pre('save', function (next) {
   this.updatedAt = Date.now();
   next();
 });
