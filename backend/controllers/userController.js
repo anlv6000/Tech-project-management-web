@@ -5,7 +5,6 @@ import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
-
 export const getAllUsers = async (req, res) => {
   try {
     const users = await User.find().select("-password").lean();
@@ -41,7 +40,7 @@ export const createUser = async (req, res) => {
       password,
       role: role || "user",
       avatar: avatar || null,
-      isActive: true
+      isActive: true,
     });
 
     const savedUser = await user.save();
@@ -54,41 +53,50 @@ export const createUser = async (req, res) => {
   }
 };
 
-
 export const updateUser = async (req, res) => {
   try {
-    console.log("req.user:", req.user);
-    console.log("req.user._id:", req.user?._id?.toString());
-    console.log("req.params.id:", req.params.id);
+    const currentUserId = String(
+      req.user?.userId || req.user?._id || req.user?.id || "",
+    );
+    const targetUserId = String(req.params.id);
+    const isAdmin = req.user?.role === "admin";
+    const isSelf = currentUserId === targetUserId;
 
-    // chỉ cho phép chính chủ sửa hồ sơ
-    if (!req.user || req.user._id.toString() !== req.params.id) {
+    if (!isAdmin && !isSelf) {
       return res.status(403).json({ message: "Forbidden" });
     }
-
 
     const { fullName, avatar, isActive, email } = req.body;
 
     const updateData = {};
     if (fullName !== undefined) updateData.fullName = fullName;
     if (avatar !== undefined) updateData.avatar = avatar;
-    if (isActive !== undefined) updateData.isActive = isActive;
+
     if (email !== undefined) {
-      const existingUser = await User.findOne({ email, _id: { $ne: req.params.id } });
+      const existingUser = await User.findOne({
+        email,
+        _id: { $ne: req.params.id },
+      });
       if (existingUser) {
-        return res.status(409).json({ message: "Email đã tồn tại" });
+        return res.status(409).json({ message: "Email already exists" });
       }
       updateData.email = email;
+    }
+
+    if (isAdmin && isActive !== undefined) {
+      updateData.isActive = isActive;
     }
 
     const updatedUser = await User.findByIdAndUpdate(
       req.params.id,
       updateData,
-      { new: true, runValidators: true }
-    ).select("-password").lean();
+      { new: true, runValidators: true },
+    )
+      .select("-password")
+      .lean();
 
     if (!updatedUser) {
-      return res.status(404).json({ message: "User không tồn tại" });
+      return res.status(404).json({ message: "User not found" });
     }
 
     res.json(updatedUser);
@@ -97,8 +105,6 @@ export const updateUser = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 };
-
-
 
 export const deleteUser = async (req, res) => {
   try {
@@ -156,7 +162,11 @@ export const registerUser = async (req, res) => {
 
     const existingOtp = await Otp.findOne({ email });
     if (existingOtp && existingOtp.resendAfter > Date.now()) {
-      return res.status(429).json({ message: "Please wait 30 seconds before requesting another OTP" });
+      return res
+        .status(429)
+        .json({
+          message: "Please wait 30 seconds before requesting another OTP",
+        });
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -167,19 +177,19 @@ export const registerUser = async (req, res) => {
       otp,
       attempts: 0,
       resendAfter: new Date(Date.now() + 30 * 1000),
-      expiresAt: new Date(Date.now() + 5 * 60 * 1000)
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
     });
 
     const transporter = nodemailer.createTransport({
       service: "gmail",
-      auth: { user: process.env.EMAIL, pass: process.env.EMAIL_PASS }
+      auth: { user: process.env.EMAIL, pass: process.env.EMAIL_PASS },
     });
 
     await transporter.sendMail({
       from: process.env.EMAIL,
       to: email,
       subject: "OTP Verification",
-      text: `Your OTP code is: ${otp}`
+      text: `Your OTP code is: ${otp}`,
     });
 
     res.json({ success: true, message: "OTP sent to email" });
@@ -188,14 +198,13 @@ export const registerUser = async (req, res) => {
   }
 };
 
-
-
 export const verifyOtp = async (req, res) => {
   try {
     const { email, otp } = req.body;
     const record = await Otp.findOne({ email });
 
-    if (!record) return res.status(400).json({ message: "OTP expired or not found" });
+    if (!record)
+      return res.status(400).json({ message: "OTP expired or not found" });
     if (record.otp !== otp) {
       record.attempts += 1;
       await record.save();
@@ -209,23 +218,21 @@ export const verifyOtp = async (req, res) => {
   }
 };
 
-
 export const resendOtp = async (req, res) => {
   try {
-
     const { email } = req.body;
 
     const record = await Otp.findOne({ email });
 
     if (!record) {
       return res.status(404).json({
-        message: "OTP not found. Please register again."
+        message: "OTP not found. Please register again.",
       });
     }
 
     if (record.resendAfter > Date.now()) {
       return res.status(429).json({
-        message: "Please wait 30 seconds before requesting another OTP"
+        message: "Please wait 30 seconds before requesting another OTP",
       });
     }
 
@@ -238,34 +245,32 @@ export const resendOtp = async (req, res) => {
       otp,
       attempts: 0,
       resendAfter: new Date(Date.now() + 30 * 1000),
-      expiresAt: new Date(Date.now() + 5 * 60 * 1000)
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
     });
 
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
         user: process.env.EMAIL,
-        pass: process.env.EMAIL_PASS
-      }
+        pass: process.env.EMAIL_PASS,
+      },
     });
 
     await transporter.sendMail({
       from: process.env.EMAIL,
       to: email,
       subject: "Resend OTP Verification",
-      text: `Your new OTP code is: ${otp}`
+      text: `Your new OTP code is: ${otp}`,
     });
 
     res.json({
       success: true,
-      message: "OTP resent successfully"
+      message: "OTP resent successfully",
     });
-
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 };
-
 
 export const searchUsers = async (req, res) => {
   try {
@@ -348,19 +353,19 @@ export const forgotPassword = async (req, res) => {
       otp,
       attempts: 0,
       resendAfter: new Date(Date.now() + 30 * 1000),
-      expiresAt: new Date(Date.now() + 5 * 60 * 1000)
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
     });
 
     const transporter = nodemailer.createTransport({
       service: "gmail",
-      auth: { user: process.env.EMAIL, pass: process.env.EMAIL_PASS }
+      auth: { user: process.env.EMAIL, pass: process.env.EMAIL_PASS },
     });
 
     await transporter.sendMail({
       from: process.env.EMAIL,
       to: email,
       subject: "Forgot Password OTP",
-      text: `Your OTP code is: ${otp}`
+      text: `Your OTP code is: ${otp}`,
     });
 
     res.json({ success: true, message: "OTP sent to email" });
@@ -375,7 +380,8 @@ export const verifyResetOtp = async (req, res) => {
     const { email, otp } = req.body;
     const record = await Otp.findOne({ email });
 
-    if (!record) return res.status(400).json({ message: "OTP expired or not found" });
+    if (!record)
+      return res.status(400).json({ message: "OTP expired or not found" });
     if (record.otp !== otp) {
       record.attempts += 1;
       await record.save();

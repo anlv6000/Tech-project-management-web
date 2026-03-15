@@ -37,7 +37,7 @@ export const getTaskById = async (req, res) => {
     const task = await Task.findById(req.params.id)
       .populate("assigneeId", "-password")
       .populate("createdBy", "-password");
-    if (!task) return res.status(404).json({ message: 'Task not found' });
+    if (!task) return res.status(404).json({ message: "Task not found" });
     res.json(task);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -46,23 +46,35 @@ export const getTaskById = async (req, res) => {
 
 export const createTask = async (req, res) => {
   try {
-    const { projectId, workUnitId, title, description,
-      assigneeId, status, deadline, createdBy, order, timeSpent, parentId, type } = req.body;
+    const {
+      projectId,
+      workUnitId,
+      title,
+      description,
+      assigneeId,
+      status,
+      deadline,
+      createdBy,
+      order,
+      timeSpent,
+      parentId,
+      type,
+    } = req.body;
 
     const task = new Task({
       _id: new mongoose.Types.ObjectId(),
       projectId: new mongoose.Types.ObjectId(projectId),
-      workUnitId: new mongoose.Types.ObjectId(workUnitId),
+      workUnitId: workUnitId ? new mongoose.Types.ObjectId(workUnitId) : null,
       title,
       description,
       assigneeId: assigneeId ? new mongoose.Types.ObjectId(assigneeId) : null,
-      status: status || 'todo',
+      status: status || "todo",
       deadline: deadline ? new Date(deadline) : null,
       createdBy: new mongoose.Types.ObjectId(createdBy),
       order: order || 0,
       timeSpent: timeSpent || 0,
       parentId: parentId ? new mongoose.Types.ObjectId(parentId) : null,
-      type: type || 'parent'   // 👈 thêm dòng này
+      type: type || "parent",
     });
 
     const saved = await task.save();
@@ -78,7 +90,17 @@ export const createTask = async (req, res) => {
 
 export const updateTask = async (req, res) => {
   try {
-    const { title, description, assigneeId, status, deadline, order, timeSpent, workUnitId, type } = req.body;
+    const {
+      title,
+      description,
+      assigneeId,
+      status,
+      deadline,
+      order,
+      timeSpent,
+      workUnitId,
+      type,
+    } = req.body;
 
     const updated = await Task.findByIdAndUpdate(
       req.params.id,
@@ -90,10 +112,15 @@ export const updateTask = async (req, res) => {
         deadline: deadline ? new Date(deadline) : undefined,
         order,
         timeSpent,
-        workUnitId: workUnitId ? new mongoose.Types.ObjectId(workUnitId) : undefined,
-        type: type || undefined
+        workUnitId: workUnitId
+          ? new mongoose.Types.ObjectId(workUnitId)
+          : undefined, // ✅ cập nhật
+        workUnitId: workUnitId
+          ? new mongoose.Types.ObjectId(workUnitId)
+          : undefined,
+        type: type || undefined,
       },
-      { new: true }
+      { new: true },
     )
       .populate("assigneeId", "-password")
       .populate("createdBy", "-password");
@@ -104,8 +131,6 @@ export const updateTask = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 };
-
-
 
 export const deleteTask = async (req, res) => {
   try {
@@ -163,4 +188,3 @@ export const getSubTasks = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
