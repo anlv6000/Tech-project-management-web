@@ -4,6 +4,7 @@ import User from '../models/User.js';
 import Notification from '../models/Notification.js';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
+import nodemailer from "nodemailer";
 
 export const getAllProjects = async (req, res) => {
   try {
@@ -38,7 +39,7 @@ export const getUserProjects = async (req, res) => {
 
 export const createProject = async (req, res) => {
   const { name, description, methodology, startDate, endDate, createdBy } = req.body;
-  
+
   try {
     const project = new Project({
       _id: new mongoose.Types.ObjectId(),
@@ -51,7 +52,7 @@ export const createProject = async (req, res) => {
     });
 
     const savedProject = await project.save();
-    
+
     // Add creator as Admin to the project
     const userProject = new UserProject({
       _id: new mongoose.Types.ObjectId(),
@@ -73,17 +74,17 @@ export const updateProject = async (req, res) => {
     const { name, description, methodology, startDate, endDate, isArchived } = req.body;
     const updatedProject = await Project.findByIdAndUpdate(
       req.params.id,
-      { 
-        name, 
-        description, 
-        methodology, 
+      {
+        name,
+        description,
+        methodology,
         startDate: startDate ? new Date(startDate) : undefined,
         endDate: endDate ? new Date(endDate) : undefined,
-        isArchived 
+        isArchived
       },
       { new: true }
     ).populate('createdBy', '-password');
-    
+
     if (!updatedProject) return res.status(404).json({ message: 'Project not found' });
     res.json(updatedProject);
   } catch (error) {
@@ -95,10 +96,10 @@ export const deleteProject = async (req, res) => {
   try {
     const project = await Project.findByIdAndDelete(req.params.id);
     if (!project) return res.status(404).json({ message: 'Project not found' });
-    
+
     // Delete related records
     await UserProject.deleteMany({ projectId: req.params.id });
-    
+
     res.json({ message: 'Project deleted' });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -171,22 +172,36 @@ export const inviteUserToProject = async (req, res) => {
       const invitationToken = jwt.sign(
         { email, projectId, role },
         process.env.JWT_SECRET,
-        { expiresIn: '7d' }
+        { expiresIn: "7d" }
       );
 
       const invitationLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/accept-invitation?token=${invitationToken}`;
 
-      console.log('Invitation link (send via email):', invitationLink);
-      console.log('Token details:', { email, projectId, role });
+      // Gửi email bằng nodemailer
+      const transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+          user: process.env.EMAIL,       // tài khoản gmail
+          pass: process.env.EMAIL_PASS   // mật khẩu ứng dụng (app password)
+        }
+      });
+
+      await transporter.sendMail({
+        from: process.env.EMAIL,
+        to: email,
+        subject: `Invitation to join project ${project.name}`,
+        text: `You have been invited to join the project "${project.name}" as ${role}.
+Click the link below to accept:
+${invitationLink}
+
+This link will expire in 7 days.`
+      });
 
       return res.json({
         success: true,
-        message: 'Invitation link generated for new user',
-        invitationLink
+        message: "Invitation email sent to new user"
       });
     }
-
-    return res.status(400).json({ message: 'Email or full name is required' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
