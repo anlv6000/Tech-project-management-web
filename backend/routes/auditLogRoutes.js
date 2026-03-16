@@ -1,28 +1,44 @@
-import express from 'express';
+import express from "express";
+import { authenticateToken, requireAdmin } from "../middleware/auth.js";
 import {
   getAllAuditLogs,
   getAuditLogsByAction,
   getAuditLogsByEntity,
   createAuditLog,
   deleteAuditLog,
-} from '../controllers/auditLogController.js';
+} from "../controllers/auditLogController.js";
 
 const router = express.Router();
 
 // Get all audit logs
-router.get('/', getAllAuditLogs);
+router.get("/", authenticateToken, requireAdmin, getAllAuditLogs);
 
 // Get audit logs by action
-router.get('/action/:action', getAuditLogsByAction);
+router.get(
+  "/action/:action",
+  authenticateToken,
+  requireAdmin,
+  getAuditLogsByAction,
+);
 
 // Get audit logs by entity
-router.get('/entity/:entity', getAuditLogsByEntity);
-router.get('/entity/:entity/:entityId', getAuditLogsByEntity);
+router.get(
+  "/entity/:entity",
+  authenticateToken,
+  requireAdmin,
+  getAuditLogsByEntity,
+);
+router.get(
+  "/entity/:entity/:entityId",
+  authenticateToken,
+  requireAdmin,
+  getAuditLogsByEntity,
+);
 
 // Create audit log
-router.post('/', createAuditLog);
+router.post("/", authenticateToken, createAuditLog);
 
 // Delete audit log
-router.delete('/:id', deleteAuditLog);
+router.delete("/:id", authenticateToken, requireAdmin, deleteAuditLog);
 
 export default router;

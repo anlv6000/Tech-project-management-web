@@ -127,6 +127,14 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
 
+  const getAuthHeaders = (includeJson = true): HeadersInit => {
+    const token = sessionStorage.getItem("token");
+    return {
+      ...(includeJson ? { "Content-Type": "application/json" } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+  };
+
   useEffect(() => {
     const loadData = async () => {
       if (!user) return;
@@ -154,7 +162,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
           // Admin: lấy toàn bộ tasks + audit logs
           [tasksRes, auditLogsRes] = await Promise.all([
             fetch(`${API_BASE_URL}/tasks`),
-            fetch(`${API_BASE_URL}/audit-logs`),
+            fetch(`${API_BASE_URL}/audit-logs`, { headers: authHeaders }),
           ]);
         } else {
           // User thường: chỉ lấy task của riêng họ
@@ -303,7 +311,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     try {
       const response = await fetch(`${API_BASE_URL}/projects/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify(updates),
       });
 
@@ -326,6 +334,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     try {
       const response = await fetch(`${API_BASE_URL}/projects/${id}`, {
         method: "DELETE",
+        headers: getAuthHeaders(false),
       });
 
       if (!response.ok) throw new Error("Failed to delete project");
@@ -374,7 +383,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     try {
       const response = await fetch(`${API_BASE_URL}/user-projects`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ userId, projectId, role }),
       });
 
@@ -393,6 +402,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         `${API_BASE_URL}/user-projects/${userId}/${projectId}`,
         {
           method: "DELETE",
+          headers: getAuthHeaders(false),
         },
       );
 
@@ -492,7 +502,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     try {
       const response = await fetch(`${API_BASE_URL}/work-units`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify(data),
       });
 
@@ -515,7 +525,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     try {
       const response = await fetch(`${API_BASE_URL}/work-units/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify(updates),
       });
 
@@ -538,6 +548,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     try {
       const response = await fetch(`${API_BASE_URL}/work-units/${id}`, {
         method: "DELETE",
+        headers: getAuthHeaders(false),
       });
 
       if (!response.ok) throw new Error("Failed to delete work unit");
@@ -565,7 +576,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   ): Promise<WorkUnit> => {
     const response = await fetch(`${API_BASE_URL}/work-units/sprint`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ projectId, name, startDate, endDate, goal }),
     });
 
@@ -584,7 +595,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     try {
       const response = await fetch(`${API_BASE_URL}/tasks`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           ...data,
           createdBy: user?.id || user?._id,
@@ -607,7 +618,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     try {
       const response = await fetch(`${API_BASE_URL}/tasks/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify(updates),
       });
 
@@ -630,6 +641,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     try {
       const response = await fetch(`${API_BASE_URL}/tasks/${id}`, {
         method: "DELETE",
+        headers: getAuthHeaders(false),
       });
 
       if (!response.ok) throw new Error("Failed to delete task");
@@ -667,7 +679,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     try {
       const response = await fetch(`${API_BASE_URL}/comments`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           taskId,
           userId: user?.id || user?._id,
@@ -717,6 +729,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
       const response = await fetch(`${API_BASE_URL}/attachments`, {
         method: "POST",
+        headers: getAuthHeaders(false),
         body: formData,
       });
 
@@ -740,7 +753,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
       const response = await fetch(`${API_BASE_URL}/attachments/${id}`, {
         method: "DELETE",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: getAuthHeaders(false),
       });
 
       if (!response.ok) {
@@ -759,7 +772,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     try {
       const response = await fetch(`${API_BASE_URL}/notifications/${id}/read`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) throw new Error("Failed to mark notification as read");
@@ -859,7 +872,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
       const response = await fetch(`${API_BASE_URL}/audit-logs`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           userId: user.id || user._id,
           action,

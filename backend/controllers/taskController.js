@@ -1,5 +1,6 @@
 import Task from "../models/Task.js";
 import mongoose from "mongoose";
+import { createAuditLogFromRequest } from "../utils/auditLogger.js";
 
 export const getTasksByProject = async (req, res) => {
   try {
@@ -82,6 +83,13 @@ export const createTask = async (req, res) => {
       .populate("assigneeId", "-password")
       .populate("createdBy", "-password");
 
+    await createAuditLogFromRequest(req, {
+      action: "create",
+      entity: "task",
+      entityId: populated._id,
+      details: `${req.user?.fullName || "User"} created task ${populated.title}`,
+    });
+
     res.status(201).json(populated);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -126,6 +134,13 @@ export const updateTask = async (req, res) => {
       .populate("createdBy", "-password");
 
     if (!updated) return res.status(404).json({ message: "Task not found" });
+    await createAuditLogFromRequest(req, {
+      action: "update",
+      entity: "task",
+      entityId: updated._id,
+      details: `${req.user?.fullName || "User"} updated task ${updated.title}`,
+    });
+
     res.json(updated);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -136,6 +151,13 @@ export const deleteTask = async (req, res) => {
   try {
     const task = await Task.findByIdAndDelete(req.params.id);
     if (!task) return res.status(404).json({ message: "Task not found" });
+    await createAuditLogFromRequest(req, {
+      action: "delete",
+      entity: "task",
+      entityId: task._id,
+      details: `${req.user?.fullName || "User"} deleted task ${task.title}`,
+    });
+
     res.json({ message: "Task deleted" });
   } catch (error) {
     res.status(500).json({ message: error.message });

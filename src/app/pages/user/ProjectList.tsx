@@ -1,61 +1,88 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router';
-import { useAuth } from '../../contexts/AuthContext';
-import { useData } from '../../contexts/DataContext';
-import { Plus, Calendar, Users, TrendingUp, FolderKanban, X, AlertCircle, CheckCircle } from 'lucide-react';
-import { Methodology } from '../../types';
-import { WorkUnit } from '../../types';
+import React, { useState } from "react";
+import { Link } from "react-router";
+import { useAuth } from "../../contexts/AuthContext";
+import { useData } from "../../contexts/DataContext";
+import {
+  Plus,
+  Calendar,
+  Users,
+  TrendingUp,
+  FolderKanban,
+  X,
+  AlertCircle,
+  CheckCircle,
+} from "lucide-react";
+import { Methodology } from "../../types";
+import { WorkUnit } from "../../types";
 
 export default function ProjectList() {
   const { user } = useAuth();
-  const { getUserProjects, createProject, getProjectMembers, getTasksByProject, createWorkUnit } = useData();
+  const {
+    getUserProjects,
+    createProject,
+    getProjectMembers,
+    getTasksByProject,
+    createWorkUnit,
+  } = useData();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
+    null,
+  );
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    methodology: 'agile' as Methodology,
-    startDate: '',
-    endDate: '',
+    name: "",
+    description: "",
+    methodology: "agile" as Methodology,
+    startDate: "",
+    endDate: "",
   });
-  const [inviteData, setInviteData] = useState({ searchInput: '', role: 'Member' });
+  const [inviteData, setInviteData] = useState({
+    searchInput: "",
+    role: "Member",
+  });
   const [userSuggestions, setUserSuggestions] = useState<any[]>([]);
   const [inviteLoading, setInviteLoading] = useState(false);
-  const [inviteError, setInviteError] = useState('');
+  const [inviteError, setInviteError] = useState("");
   const [inviteSuccess, setInviteSuccess] = useState(false);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
-  const [createError, setCreateError] = useState('');
+  const [createError, setCreateError] = useState("");
   const [createSuccess, setCreateSuccess] = useState(false);
-  const [newSprintName, setNewSprintName] = useState('');
+  const [newSprintName, setNewSprintName] = useState("");
   const [workUnits, setWorkUnits] = useState<WorkUnit[]>([]);
 
   if (!user) return null;
 
-  const userId = user.id || user._id || '';
+  const userId = user.id || user._id || "";
   const projects = getUserProjects(userId);
+  const token = sessionStorage.getItem("token");
+  const authJsonHeaders = {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
-    setCreateError('');
+    setCreateError("");
     setCreateSuccess(false);
 
     // Validation
     if (!formData.name.trim()) {
-      setCreateError('Project name is required');
+      setCreateError("Project name is required");
       return;
     }
     if (!formData.description.trim()) {
-      setCreateError('Project description is required');
+      setCreateError("Project description is required");
       return;
     }
 
     // Check for unique project name
     const existingProject = projects.find(
-      (project) => project.name.trim().toLowerCase() === formData.name.trim().toLowerCase()
+      (project) =>
+        project.name.trim().toLowerCase() ===
+        formData.name.trim().toLowerCase(),
     );
     if (existingProject) {
-      setCreateError('Project name must be unique');
+      setCreateError("Project name must be unique");
       return;
     }
 
@@ -68,7 +95,7 @@ export default function ProjectList() {
         methodology: formData.methodology,
         startDate: formData.startDate,
         endDate: formData.endDate,
-        createdBy: user.id || user._id || '',
+        createdBy: user.id || user._id || "",
         isArchived: false,
       } as any);
 
@@ -76,17 +103,21 @@ export default function ProjectList() {
       setTimeout(() => {
         setShowCreateModal(false);
         setFormData({
-          name: '',
-          description: '',
-          methodology: 'agile',
-          startDate: '',
-          endDate: '',
+          name: "",
+          description: "",
+          methodology: "agile",
+          startDate: "",
+          endDate: "",
         });
         setCreateSuccess(false);
       }, 1500);
     } catch (error) {
-      console.error('Create project error:', error);
-      setCreateError(error instanceof Error ? error.message : 'Failed to create project. Please try again.');
+      console.error("Create project error:", error);
+      setCreateError(
+        error instanceof Error
+          ? error.message
+          : "Failed to create project. Please try again.",
+      );
     } finally {
       setIsCreatingProject(false);
     }
@@ -101,41 +132,44 @@ export default function ProjectList() {
     }
 
     try {
-      const isEmail = input.includes('@');
+      const isEmail = input.includes("@");
       const query = isEmail ? `email=${input}` : `fullName=${input}`;
-      const response = await fetch(`http://localhost:5000/api/users/search?${query}`);
-      
+      const response = await fetch(
+        `http://localhost:5000/api/users/search?${query}`,
+      );
+
       if (response.ok) {
         const users = await response.json();
         setUserSuggestions(users);
       }
     } catch (error) {
-      console.error('Search user error:', error);
+      console.error("Search user error:", error);
     }
   };
 
   const handleInviteUser = async (userOrEmail: any) => {
     if (!selectedProjectId) return;
 
-    setInviteError('');
+    setInviteError("");
     setInviteSuccess(false);
     setInviteLoading(true);
     try {
-      const invitePayload = typeof userOrEmail === 'string' 
-        ? { email: userOrEmail, role: inviteData.role }
-        : { 
-            fullName: userOrEmail.fullName || userOrEmail.name,
-            email: userOrEmail.email,
-            role: inviteData.role 
-          };
+      const invitePayload =
+        typeof userOrEmail === "string"
+          ? { email: userOrEmail, role: inviteData.role }
+          : {
+              fullName: userOrEmail.fullName || userOrEmail.name,
+              email: userOrEmail.email,
+              role: inviteData.role,
+            };
 
       const response = await fetch(
         `http://localhost:5000/api/projects/${selectedProjectId}/invite`,
         {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(invitePayload)
-        }
+          method: "POST",
+          headers: authJsonHeaders,
+          body: JSON.stringify(invitePayload),
+        },
       );
 
       if (response.ok) {
@@ -143,17 +177,17 @@ export default function ProjectList() {
         setInviteSuccess(true);
         setTimeout(() => {
           setShowInviteModal(false);
-          setInviteData({ searchInput: '', role: 'Member' });
+          setInviteData({ searchInput: "", role: "Member" });
           setUserSuggestions([]);
           setInviteSuccess(false);
         }, 1500);
       } else {
         const error = await response.json();
-        setInviteError(error.message || 'Failed to invite user');
+        setInviteError(error.message || "Failed to invite user");
       }
     } catch (error) {
-      console.error('Invite error:', error);
-      setInviteError('Failed to invite user. Please try again.');
+      console.error("Invite error:", error);
+      setInviteError("Failed to invite user. Please try again.");
     } finally {
       setInviteLoading(false);
     }
@@ -164,13 +198,13 @@ export default function ProjectList() {
       const newSprint = await createWorkUnit({
         projectId,
         name: sprintName,
-        type: 'sprint',
+        type: "sprint",
         order: workUnits.length + 1,
       });
 
       setWorkUnits((prev: WorkUnit[]) => [...prev, newSprint]);
     } catch (error) {
-      console.error('Failed to add sprint:', error);
+      console.error("Failed to add sprint:", error);
     }
   };
 
@@ -195,8 +229,12 @@ export default function ProjectList() {
       {projects.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-lg border">
           <FolderKanban className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-xl font-medium text-gray-900 mb-2">No projects yet</h3>
-          <p className="text-gray-600 mb-6">Get started by creating your first project</p>
+          <h3 className="text-xl font-medium text-gray-900 mb-2">
+            No projects yet
+          </h3>
+          <p className="text-gray-600 mb-6">
+            Get started by creating your first project
+          </p>
           <button
             onClick={() => setShowCreateModal(true)}
             className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -210,21 +248,30 @@ export default function ProjectList() {
             const projectId = (project.id || project._id)!;
             const members = getProjectMembers(projectId);
             const projectTasks = getTasksByProject(projectId);
-            const completedTasks = projectTasks.filter(t => t.status === 'done').length;
-            const progress = projectTasks.length > 0 ? (completedTasks / projectTasks.length) * 100 : 0;
+            const completedTasks = projectTasks.filter(
+              (t) => t.status === "done",
+            ).length;
+            const progress =
+              projectTasks.length > 0
+                ? (completedTasks / projectTasks.length) * 100
+                : 0;
 
             return (
               <Link
                 key={projectId}
                 to={`/app/projects/${projectId}`}
-                className={`bg-white p-6 rounded-lg border hover:shadow-lg transition-shadow ${project.isCompleted ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`bg-white p-6 rounded-lg border hover:shadow-lg transition-shadow ${project.isCompleted ? "opacity-50 cursor-not-allowed" : ""}`}
               >
-                <h3 className="text-xl font-bold text-gray-900 mb-2">{project.name}</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  {project.name}
+                </h3>
                 <p className="text-gray-600 mb-4">{project.description}</p>
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <span>{Math.round(progress)}% Complete</span>
                   {project.isCompleted && (
-                    <span className="px-2 py-1 bg-green-100 text-green-600 rounded-full text-xs">Completed</span>
+                    <span className="px-2 py-1 bg-green-100 text-green-600 rounded-full text-xs">
+                      Completed
+                    </span>
                   )}
                 </div>
               </Link>
@@ -238,7 +285,9 @@ export default function ProjectList() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b flex items-center justify-between sticky top-0 bg-white">
-              <h2 className="text-2xl font-bold text-gray-900">Create New Project</h2>
+              <h2 className="text-2xl font-bold text-gray-900">
+                Create New Project
+              </h2>
               <button
                 onClick={() => setShowCreateModal(false)}
                 className="p-2 hover:bg-gray-100 rounded-lg"
@@ -263,7 +312,9 @@ export default function ProjectList() {
                   <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
                     <h3 className="font-medium text-green-900">Success</h3>
-                    <p className="text-sm text-green-700 mt-1">Project created successfully!</p>
+                    <p className="text-sm text-green-700 mt-1">
+                      Project created successfully!
+                    </p>
                   </div>
                 </div>
               )}
@@ -275,7 +326,9 @@ export default function ProjectList() {
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Website Redesign"
                   required
@@ -288,7 +341,9 @@ export default function ProjectList() {
                 </label>
                 <textarea
                   value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   rows={3}
                   placeholder="Describe your project..."
@@ -302,7 +357,12 @@ export default function ProjectList() {
                 </label>
                 <select
                   value={formData.methodology}
-                  onChange={(e) => setFormData({ ...formData, methodology: e.target.value as Methodology })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      methodology: e.target.value as Methodology,
+                    })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 >
@@ -311,9 +371,12 @@ export default function ProjectList() {
                   <option value="waterfall">Waterfall (Phase-based)</option>
                 </select>
                 <p className="mt-2 text-sm text-gray-600">
-                  {formData.methodology === 'agile' && 'Best for iterative development with sprints'}
-                  {formData.methodology === 'kanban' && 'Best for continuous workflow and task visualization'}
-                  {formData.methodology === 'waterfall' && 'Best for sequential, phase-based projects'}
+                  {formData.methodology === "agile" &&
+                    "Best for iterative development with sprints"}
+                  {formData.methodology === "kanban" &&
+                    "Best for continuous workflow and task visualization"}
+                  {formData.methodology === "waterfall" &&
+                    "Best for sequential, phase-based projects"}
                 </p>
               </div>
 
@@ -325,7 +388,9 @@ export default function ProjectList() {
                   <input
                     type="date"
                     value={formData.startDate}
-                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, startDate: e.target.value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
@@ -338,7 +403,9 @@ export default function ProjectList() {
                   <input
                     type="date"
                     value={formData.endDate}
-                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, endDate: e.target.value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
@@ -365,7 +432,7 @@ export default function ProjectList() {
                       Creating...
                     </>
                   ) : (
-                    'Create Project'
+                    "Create Project"
                   )}
                 </button>
               </div>
@@ -379,12 +446,14 @@ export default function ProjectList() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-md w-full">
             <div className="p-6 border-b flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-gray-900">Invite to Project</h2>
+              <h2 className="text-2xl font-bold text-gray-900">
+                Invite to Project
+              </h2>
               <button
                 onClick={() => {
                   setShowInviteModal(false);
                   setUserSuggestions([]);
-                  setInviteData({ searchInput: '', role: 'Member' });
+                  setInviteData({ searchInput: "", role: "Member" });
                 }}
                 className="p-2 hover:bg-gray-100 rounded-lg"
               >
@@ -408,7 +477,9 @@ export default function ProjectList() {
                   <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
                     <h3 className="font-medium text-green-900">Success</h3>
-                    <p className="text-sm text-green-700 mt-1">User invited to project!</p>
+                    <p className="text-sm text-green-700 mt-1">
+                      User invited to project!
+                    </p>
                   </div>
                 </div>
               )}
@@ -437,30 +508,36 @@ export default function ProjectList() {
                       disabled={inviteLoading}
                       className="w-full text-left px-4 py-3 hover:bg-blue-100 disabled:hover:bg-gray-50 border-b last:border-b-0 transition-colors disabled:opacity-50"
                     >
-                      <div className="font-medium text-gray-900">{suggestion.fullName}</div>
-                      <div className="text-sm text-gray-600">{suggestion.email}</div>
+                      <div className="font-medium text-gray-900">
+                        {suggestion.fullName}
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        {suggestion.email}
+                      </div>
                     </button>
                   ))}
                 </div>
               )}
 
               {/* If email not found, allow direct invite */}
-              {inviteData.searchInput.includes('@') && userSuggestions.length === 0 && inviteData.searchInput.length > 2 && (
-                <button
-                  onClick={() => handleInviteUser(inviteData.searchInput)}
-                  disabled={inviteLoading}
-                  className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
-                >
-                  {inviteLoading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Inviting...
-                    </>
-                  ) : (
-                    `Invite ${inviteData.searchInput} (New User)`
-                  )}
-                </button>
-              )}
+              {inviteData.searchInput.includes("@") &&
+                userSuggestions.length === 0 &&
+                inviteData.searchInput.length > 2 && (
+                  <button
+                    onClick={() => handleInviteUser(inviteData.searchInput)}
+                    disabled={inviteLoading}
+                    className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
+                  >
+                    {inviteLoading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Inviting...
+                      </>
+                    ) : (
+                      `Invite ${inviteData.searchInput} (New User)`
+                    )}
+                  </button>
+                )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -468,7 +545,9 @@ export default function ProjectList() {
                 </label>
                 <select
                   value={inviteData.role}
-                  onChange={(e) => setInviteData({ ...inviteData, role: e.target.value })}
+                  onChange={(e) =>
+                    setInviteData({ ...inviteData, role: e.target.value })
+                  }
                   disabled={inviteLoading}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                 >

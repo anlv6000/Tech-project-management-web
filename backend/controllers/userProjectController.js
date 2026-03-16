@@ -1,8 +1,9 @@
-import UserProject from '../models/UserProject.js';
-import mongoose from 'mongoose';
-import Task from '../models/Task.js';
-import Comment from '../models/Comment.js';
-import Attachment from '../models/Attachment.js';
+import UserProject from "../models/UserProject.js";
+import mongoose from "mongoose";
+import Task from "../models/Task.js";
+import Comment from "../models/Comment.js";
+import Attachment from "../models/Attachment.js";
+import { createAuditLogFromRequest } from "../utils/auditLogger.js";
 
 export const getAllUserProjects = async (req, res) => {
   try {
@@ -16,7 +17,9 @@ export const getAllUserProjects = async (req, res) => {
 export const getProjectMembers = async (req, res) => {
   try {
     const { projectId } = req.params;
-    const members = await UserProject.find({ projectId }).populate('userId', '-password').lean();
+    const members = await UserProject.find({ projectId })
+      .populate("userId", "-password")
+      .lean();
     res.json(members);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -27,20 +30,33 @@ export const addUserToProject = async (req, res) => {
   try {
     const { userId, projectId, role } = req.body;
 
-    const existingUserProject = await UserProject.findOne({ userId, projectId });
+    const existingUserProject = await UserProject.findOne({
+      userId,
+      projectId,
+    });
     if (existingUserProject) {
-      return res.status(400).json({ message: 'User already added to project' });
+      return res.status(400).json({ message: "User already added to project" });
     }
 
     const userProject = new UserProject({
       _id: new mongoose.Types.ObjectId(),
       userId: new mongoose.Types.ObjectId(userId),
       projectId: new mongoose.Types.ObjectId(projectId),
-      role: role || 'Member'
+      role: role || "Member",
     });
 
     const saved = await userProject.save();
-    const populated = await UserProject.findById(saved._id).populate('userId', '-password');
+    const populated = await UserProject.findById(saved._id).populate(
+      "userId",
+      "-password",
+    );
+
+    await createAuditLogFromRequest(req, {
+      action: "create",
+      entity: "userproject",
+      entityId: saved._id,
+      details: `${req.user?.fullName || "User"} added user ${userId} to project ${projectId} as ${role || "Member"}`,
+    });
 
     res.status(201).json(populated);
   } catch (error) {
@@ -54,11 +70,19 @@ export const removeUserFromProject = async (req, res) => {
 
     const userProject = await UserProject.findOneAndDelete({
       userId: new mongoose.Types.ObjectId(userId),
-      projectId: new mongoose.Types.ObjectId(projectId)
+      projectId: new mongoose.Types.ObjectId(projectId),
     });
 
-    if (!userProject) return res.status(404).json({ message: 'User not found in project' });
-    res.json({ message: 'User removed from project' });
+    if (!userProject)
+      return res.status(404).json({ message: "User not found in project" });
+    await createAuditLogFromRequest(req, {
+      action: "delete",
+      entity: "userproject",
+      entityId: userProject._id,
+      details: `${req.user?.fullName || "User"} removed user ${userId} from project ${projectId}`,
+    });
+
+    res.json({ message: "User removed from project" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -70,12 +94,23 @@ export const updateUserRole = async (req, res) => {
     const { role } = req.body;
 
     const userProject = await UserProject.findOneAndUpdate(
-      { userId: new mongoose.Types.ObjectId(userId), projectId: new mongoose.Types.ObjectId(projectId) },
+      {
+        userId: new mongoose.Types.ObjectId(userId),
+        projectId: new mongoose.Types.ObjectId(projectId),
+      },
       { role },
-      { new: true }
-    ).populate('userId', '-password');
+      { new: true },
+    ).populate("userId", "-password");
 
-    if (!userProject) return res.status(404).json({ message: 'User not found in project' });
+    if (!userProject)
+      return res.status(404).json({ message: "User not found in project" });
+    await createAuditLogFromRequest(req, {
+      action: "update",
+      entity: "userproject",
+      entityId: userProject._id,
+      details: `${req.user?.fullName || "User"} changed role of user ${userId} in project ${projectId} to ${role}`,
+    });
+
     res.json(userProject);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -85,15 +120,14 @@ export const updateUserRole = async (req, res) => {
 export const getUserProjectsByUserId = async (req, res) => {
   try {
     const { userId } = req.params;
-    const userProjects = await UserProject.find({ userId })
-      .populate({
-        path: 'projectId',
-        populate: [
-          { path: 'tasks' },
-          { path: 'comments' },
-          { path: 'attachments' }
-        ]
-      });
+    const userProjects = await UserProject.find({ userId }).populate({
+      path: "projectId",
+      populate: [
+        { path: "tasks" },
+        { path: "comments" },
+        { path: "attachments" },
+      ],
+    });
 
     res.json(userProjects);
   } catch (error) {
@@ -107,10 +141,14 @@ export const getUserData = async (req, res) => {
     console.log("👉 getUserData called with userId:", userId);
 
     // Query từng bảng và log kết quả
-    const userProjects = await UserProject.find({ userId }).populate('projectId');
+    const userProjects = await UserProject.find({ userId }).populate(
+      "projectId",
+    );
     console.log("👉 userProjects:", userProjects);
 
-    const tasks = await Task.find({ $or: [{ createdBy: userId }, { assigneeId: userId }] });
+    const tasks = await Task.find({
+      $or: [{ createdBy: userId }, { assigneeId: userId }],
+    });
     console.log("👉 tasks:", tasks);
 
     const comments = await Comment.find({ userId });
@@ -125,7 +163,3 @@ export const getUserData = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
-
-
-

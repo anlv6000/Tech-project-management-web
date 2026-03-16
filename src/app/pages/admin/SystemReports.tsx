@@ -23,7 +23,7 @@ type MonthlyActivityItem = {
 };
 
 export default function SystemReports() {
-  const { projects, tasks, users, auditLogs } = useData();
+  const { projects, tasks, users, auditLogs, addAuditLog } = useData();
 
   const projectsByMethodology = useMemo(
     () => [
@@ -151,15 +151,60 @@ export default function SystemReports() {
 
   const totalActions = auditLogs.length;
 
+  const handleExportSummary = async () => {
+    const summary = [
+      ["Metric", "Value"],
+      ["Total Projects", projects.length],
+      ["Total Tasks", tasks.length],
+      ["Total Users", users.length],
+      ["Active Users", activeUsers],
+      ["Completion Rate", `${completionRate}%`],
+      ["Audit Actions", totalActions],
+      ["Total Time Logged", `${totalTimeLogged}h`],
+      ["Average Tasks Per Project", avgTasksPerProject],
+    ];
+
+    const csv = summary
+      .map((row) =>
+        row
+          .map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`)
+          .join(","),
+      )
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `system-report-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    await addAuditLog(
+      "export",
+      "report",
+      "system-reports",
+      "Exported system report summary to CSV",
+    );
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          System Reports
-        </h1>
-        <p className="text-gray-600">
-          Global statistics and analytics from database
-        </p>
+      <div className="mb-8 flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            System Reports
+          </h1>
+          <p className="text-gray-600">
+            Global statistics and analytics from database
+          </p>
+        </div>
+        <button
+          onClick={handleExportSummary}
+          className="px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700"
+        >
+          Export Summary
+        </button>
       </div>
 
       <div className="grid md:grid-cols-5 gap-6 mb-6">
