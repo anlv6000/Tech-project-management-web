@@ -5,6 +5,7 @@ import Notification from "../models/Notification.js";
 import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 import { createAuditLogFromRequest } from "../utils/auditLogger.js";
+import nodemailer from "nodemailer";
 
 export const getAllProjects = async (req, res) => {
   try {
@@ -62,7 +63,6 @@ export const createProject = async (req, res) => {
 
     const savedProject = await project.save();
 
-    // Add creator as Admin to the project
     const userProject = new UserProject({
       _id: new mongoose.Types.ObjectId(),
       userId: new mongoose.Types.ObjectId(createdBy),
@@ -75,6 +75,7 @@ export const createProject = async (req, res) => {
       "createdBy",
       "-password",
     );
+
     await createAuditLogFromRequest(req, {
       action: "create",
       entity: "project",
@@ -92,6 +93,7 @@ export const updateProject = async (req, res) => {
   try {
     const { name, description, methodology, startDate, endDate, isArchived } =
       req.body;
+
     const updatedProject = await Project.findByIdAndUpdate(
       req.params.id,
       {
@@ -105,8 +107,10 @@ export const updateProject = async (req, res) => {
       { new: true },
     ).populate("createdBy", "-password");
 
-    if (!updatedProject)
+    if (!updatedProject) {
       return res.status(404).json({ message: "Project not found" });
+    }
+
     res.json(updatedProject);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -118,7 +122,6 @@ export const deleteProject = async (req, res) => {
     const project = await Project.findByIdAndDelete(req.params.id);
     if (!project) return res.status(404).json({ message: "Project not found" });
 
-    // Delete related records
     await UserProject.deleteMany({ projectId: req.params.id });
 
     await createAuditLogFromRequest(req, {
@@ -139,7 +142,6 @@ export const inviteUserToProject = async (req, res) => {
     const { projectId } = req.params;
     const { email, fullName, role = "Member" } = req.body;
 
-    // Tìm user theo email hoặc fullName
     let user = null;
     if (email) {
       user = await User.findOne({ email });
@@ -147,15 +149,12 @@ export const inviteUserToProject = async (req, res) => {
       user = await User.findOne({ fullName });
     }
 
-    // Tìm project để lấy tên
     const project = await Project.findById(projectId);
     if (!project) {
       return res.status(404).json({ message: "Project not found" });
     }
 
-    // Nếu user tồn tại trong hệ thống, gửi notification mời
     if (user) {
-      // Kiểm tra đã mời chưa
       const existingInvitation = await Notification.findOne({
         userId: user._id,
         type: "invitation",
@@ -169,14 +168,12 @@ export const inviteUserToProject = async (req, res) => {
           .json({ message: "User already invited or in project" });
       }
 
-      // Tạo token mời
       const invitationToken = jwt.sign(
         { email: user.email, projectId, role },
         process.env.JWT_SECRET,
         { expiresIn: "7d" },
       );
 
-      // Tạo notification mời
       const notification = new Notification({
         _id: new mongoose.Types.ObjectId(),
         userId: user._id,
@@ -193,6 +190,7 @@ export const inviteUserToProject = async (req, res) => {
       });
 
       await notification.save();
+
       return res.json({
         success: true,
         message: "Invitation sent to existing user",
@@ -200,9 +198,7 @@ export const inviteUserToProject = async (req, res) => {
       });
     }
 
-    // Nếu user chưa tồn tại, tạo token mời và log link
     if (!user && email) {
-      // Tạo token mời
       const invitationToken = jwt.sign(
         { email, projectId, role },
         process.env.JWT_SECRET,
@@ -214,9 +210,28 @@ export const inviteUserToProject = async (req, res) => {
       console.log("Invitation link (send via email):", invitationLink);
       console.log("Token details:", { email, projectId, role });
 
+      const transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+          user: process.env.EMAIL,
+          pass: process.env.EMAIL_PASS,
+        },
+      });
+
+      await transporter.sendMail({
+        from: process.env.EMAIL,
+        to: email,
+        subject: `Invitation to join project ${project.name}`,
+        text: `You have been invited to join the project "${project.name}" as ${role}.
+Click the link below to accept:
+${invitationLink}
+
+This link will expire in 7 days.`,
+      });
+
       return res.json({
         success: true,
-        message: "Invitation link generated for new user",
+        message: "Invitation email sent to new user",
         invitationLink,
       });
     }
@@ -235,11 +250,9 @@ export const acceptInvitation = async (req, res) => {
       return res.status(400).json({ message: "Token is required" });
     }
 
-    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const { email, projectId, role } = decoded;
 
-    // Tìm user theo email
     const user = await User.findOne({ email });
     if (!user) {
       return res
@@ -247,18 +260,17 @@ export const acceptInvitation = async (req, res) => {
         .json({ message: "User not found. Please register first." });
     }
 
-    // Kiểm tra đã trong project chưa
     const existingUserProject = await UserProject.findOne({
       userId: user._id,
       projectId,
     });
+
     if (existingUserProject) {
       return res
         .status(400)
         .json({ message: "You are already a member of this project" });
     }
 
-    // Thêm user vào project
     const userProject = new UserProject({
       _id: new mongoose.Types.ObjectId(),
       userId: user._id,
@@ -268,7 +280,6 @@ export const acceptInvitation = async (req, res) => {
 
     await userProject.save();
 
-    // Cập nhật notification thành accepted nếu có
     await Notification.findOneAndUpdate(
       {
         userId: user._id,
@@ -281,7 +292,6 @@ export const acceptInvitation = async (req, res) => {
       },
     );
 
-    // Tạo notification chào mừng
     const project = await Project.findById(projectId);
     const welcomeNotification = new Notification({
       _id: new mongoose.Types.ObjectId(),
