@@ -203,11 +203,8 @@ const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
               {/* RIGHT - AVATAR */}
               <div className="flex flex-1 flex-col items-center justify-center gap-4">
                 <img
-                  src={
-                    avatarPreview
-                      ? `http://localhost:5000${avatarPreview}`
-                      : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullName)}`
-                  }
+                  src={`http://localhost:5000${user.avatar}`}
+                   alt={user.fullName}
                   className="w-32 h-32 rounded-full object-cover border"
                 />
 
