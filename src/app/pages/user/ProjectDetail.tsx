@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useParams, Link } from "react-router";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
+import { ProjectRole } from "../../types";
 import {
   ArrowLeft,
   Calendar,
@@ -129,10 +130,10 @@ export default function ProjectDetail() {
         typeof userOrEmail === "string"
           ? { email: userOrEmail, role: "Member" }
           : {
-              fullName: userOrEmail.fullName || userOrEmail.name,
-              email: userOrEmail.email,
-              role: "Member",
-            };
+            fullName: userOrEmail.fullName || userOrEmail.name,
+            email: userOrEmail.email,
+            role: "Member",
+          };
 
       const response = await fetch(
         `http://localhost:5000/api/projects/${projectId}/invite`,
@@ -256,7 +257,7 @@ export default function ProjectDetail() {
     tasks: tasks.filter(
       (t) =>
         String(t.workUnitId || "").trim() ===
-          String(wu.id || wu._id || "").trim() && t.type !== "subtask",
+        String(wu.id || wu._id || "").trim() && t.type !== "subtask",
     ).length,
   }));
 
@@ -370,11 +371,10 @@ export default function ProjectDetail() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center gap-2 px-4 py-4 border-b-2 transition-colors ${
-                    activeTab === tab.id
+                  className={`flex items-center gap-2 px-4 py-4 border-b-2 transition-colors ${activeTab === tab.id
                       ? "border-blue-600 text-blue-600"
                       : "border-transparent text-gray-600 hover:text-gray-900"
-                  }`}
+                    }`}
                 >
                   <Icon className="w-5 h-5" />
                   {tab.label}
@@ -700,14 +700,15 @@ export default function ProjectDetail() {
                 <select
                   value={inviteData.role}
                   onChange={(e) =>
-                    setInviteData({ ...inviteData, role: e.target.value })
+                    setInviteData({ ...inviteData, role: e.target.value as ProjectRole })
                   }
                   disabled={inviteLoading}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                 >
-                  <option value="Member">Member</option>
-                  <option value="Lead">Lead</option>
-                  <option value="Admin">Admin</option>
+                  <option value="member">Member</option>
+                  <option value="pm">Project Manager</option>
+                  <option value="projectAdmin">Project Admin</option>
+                  <option value="viewer">Viewer</option>
                 </select>
               </div>
             </div>

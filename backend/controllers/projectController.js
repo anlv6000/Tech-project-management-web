@@ -67,8 +67,9 @@ export const createProject = async (req, res) => {
       _id: new mongoose.Types.ObjectId(),
       userId: new mongoose.Types.ObjectId(createdBy),
       projectId: savedProject._id,
-      role: "Admin",
+      role: "projectAdmin",
     });
+
     await userProject.save();
 
     const populatedProject = await Project.findById(savedProject._id).populate(
@@ -245,51 +246,51 @@ This link will expire in 7 days.`,
 export const acceptInvitation = async (req, res) => {
   try {
     const { token } = req.body;
-
-    if (!token) {
-      return res.status(400).json({ message: "Token is required" });
-    }
+    if (!token) return res.status(400).json({ message: "Token is required" });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const { email, projectId, role } = decoded;
 
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+      return res.status(400).json({ message: "Invalid projectId" });
+    }
+
     const user = await User.findOne({ email });
     if (!user) {
-      return res
-        .status(404)
-        .json({ message: "User not found. Please register first." });
+      return res.status(404).json({ message: "User not found. Please register first." });
     }
 
-    const existingUserProject = await UserProject.findOne({
-      userId: user._id,
-      projectId,
-    });
-
+    const existingUserProject = await UserProject.findOne({ userId: user._id, projectId });
     if (existingUserProject) {
-      return res
-        .status(400)
-        .json({ message: "You are already a member of this project" });
+      return res.status(400).json({ message: "You are already a member of this project" });
     }
+
+    const roleMap = {
+      projectAdmin: "projectAdmin",
+      pm: "pm",
+      member: "member",
+      viewer: "viewer",
+      Admin: "projectAdmin",
+      Manager: "pm",
+      Member: "member",
+      Viewer: "viewer",
+    };
+
+    const finalRole = roleMap[role] || "member";
+
 
     const userProject = new UserProject({
       _id: new mongoose.Types.ObjectId(),
       userId: user._id,
       projectId: new mongoose.Types.ObjectId(projectId),
-      role,
+      role: finalRole,
     });
 
     await userProject.save();
 
     await Notification.findOneAndUpdate(
-      {
-        userId: user._id,
-        type: "invitation",
-        "data.projectId": projectId,
-      },
-      {
-        "data.status": "accepted",
-        isRead: true,
-      },
+      { userId: user._id, type: "invitation", "data.projectId": projectId },
+      { "data.status": "accepted", isRead: true }
     );
 
     const project = await Project.findById(projectId);
@@ -298,17 +299,12 @@ export const acceptInvitation = async (req, res) => {
       userId: user._id,
       type: "project",
       title: `Welcome to ${project?.name || "the project"}!`,
-      message: `You have successfully joined the project as ${role}`,
+      message: `You have successfully joined the project as ${finalRole}`,
       data: { projectId },
     });
-
     await welcomeNotification.save();
 
-    res.json({
-      success: true,
-      message: "Successfully joined the project",
-      projectId,
-    });
+    res.json({ success: true, message: "Successfully joined the project", projectId });
   } catch (error) {
     if (error.name === "JsonWebTokenError") {
       return res.status(400).json({ message: "Invalid invitation token" });
@@ -316,9 +312,11 @@ export const acceptInvitation = async (req, res) => {
     if (error.name === "TokenExpiredError") {
       return res.status(400).json({ message: "Invitation token has expired" });
     }
+    console.error("❌ acceptInvitation error:", error);
     res.status(500).json({ message: error.message });
   }
 };
+
 
 export const completeProject = async (req, res) => {
   try {

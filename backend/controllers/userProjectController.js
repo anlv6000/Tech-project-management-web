@@ -38,11 +38,20 @@ export const addUserToProject = async (req, res) => {
       return res.status(400).json({ message: "User already added to project" });
     }
 
+    const normalizedRoleMap = {
+      Admin: "projectAdmin",
+      Lead: "pm",
+      Member: "member",
+      Viewer: "viewer",
+    };
+
+    const normalizedRole = normalizedRoleMap[role] || "member";
+
     const userProject = new UserProject({
       _id: new mongoose.Types.ObjectId(),
       userId: new mongoose.Types.ObjectId(userId),
       projectId: new mongoose.Types.ObjectId(projectId),
-      role: role || "Member",
+      role: normalizedRole,
     });
 
     const saved = await userProject.save();
