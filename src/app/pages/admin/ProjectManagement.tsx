@@ -34,6 +34,16 @@ const [selectedTask, setSelectedTask] = useState<any>(null);
     }).filter(Boolean);
   };
 
+  const getParentTasks = (projectId: string) => {
+    return getTasksByProject(projectId).filter((t: any) => t.type !== 'subtask');
+  };
+
+  const getSubTasksByParent = (projectId: string, parentId: string) => {
+    return getTasksByProject(projectId).filter(
+      (t: any) => t.type === 'subtask' && String(t.parentId || '').trim() === String(parentId).trim()
+    );
+  };
+
   return (
 
     <div className="p-6 max-w-7xl mx-auto">
@@ -369,19 +379,39 @@ const [selectedTask, setSelectedTask] = useState<any>(null);
           Assignee
         </p>
 
-        <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-lg">
+        {(() => {
+          const rawAssignee =
+            selectedTask.assigneeId ||
+            (selectedTask as any).assignee ||
+            null;
 
-          <div className="w-8 h-8 rounded-full bg-purple-500 text-white flex items-center justify-center text-sm font-semibold">
-            {selectedTask.assignee
-              ? selectedTask.assignee.charAt(0).toUpperCase()
-              : "U"}
-          </div>
+          let assigneeName = "Unassigned";
 
-          <span className="text-sm text-gray-800">
-            {selectedTask.assignee || "Unassigned"}
-          </span>
+          if (rawAssignee) {
+            if (typeof rawAssignee === "object") {
+              assigneeName = rawAssignee.fullName || "Unassigned";
+            } else {
+              const matchedUser = users.find((u: any) =>
+                String(u.id || u._id) === String(rawAssignee),
+              );
+              assigneeName = matchedUser?.fullName || String(rawAssignee);
+            }
+          }
 
-        </div>
+          return (
+            <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-lg">
+              <div className="w-8 h-8 rounded-full bg-purple-500 text-white flex items-center justify-center text-sm font-semibold">
+                {assigneeName && assigneeName !== "Unassigned"
+                  ? assigneeName.charAt(0).toUpperCase()
+                  : "U"}
+              </div>
+
+              <span className="text-sm text-gray-800">
+                {assigneeName || "Unassigned"}
+              </span>
+            </div>
+          );
+        })()}
 
       </div>
 
@@ -473,17 +503,33 @@ const [selectedTask, setSelectedTask] = useState<any>(null);
 
               <ul className="space-y-1 text-sm">
 
-                {getTasksByProject(selectedProject.id || selectedProject._id).map((t: any) => (
+                {getParentTasks(selectedProject.id || selectedProject._id).map((t: any) => {
+                  const subTasks = getSubTasksByParent(selectedProject.id || selectedProject._id, t.id || t._id);
+                  return (
+                    <li key={t.id || t._id}>
+                      <button
+                        onClick={() => setSelectedTask(t)}
+                        className="w-full text-left bg-gray-100 px-2 py-1 rounded cursor-pointer hover:bg-gray-200"
+                      >
+                        {t.title}
+                      </button>
 
-                  <li
-  key={t.id || t._id}
-  onClick={() => setSelectedTask(t)}
-  className="bg-gray-100 px-2 py-1 rounded cursor-pointer hover:bg-gray-200"
->
-  {t.title}
-</li>
-
-                ))}
+                      {subTasks.length > 0 && (
+                        <ul className="mt-1 ml-4 space-y-1">
+                          {subTasks.map((sub: any) => (
+                            <li
+                              key={sub.id || sub._id}
+                              onClick={() => setSelectedTask(sub)}
+                              className="bg-gray-50 px-2 py-1 rounded cursor-pointer hover:bg-gray-100"
+                            >
+                              {sub.title}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </li>
+                  );
+                })}
 
               </ul>
 

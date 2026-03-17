@@ -4,11 +4,20 @@ import { UserX, UserCheck, Search } from 'lucide-react';
 
 export default function UserManagement() {
 
-  const { getAllUsers, updateUserData, userProjects, projects } = useData();
-  const { resetUserPassword } = useData();
+  const {
+    getAllUsers,
+    updateUserData,
+    userProjects,
+    projects,
+    getProject,
+    getProjectMembers,
+    getTasksByProject,
+    resetUserPassword,
+  } = useData();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [resetPassword, setResetPassword] = useState('');
 
   const users = getAllUsers();
@@ -50,7 +59,7 @@ export default function UserManagement() {
       {/* SEARCH */}
       <div className="bg-white p-4 rounded-lg border mb-6">
         <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"/>
           <input
             type="text"
             value={searchQuery}
@@ -260,9 +269,7 @@ export default function UserManagement() {
 
             <div className="flex justify-between items-center mb-6">
 
-              <h2 className="text-lg font-bold">
-                User Profile
-              </h2>
+              
 
               <button
                 onClick={() => setSelectedUser(null)}
@@ -324,7 +331,10 @@ export default function UserManagement() {
 
                   <li
                     key={p.id || p._id}
-                    className="bg-gray-100 px-2 py-1 rounded"
+                    onClick={() => setSelectedProjectId(p.id || p._id || null)}
+                    className={`bg-gray-100 px-2 py-1 rounded cursor-pointer hover:bg-gray-200 ${
+                      selectedProjectId === (p.id || p._id) ? 'bg-purple-100 border border-purple-300' : ''
+                    }`}
                   >
                     {p.name}
                   </li>
@@ -334,6 +344,45 @@ export default function UserManagement() {
               </ul>
 
             </div>
+
+            {selectedProjectId && (
+              <div className="mb-6 bg-gray-50 p-4 rounded-lg border">
+                {(() => {
+                  const project = getProject(selectedProjectId);
+                  if (!project) return <p className="text-sm text-gray-500">Project not found</p>;
+
+                  const projectMembers = getProjectMembers(selectedProjectId);
+                  const tasks = getTasksByProject(selectedProjectId);
+                  const doneTasks = tasks.filter((t: any) => t.status === 'done').length;
+                  const progress = tasks.length ? Math.round((doneTasks / tasks.length) * 100) : 0;
+
+                  return (
+                    <>
+                      <div className="flex justify-between items-center mb-2">
+                        <p className="font-semibold">Project Detail</p>
+                        <button
+                          onClick={() => setSelectedProjectId(null)}
+                          className="text-xs text-gray-500 hover:text-gray-700"
+                        >
+                          Close
+                        </button>
+                      </div>
+
+                      <p className="text-sm font-semibold text-gray-900">{project.name}</p>
+                      <p className="text-sm text-gray-600 mb-2">{project.description}</p>
+                      <p className="text-xs text-gray-500 mb-2">Methodology: {project.methodology}</p>
+
+                      <div className="grid grid-cols-2 gap-2 mt-2 text-xs text-gray-700">
+                        <div>Members: {projectMembers.length}</div>
+                        <div>Tasks: {tasks.length}</div>
+                        <div>Status: {project.isCompleted ? 'Completed' : 'Active'}</div>
+                        <div>Progress: {progress}%</div>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
 
           
             <div className="mt-6">
