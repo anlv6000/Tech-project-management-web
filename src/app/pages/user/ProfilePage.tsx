@@ -32,23 +32,37 @@ export default function ProfilePage() {
     setTimeout(() => setProfileSuccess(false), 3000);
   };
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
 
-    const reader = new FileReader();
+  const token = sessionStorage.getItem("token");
 
-    reader.onloadend = () => {
-      const base64 = reader.result as string;
-      setAvatarPreview(base64);
+  const formData = new FormData();
+  formData.append("avatar", file);
 
-      updateUser({
-        avatar: base64
-      });
-    };
+  try {
+    const res = await fetch(
+      `http://localhost:5000/api/users/${user.id}/avatar`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      }
+    );
 
-    reader.readAsDataURL(file);
-  };
+    const data = await res.json();
+
+    if (res.ok) {
+      setAvatarPreview(`http://localhost:5000${data.avatar}`);
+      updateUser({ avatar: data.avatar });
+    }
+  } catch (error) {
+    console.error(error);
+  }
+};
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -190,10 +204,10 @@ export default function ProfilePage() {
               <div className="flex flex-1 flex-col items-center justify-center gap-4">
                 <img
                   src={
-                    avatarPreview ||
-                    `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullName)}`
+                    avatarPreview
+                      ? `http://localhost:5000${avatarPreview}`
+                      : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullName)}`
                   }
-                  alt="avatar"
                   className="w-32 h-32 rounded-full object-cover border"
                 />
 
