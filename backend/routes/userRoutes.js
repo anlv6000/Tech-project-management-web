@@ -1,6 +1,8 @@
 import express from "express";
 import * as userController from "../controllers/userController.js";
 import { authenticateToken, requireAdmin } from "../middleware/auth.js";
+import upload from "../middleware/upload.js";
+import User from "../models/User.js";
 
 const router = express.Router();
 
@@ -35,6 +37,28 @@ router.put(
   authenticateToken,
   requireAdmin,
   userController.resetPassword,
+);
+
+//Upload ảnh
+router.put(
+  "/:id/avatar",
+  authenticateToken,
+  upload.single("avatar"),
+  async (req, res) => {
+    try {
+      const avatarPath = `/uploads/${req.file.filename}`;
+
+      const user = await User.findByIdAndUpdate(
+        req.params.id,
+        { avatar: avatarPath },
+        { new: true }
+      ).select("-password");
+
+      res.json(user);
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
 );
 
 export default router;

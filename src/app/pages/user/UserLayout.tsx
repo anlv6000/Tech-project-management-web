@@ -97,52 +97,60 @@ export default function UserLayout() {
             </button>
           </Link>
 
-          {/* Profile dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setIsProfileOpen(!isProfileOpen)}
-              className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-lg"
-            >
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                <span className="text-blue-600 font-medium">
-                  {user?.fullName.charAt(0).toUpperCase()}
-                </span>
-              </div>
-              <ChevronDown className="w-4 h-4 text-gray-600 hidden sm:block" />
-            </button>
+{/* Profile dropdown */}
+<div className="relative">
+  <button
+    onClick={() => setIsProfileOpen(!isProfileOpen)}
+    className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-lg"
+  >
+    {user?.avatar ? (
+      <img
+        src={`http://localhost:5000${user.avatar}`}
+        alt={user.fullName}
+        className="w-8 h-8 rounded-full object-cover"
+      />
+    ) : (
+      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+        <span className="text-blue-600 font-medium">
+          {user?.fullName.charAt(0).toUpperCase()}
+        </span>
+      </div>
+    )}
+    <ChevronDown className="w-4 h-4 text-gray-600 hidden sm:block" />
+  </button>
 
-            {isProfileOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-10"
-                  onClick={() => setIsProfileOpen(false)}
-                ></div>
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border z-20">
-                  <div className="p-4 border-b">
-                    <p className="font-medium text-gray-900">{user?.fullName}</p>
-                    <p className="text-sm text-gray-600">{user?.email}</p>
-                  </div>
-                  <div className="p-2">
-                    <Link
-                      to="/app/profile"
-                      className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded-lg"
-                      onClick={() => setIsProfileOpen(false)}
-                    >
-                      <User className="w-4 h-4" />
-                      Profile
-                    </Link>
-                    <button
-                      onClick={handleLogout}
-                      className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded-lg text-red-600"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      Logout
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
+  {isProfileOpen && (
+    <>
+      <div
+        className="fixed inset-0 z-10"
+        onClick={() => setIsProfileOpen(false)}
+      ></div>
+      <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border z-20">
+        <div className="p-4 border-b">
+          <p className="font-medium text-gray-900">{user?.fullName}</p>
+          <p className="text-sm text-gray-600">{user?.email}</p>
+        </div>
+        <div className="p-2">
+          <Link
+            to="/app/profile"
+            className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded-lg"
+            onClick={() => setIsProfileOpen(false)}
+          >
+            <User className="w-4 h-4" />
+            Profile
+          </Link>
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded-lg text-red-600"
+          >
+            <LogOut className="w-4 h-4" />
+            Logout
+          </button>
+        </div>
+      </div>
+    </>
+  )}
+</div>
         </div>
       </header>
 
