@@ -19,6 +19,22 @@ import {
   Pencil,
 } from "lucide-react";
 
+import {
+  canCreateWorkUnit,
+  canCreateTask,
+  canEditTask,
+  canUpdateStatus,
+  canAssignTask,
+  canLogWork,
+  canCreateSubTask,
+  canUpdateSubTask,
+  canDeleteSubTask,
+  canUploadAttachment,
+  canDeleteAttachment,
+  canComment,
+  canSaveTask,
+} from "./permissions";
+
 const ItemType = "TASK";
 const API_BASE_URL = "http://localhost:5000";
 
@@ -396,6 +412,9 @@ export default function TaskBoard() {
   const workUnits = getProjectWorkUnits(projectId) || []; // Ensure 'workUnits' is defined
   const users = getAllUsers() || []; // Ensure 'users' is defined
   const allUserProjects = getAllUserProjects ? getAllUserProjects() : [];
+  const currentUserProject = allUserProjects.find(
+    (up) => up.projectId === projectId && up.userId === (user?.id || user?._id)
+  );
   const projectIdStr = String(projectId);
   const projectUserProjects = allUserProjects.filter((up) => {
     const pid = String(up.projectId || "").trim();
@@ -701,14 +720,17 @@ export default function TaskBoard() {
                 </p>{" "}
                 {/* Ensure 'project' is defined */}
               </div>
-              {project?.methodology === "agile" && !isProjectCompleted && (
-                <button
-                  onClick={handleOpenSprintModal} // mở modal thay vì gọi trực tiếp
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  ➕ New Sprint
-                </button>
-              )}
+              {project?.methodology === "agile" &&
+                !isProjectCompleted &&
+                currentUserProject &&
+                canCreateWorkUnit(currentUserProject.role) && (
+                  <button
+                    onClick={handleOpenSprintModal} // mở modal thay vì gọi trực tiếp
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    ➕ New Sprint
+                  </button>
+                )}
               {showSprintModal && (
                 <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
                   <div className="bg-white p-6 rounded-lg shadow-lg w-[400px] bg-opacity-90">

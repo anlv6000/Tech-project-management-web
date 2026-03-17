@@ -1,7 +1,7 @@
 // Database types matching the 7 tables
 
 export type UserRole = 'user' | 'admin';
-export type ProjectRole = 'owner' | 'member' | 'viewer' | 'Admin' | 'Manager' | 'Member' | 'Viewer';
+export type ProjectRole = "projectAdmin" | "pm" | "member" | "viewer";
 export type Methodology = 'agile' | 'kanban' | 'waterfall';
 export type TaskStatus = 'todo' | 'in-progress' | 'done' | 'backlog';
 export type WorkUnitType = 'sprint' | 'column' | 'phase';
