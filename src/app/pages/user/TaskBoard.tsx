@@ -37,6 +37,13 @@ import {
 
 const ItemType = "TASK";
 const API_BASE_URL = "http://localhost:5000";
+const getAuthJsonHeaders = () => {
+  const token = sessionStorage.getItem("token");
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+};
 
 interface TaskCardProps {
   task: Task;
@@ -66,11 +73,14 @@ function TaskCard({ task, onClick, users, isProjectCompleted }: TaskCardProps) {
     setEditLoading(true);
     setEditError("");
     try {
-      const response = await fetch(`${API_BASE_URL}/api/tasks/${task.id || task._id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editTaskData),
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/api/tasks/${task.id || task._id}`,
+        {
+          method: "PUT",
+          headers: getAuthJsonHeaders(),
+          body: JSON.stringify(editTaskData),
+        },
+      );
       if (response.ok) {
         alert("Task updated successfully!");
         setShowEditModal(false);
@@ -94,8 +104,10 @@ function TaskCard({ task, onClick, users, isProjectCompleted }: TaskCardProps) {
 
   let statusColor = "";
   if (task.status === "todo") statusColor = "bg-gray-100 border-gray-300";
-  else if (task.status === "in-progress") statusColor = "bg-yellow-100 border-yellow-300";
-  else if (task.status === "done") statusColor = "bg-green-100 border-green-300";
+  else if (task.status === "in-progress")
+    statusColor = "bg-yellow-100 border-yellow-300";
+  else if (task.status === "done")
+    statusColor = "bg-green-100 border-green-300";
   else statusColor = "bg-white border-gray-300";
 
   return (
@@ -118,7 +130,9 @@ function TaskCard({ task, onClick, users, isProjectCompleted }: TaskCardProps) {
           </button>
         </div>
         {task.description && (
-          <p className="text-sm text-gray-600 mb-3 line-clamp-2">{task.description}</p>
+          <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+            {task.description}
+          </p>
         )}
         {/* giữ nguyên phần comments, attachments, deadline */}
         <div className="flex items-center gap-3 text-gray-600 text-sm">
@@ -161,13 +175,20 @@ function TaskCard({ task, onClick, users, isProjectCompleted }: TaskCardProps) {
             <input
               type="text"
               value={editTaskData.title}
-              onChange={(e) => setEditTaskData({ ...editTaskData, title: e.target.value })}
+              onChange={(e) =>
+                setEditTaskData({ ...editTaskData, title: e.target.value })
+              }
               className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3"
               placeholder="Task Title"
             />
             <textarea
               value={editTaskData.description}
-              onChange={(e) => setEditTaskData({ ...editTaskData, description: e.target.value })}
+              onChange={(e) =>
+                setEditTaskData({
+                  ...editTaskData,
+                  description: e.target.value,
+                })
+              }
               className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3"
               placeholder="Task Description"
             />
@@ -245,10 +266,11 @@ function Column({
 
       <div
         ref={drop as any}
-        className={`flex-1 space-y-3 min-h-[200px] p-2 rounded-lg transition-colors ${isOver
-          ? "bg-blue-50 border-2 border-dashed border-blue-300"
-          : "bg-transparent"
-          }`}
+        className={`flex-1 space-y-3 min-h-[200px] p-2 rounded-lg transition-colors ${
+          isOver
+            ? "bg-blue-50 border-2 border-dashed border-blue-300"
+            : "bg-transparent"
+        }`}
       >
         {tasks.map((task) => (
           <TaskCard
@@ -351,7 +373,7 @@ export default function TaskBoard() {
     try {
       const res = await fetch("http://localhost:5000/api/tasks", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthJsonHeaders(),
         body: JSON.stringify({
           projectId: selectedTask.projectId,
           workUnitId: selectedTask.workUnitId,
@@ -361,7 +383,7 @@ export default function TaskBoard() {
           createdBy: user?.id || user?._id,
           order: subTasks.length,
           parentId: parentId,
-          type: "subtask"   // 👈 thêm field type
+          type: "subtask", // 👈 thêm field type
         }),
       });
 
@@ -383,7 +405,7 @@ export default function TaskBoard() {
     try {
       await fetch(`http://localhost:5000/api/tasks/${subId}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthJsonHeaders(),
         body: JSON.stringify({ ...subTask, status: newStatus }),
       });
       setSubTasks((prev) =>
@@ -563,7 +585,6 @@ export default function TaskBoard() {
       type: "parent", // 👈 thêm field type
     });
 
-
     setShowCreateTask(false);
     setNewTaskTitle("");
     setNewTaskDesc("");
@@ -581,7 +602,7 @@ export default function TaskBoard() {
         // Send notification
         fetch("http://localhost:5000/api/notifications", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: getAuthJsonHeaders(),
           body: JSON.stringify({
             userId: assignedUser.id || assignedUser._id,
             type: "task",
@@ -904,10 +925,11 @@ export default function TaskBoard() {
                       onChange={(e) =>
                         handleTaskChange("status", e.target.value)
                       }
-                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${isProjectCompleted
-                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                        : "focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        }`}
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${
+                        isProjectCompleted
+                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                          : "focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      }`}
                     >
                       <option value="todo">To Do</option>
                       <option value="in-progress">In Progress</option>
@@ -934,10 +956,11 @@ export default function TaskBoard() {
                             : undefined,
                         )
                       }
-                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${isProjectCompleted
-                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                        : "focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        }`}
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${
+                        isProjectCompleted
+                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                          : "focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      }`}
                     >
                       <option value="">Unassigned</option>
                       {projectMembers.map((u: any) => {
@@ -976,10 +999,11 @@ export default function TaskBoard() {
                     <button
                       disabled={isProjectCompleted}
                       onClick={handleLogTime}
-                      className={`px-4 py-2 rounded-lg ${isProjectCompleted
-                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                        : "bg-blue-600 text-white hover:bg-blue-700"
-                        }`}
+                      className={`px-4 py-2 rounded-lg ${
+                        isProjectCompleted
+                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                          : "bg-blue-600 text-white hover:bg-blue-700"
+                      }`}
                     >
                       Log Time
                     </button>
@@ -1050,20 +1074,22 @@ export default function TaskBoard() {
                           {/* ↓ Thêm onClick vào title để navigate */}
                           <span
                             onClick={() => handleSubTaskClick(subTask)}
-                            className={`flex-1 text-sm cursor-pointer hover:text-blue-600 hover:underline ${subTask.status === "done"
-                              ? "line-through text-gray-400"
-                              : "text-gray-700"
-                              }`}
+                            className={`flex-1 text-sm cursor-pointer hover:text-blue-600 hover:underline ${
+                              subTask.status === "done"
+                                ? "line-through text-gray-400"
+                                : "text-gray-700"
+                            }`}
                           >
                             {subTask.title}
                           </span>
                           <span
-                            className={`text-xs px-2 py-0.5 rounded-full ${subTask.status === "done"
-                              ? "bg-green-100 text-green-700"
-                              : subTask.status === "in-progress"
-                                ? "bg-yellow-100 text-yellow-700"
-                                : "bg-gray-100 text-gray-600"
-                              }`}
+                            className={`text-xs px-2 py-0.5 rounded-full ${
+                              subTask.status === "done"
+                                ? "bg-green-100 text-green-700"
+                                : subTask.status === "in-progress"
+                                  ? "bg-yellow-100 text-yellow-700"
+                                  : "bg-gray-100 text-gray-600"
+                            }`}
                           >
                             {subTask.status}
                           </span>
@@ -1248,10 +1274,11 @@ export default function TaskBoard() {
                     <button
                       disabled={isProjectCompleted}
                       onClick={handleAddComment}
-                      className={`px-4 py-2 rounded-lg ${isProjectCompleted
-                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                        : "bg-blue-600 text-white hover:bg-blue-700"
-                        }`}
+                      className={`px-4 py-2 rounded-lg ${
+                        isProjectCompleted
+                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                          : "bg-blue-600 text-white hover:bg-blue-700"
+                      }`}
                     >
                       Comment
                     </button>

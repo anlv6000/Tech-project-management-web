@@ -1,9 +1,10 @@
-import Attachment from '../models/Attachment.js';
-import mongoose from 'mongoose';
-import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
+import Attachment from "../models/Attachment.js";
+import mongoose from "mongoose";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
+import { createAuditLogFromRequest } from "../utils/auditLogger.js";
 
 // Tạo __filename và __dirname trong ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -11,7 +12,7 @@ const __dirname = path.dirname(__filename);
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/attachments'); // Save files to the uploads/attachments directory
+    cb(null, "uploads/attachments"); // Save files to the uploads/attachments directory
   },
   filename: (req, file, cb) => {
     const uniqueName = `${Date.now()}-${file.originalname}`;
@@ -22,23 +23,23 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+    const allowedTypes = ["image/jpeg", "image/png", "application/pdf"];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only JPEG, PNG, and PDF are allowed.'));
+      cb(new Error("Invalid file type. Only JPEG, PNG, and PDF are allowed."));
     }
   },
 });
 
-const attachmentsFilePath = path.join(__dirname, '../data/attachments.json');
+const attachmentsFilePath = path.join(__dirname, "../data/attachments.json");
 
 export const getTaskAttachments = async (req, res) => {
   try {
     const { taskId } = req.params;
     const attachments = await Attachment.find({ taskId })
-      .populate('uploadedBy', '-password')
-      .sort('-uploadedAt');
+      .populate("uploadedBy", "-password")
+      .sort("-uploadedAt");
     res.json(attachments);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -47,9 +48,12 @@ export const getTaskAttachments = async (req, res) => {
 
 export const getAttachmentById = async (req, res) => {
   try {
-    const attachment = await Attachment.findById(req.params.id)
-      .populate('uploadedBy', '-password');
-    if (!attachment) return res.status(404).json({ message: 'Attachment not found' });
+    const attachment = await Attachment.findById(req.params.id).populate(
+      "uploadedBy",
+      "-password",
+    );
+    if (!attachment)
+      return res.status(404).json({ message: "Attachment not found" });
     res.json(attachment);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -57,7 +61,7 @@ export const getAttachmentById = async (req, res) => {
 };
 
 export const createAttachment = async (req, res) => {
-  upload.single('file')(req, res, async (err) => {
+  upload.single("file")(req, res, async (err) => {
     if (err) {
       return res.status(400).json({ message: err.message });
     }
@@ -83,22 +87,39 @@ export const createAttachment = async (req, res) => {
       const saved = await attachment.save();
 
       // Populate để trả về thông tin user (trừ password)
-      const populated = await Attachment.findById(saved._id).populate('uploadedBy', '-password');
+      const populated = await Attachment.findById(saved._id).populate(
+        "uploadedBy",
+        "-password",
+      );
+
+      await createAuditLogFromRequest(req, {
+        action: "create",
+        entity: "attachment",
+        entityId: saved._id,
+        details: `${req.user?.fullName || "User"} uploaded attachment ${fileName}`,
+      });
 
       res.status(201).json(populated);
     } catch (error) {
-      console.error('Error creating attachment:', error);
+      console.error("Error creating attachment:", error);
       res.status(400).json({ message: error.message });
     }
   });
 };
 
-
 export const deleteAttachment = async (req, res) => {
   try {
     const attachment = await Attachment.findByIdAndDelete(req.params.id);
-    if (!attachment) return res.status(404).json({ message: 'Attachment not found' });
-    res.json({ message: 'Attachment deleted' });
+    if (!attachment)
+      return res.status(404).json({ message: "Attachment not found" });
+    await createAuditLogFromRequest(req, {
+      action: "delete",
+      entity: "attachment",
+      entityId: attachment._id,
+      details: `${req.user?.fullName || "User"} deleted attachment ${attachment.fileName}`,
+    });
+
+    res.json({ message: "Attachment deleted" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

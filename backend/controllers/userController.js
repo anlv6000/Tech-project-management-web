@@ -4,6 +4,7 @@ import nodemailer from "nodemailer";
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { createAuditLogFromRequest } from "../utils/auditLogger.js";
 
 export const getAllUsers = async (req, res) => {
   try {
@@ -99,6 +100,13 @@ export const updateUser = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    await createAuditLogFromRequest(req, {
+      action: "update",
+      entity: "user",
+      entityId: updatedUser._id,
+      details: `${req.user?.fullName || "User"} updated user ${updatedUser.fullName}`,
+    });
+
     res.json(updatedUser);
   } catch (error) {
     console.error("Update user error:", error);
@@ -110,6 +118,13 @@ export const deleteUser = async (req, res) => {
   try {
     const user = await User.findByIdAndDelete(req.params.id);
     if (!user) return res.status(404).json({ message: "User not found" });
+    await createAuditLogFromRequest(req, {
+      action: "delete",
+      entity: "user",
+      entityId: user._id,
+      details: `${req.user?.fullName || "User"} deleted user ${user.fullName}`,
+    });
+
     res.json({ message: "User deleted" });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -145,6 +160,14 @@ export const loginUser = async (req, res) => {
     const userResponse = user.toObject();
     delete userResponse.password;
 
+    await createAuditLogFromRequest(req, {
+      userId: user._id,
+      action: "login",
+      entity: "auth",
+      entityId: user._id,
+      details: `${user.fullName} logged in`,
+    });
+
     res.json({ success: true, user: userResponse, token });
   } catch (error) {
     res.status(500).json({ message: "Không kết nối được với server" });
@@ -162,11 +185,9 @@ export const registerUser = async (req, res) => {
 
     const existingOtp = await Otp.findOne({ email });
     if (existingOtp && existingOtp.resendAfter > Date.now()) {
-      return res
-        .status(429)
-        .json({
-          message: "Please wait 30 seconds before requesting another OTP",
-        });
+      return res.status(429).json({
+        message: "Please wait 30 seconds before requesting another OTP",
+      });
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -312,6 +333,13 @@ export const changePassword = async (req, res) => {
     user.password = newPassword;
     await user.save();
 
+    await createAuditLogFromRequest(req, {
+      action: "update",
+      entity: "user",
+      entityId: user._id,
+      details: `${req.user?.fullName || "User"} changed password`,
+    });
+
     res.json({ message: "Password updated successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -328,6 +356,13 @@ export const resetPassword = async (req, res) => {
 
     user.password = newPassword; // middleware sẽ tự hash
     await user.save();
+
+    await createAuditLogFromRequest(req, {
+      action: "update",
+      entity: "user",
+      entityId: user._id,
+      details: `${req.user?.fullName || "Admin"} reset password for ${user.fullName}`,
+    });
 
     res.json({ message: "Password reset successfully by admin" });
   } catch (error) {

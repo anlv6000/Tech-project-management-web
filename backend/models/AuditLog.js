@@ -1,20 +1,39 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const auditLogSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
     },
     action: {
       type: String,
-      enum: ['create', 'update', 'delete', 'login', 'logout', 'export', 'archive'],
+      enum: [
+        "create",
+        "update",
+        "delete",
+        "login",
+        "logout",
+        "export",
+        "archive",
+      ],
       required: true,
     },
     entity: {
       type: String,
-      enum: ['project', 'task', 'user', 'comment', 'attachment', 'workunit', 'userproject'],
+      enum: [
+        "project",
+        "task",
+        "user",
+        "comment",
+        "attachment",
+        "workunit",
+        "userproject",
+        "report",
+        "auditlog",
+        "auth",
+      ],
       required: true,
     },
     entityId: {
@@ -27,7 +46,7 @@ const auditLogSchema = new mongoose.Schema(
     ipAddress: String,
     userAgent: String,
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-export default mongoose.model('AuditLog', auditLogSchema);
+export default mongoose.model("AuditLog", auditLogSchema);

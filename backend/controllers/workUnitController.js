@@ -1,13 +1,14 @@
-import WorkUnit from '../models/WorkUnit.js';
-import mongoose from 'mongoose';
+import WorkUnit from "../models/WorkUnit.js";
+import mongoose from "mongoose";
+import { createAuditLogFromRequest } from "../utils/auditLogger.js";
 
 export const getProjectWorkUnits = async (req, res) => {
   try {
     const { projectId } = req.params;
-    if (!projectId || projectId === 'undefined') {
+    if (!projectId || projectId === "undefined") {
       return res.json([]);
     }
-    const workUnits = await WorkUnit.find({ projectId }).sort('order');
+    const workUnits = await WorkUnit.find({ projectId }).sort("order");
     res.json(workUnits);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -20,7 +21,7 @@ export const createSprint = async (req, res) => {
     const { projectId, name, startDate, endDate, goal } = req.body;
     console.log("createSprint body:", req.body);
 
-    const lastSprint = await WorkUnit.find({ projectId, type: 'sprint' })
+    const lastSprint = await WorkUnit.find({ projectId, type: "sprint" })
       .sort({ order: -1 })
       .limit(1);
 
@@ -29,7 +30,7 @@ export const createSprint = async (req, res) => {
     const sprint = new WorkUnit({
       projectId: new mongoose.Types.ObjectId(projectId), // ✅ convert
       name,
-      type: 'sprint',
+      type: "sprint",
       order: nextOrder,
       startDate: startDate ? new Date(startDate) : null,
       endDate: endDate ? new Date(endDate) : null,
@@ -37,6 +38,13 @@ export const createSprint = async (req, res) => {
     });
 
     const saved = await sprint.save();
+    await createAuditLogFromRequest(req, {
+      action: "create",
+      entity: "workunit",
+      entityId: saved._id,
+      details: `${req.user?.fullName || "User"} created sprint ${saved.name}`,
+    });
+
     return res.status(201).json(saved);
   } catch (error) {
     console.error("createSprint error:", error);
@@ -44,12 +52,11 @@ export const createSprint = async (req, res) => {
   }
 };
 
-
-
 export const getWorkUnitById = async (req, res) => {
   try {
     const workUnit = await WorkUnit.findById(req.params.id);
-    if (!workUnit) return res.status(404).json({ message: 'WorkUnit not found' });
+    if (!workUnit)
+      return res.status(404).json({ message: "WorkUnit not found" });
     res.json(workUnit);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -68,10 +75,17 @@ export const createWorkUnit = async (req, res) => {
       order: order || 0,
       startDate: startDate ? new Date(startDate) : null,
       endDate: endDate ? new Date(endDate) : null,
-      goal: goal || null
+      goal: goal || null,
     });
 
     const saved = await workUnit.save();
+    await createAuditLogFromRequest(req, {
+      action: "create",
+      entity: "workunit",
+      entityId: saved._id,
+      details: `${req.user?.fullName || "User"} created work unit ${saved.name}`,
+    });
+
     res.status(201).json(saved);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -90,12 +104,20 @@ export const updateWorkUnit = async (req, res) => {
         order,
         startDate: startDate ? new Date(startDate) : undefined,
         endDate: endDate ? new Date(endDate) : undefined,
-        goal
+        goal,
       },
-      { new: true }
+      { new: true },
     );
 
-    if (!updated) return res.status(404).json({ message: 'WorkUnit not found' });
+    if (!updated)
+      return res.status(404).json({ message: "WorkUnit not found" });
+    await createAuditLogFromRequest(req, {
+      action: "update",
+      entity: "workunit",
+      entityId: updated._id,
+      details: `${req.user?.fullName || "User"} updated work unit ${updated.name}`,
+    });
+
     res.json(updated);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -105,8 +127,16 @@ export const updateWorkUnit = async (req, res) => {
 export const deleteWorkUnit = async (req, res) => {
   try {
     const workUnit = await WorkUnit.findByIdAndDelete(req.params.id);
-    if (!workUnit) return res.status(404).json({ message: 'WorkUnit not found' });
-    res.json({ message: 'WorkUnit deleted' });
+    if (!workUnit)
+      return res.status(404).json({ message: "WorkUnit not found" });
+    await createAuditLogFromRequest(req, {
+      action: "delete",
+      entity: "workunit",
+      entityId: workUnit._id,
+      details: `${req.user?.fullName || "User"} deleted work unit ${workUnit.name}`,
+    });
+
+    res.json({ message: "WorkUnit deleted" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
