@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
+import { API_BASE_URL } from "../../config/baseApi";
 import {
   CheckCircle,
   LayoutDashboard,
@@ -105,7 +106,7 @@ export default function UserLayout() {
   >
     {user?.avatar ? (
       <img
-        src={`http://localhost:5000${user.avatar}`}
+        src={`${API_BASE_URL}${user.avatar}`}
         alt={user.fullName}
         className="w-8 h-8 rounded-full object-cover"
       />

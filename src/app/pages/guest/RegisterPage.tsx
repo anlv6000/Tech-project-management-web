@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuth, registerUser, verifyOtp, resendOtp } from "../../contexts/AuthContext";
 import { createUser } from '../../contexts/AuthContext';
-
+import { API_BASE_URL } from "../../config/baseApi";
 export default function RegisterPage() {
   const navigate = useNavigate();
   const { register } = useAuth();

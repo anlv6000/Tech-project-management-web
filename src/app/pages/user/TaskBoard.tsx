@@ -6,7 +6,7 @@ import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { Task } from "../../types";
 import { Attachment } from "../../types";
-
+import { API_BASE_URL } from "../../config/baseApi";
 import {
   ArrowLeft,
   Plus,
@@ -36,7 +36,6 @@ import {
 } from "./permissions";
 
 const ItemType = "TASK";
-const API_BASE_URL = "http://localhost:5000";
 const getAuthJsonHeaders = () => {
   const token = sessionStorage.getItem("token");
   return {
@@ -371,7 +370,7 @@ export default function TaskBoard() {
     const taskId = selectedTask.id || selectedTask._id;
 
     try {
-      const res = await fetch("http://localhost:5000/api/tasks", {
+      const res = await fetch(`${API_BASE_URL}/api/tasks`, {
         method: "POST",
         headers: getAuthJsonHeaders(),
         body: JSON.stringify({
@@ -403,7 +402,7 @@ export default function TaskBoard() {
     const newStatus = subTask.status === "done" ? "todo" : "done";
 
     try {
-      await fetch(`http://localhost:5000/api/tasks/${subId}`, {
+      await fetch(`${API_BASE_URL}/api/tasks/${subId}`, {
         method: "PUT",
         headers: getAuthJsonHeaders(),
         body: JSON.stringify({ ...subTask, status: newStatus }),
@@ -600,7 +599,7 @@ export default function TaskBoard() {
       );
       if (assignedUser) {
         // Send notification
-        fetch("http://localhost:5000/api/notifications", {
+        fetch(`${API_BASE_URL}/api/notifications`, {
           method: "POST",
           headers: getAuthJsonHeaders(),
           body: JSON.stringify({

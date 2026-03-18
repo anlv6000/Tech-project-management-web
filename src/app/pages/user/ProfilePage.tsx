@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { User, Lock, Mail, AlertCircle, CheckCircle } from 'lucide-react';
-
+import { API_BASE_URL } from "../../config/baseApi";
 
 export default function ProfilePage() {
   const { user, updateUser } = useAuth();
@@ -43,7 +43,7 @@ const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
 
   try {
     const res = await fetch(
-      `http://localhost:5000/api/users/${user.id}/avatar`,
+      `${API_BASE_URL}/api/users/${user.id}/avatar`,
       {
         method: "PUT",
         headers: {
@@ -56,7 +56,7 @@ const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const data = await res.json();
 
     if (res.ok) {
-      setAvatarPreview(`http://localhost:5000${data.avatar}`);
+      setAvatarPreview(`${API_BASE_URL}${data.avatar}`);
       updateUser({ avatar: data.avatar });
     }
   } catch (error) {
@@ -81,7 +81,7 @@ const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     }
 
     try {
-      const res = await fetch(`http://localhost:5000/api/users/${user.id}/change-password`, {
+      const res = await fetch(`${API_BASE_URL}/api/users/${user.id}/change-password`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -203,7 +203,7 @@ const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
               {/* RIGHT - AVATAR */}
               <div className="flex flex-1 flex-col items-center justify-center gap-4">
                 <img
-                  src={`http://localhost:5000${user.avatar}`}
+                  src={`${API_BASE_URL}${user.avatar}`}
                    alt={user.fullName}
                   className="w-32 h-32 rounded-full object-cover border"
                 />

@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { ProjectRole } from "../../types";
+import { API_BASE_URL } from "../../config/baseApi";
 import {
   ArrowLeft,
   Calendar,
@@ -109,7 +110,7 @@ export default function ProjectDetail() {
       const isEmail = input.includes("@");
       const query = isEmail ? `email=${input}` : `fullName=${input}`;
       const response = await fetch(
-        `http://localhost:5000/api/users/search?${query}`,
+        `${API_BASE_URL}/api/users/search?${query}`,
       );
 
       if (response.ok) {
@@ -136,7 +137,7 @@ export default function ProjectDetail() {
           };
 
       const response = await fetch(
-        `http://localhost:5000/api/projects/${projectId}/invite`,
+        `${API_BASE_URL}/api/projects/${projectId}/invite`,
         {
           method: "POST",
           headers: authJsonHeaders,
@@ -186,7 +187,7 @@ export default function ProjectDetail() {
 
     try {
       const response = await fetch(
-        `http://localhost:5000/api/projects/${projectId}/complete`,
+        `${API_BASE_URL}/api/projects/${projectId}/complete`,
         {
           method: "POST",
           headers: authJsonHeaders,
@@ -214,7 +215,7 @@ export default function ProjectDetail() {
 
     try {
       const response = await fetch(
-        `http://localhost:5000/api/projects/${projectId}`,
+        `${API_BASE_URL}/api/projects/${projectId}`,
         {
           method: "PUT",
           headers: authJsonHeaders,

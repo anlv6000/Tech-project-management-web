@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router';
 import { CheckCircle, Users, BarChart3, Zap } from 'lucide-react';
+import { API_BASE_URL } from "../../config/baseApi";
 
 export default function LandingPage() {
   const navigate = useNavigate();

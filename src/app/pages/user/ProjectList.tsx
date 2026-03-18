@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { Link } from "react-router";
 import { useAuth } from "../../contexts/AuthContext";
+import { API_BASE_URL } from "../../config/baseApi";
 import { useData } from "../../contexts/DataContext";
+
 import {
   Plus,
   Calendar,
@@ -135,7 +137,7 @@ export default function ProjectList() {
       const isEmail = input.includes("@");
       const query = isEmail ? `email=${input}` : `fullName=${input}`;
       const response = await fetch(
-        `http://localhost:5000/api/users/search?${query}`,
+        `${API_BASE_URL}/api/users/search?${query}`,
       );
 
       if (response.ok) {
@@ -164,7 +166,7 @@ export default function ProjectList() {
             };
 
       const response = await fetch(
-        `http://localhost:5000/api/projects/${selectedProjectId}/invite`,
+        `${API_BASE_URL}/api/projects/${selectedProjectId}/invite`,
         {
           method: "POST",
           headers: authJsonHeaders,

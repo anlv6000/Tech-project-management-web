@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router';
 import { CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
-
-const API_BASE_URL = "http://localhost:5000/api/users/auth";
+import { API_BASE_URL } from "../../config/baseApi";
 
 export default function ForgotPasswordPage() {
   const [step, setStep] = useState<'email' | 'otp' | 'reset'>('email');
@@ -23,7 +22,7 @@ export default function ForgotPasswordPage() {
     }
 
     try {
-      const res = await fetch(`${API_BASE_URL}/forgot-password`, {
+      const res = await fetch(`${API_BASE_URL}/api/users/auth/forgot-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -49,7 +48,7 @@ export default function ForgotPasswordPage() {
     }
 
     try {
-      const res = await fetch(`${API_BASE_URL}/verify-reset-otp`, {
+      const res = await fetch(`${API_BASE_URL}/api/users/auth/verify-reset-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp }),
@@ -84,7 +83,7 @@ export default function ForgotPasswordPage() {
     }
 
     try {
-      const res = await fetch(`${API_BASE_URL}/forgot-reset-password`, {
+      const res = await fetch(`${API_BASE_URL}/api/users/auth/forgot-reset-password`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, newPassword }),

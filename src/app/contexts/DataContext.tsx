@@ -20,11 +20,8 @@ import {
   WorkUnitType,
 } from "../types";
 import { useAuth } from "./AuthContext";
+import { API_BASE_URL } from "../config/baseApi";
 
-//@ts-ignore
-const API_BASE_URL =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined) ||
-  "http://localhost:5000/api";
 
 interface DataContextType {
   // Projects
@@ -149,10 +146,10 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
         // Các request chung cho mọi user
         const requests: Promise<Response>[] = [
-          fetch(`${API_BASE_URL}/projects`),
-          fetch(`${API_BASE_URL}/user-projects`),
-          fetch(`${API_BASE_URL}/users`, { headers: authHeaders }),
-          fetch(`${API_BASE_URL}/notifications/user/${userId}`),
+          fetch(`${API_BASE_URL}/api/projects`),
+          fetch(`${API_BASE_URL}/api/user-projects`),
+          fetch(`${API_BASE_URL}/api/users`, { headers: authHeaders }),
+          fetch(`${API_BASE_URL}/api/notifications/user/${userId}`),
         ];
 
         let tasksRes: Response | undefined;
@@ -161,12 +158,12 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         if (user.role === "admin") {
           // Admin: lấy toàn bộ tasks + audit logs
           [tasksRes, auditLogsRes] = await Promise.all([
-            fetch(`${API_BASE_URL}/tasks`),
-            fetch(`${API_BASE_URL}/audit-logs`, { headers: authHeaders }),
+            fetch(`${API_BASE_URL}/api/tasks`),
+            fetch(`${API_BASE_URL}/api/audit-logs`, { headers: authHeaders }),
           ]);
         } else {
           // User thường: chỉ lấy task của riêng họ
-          tasksRes = await fetch(`${API_BASE_URL}/tasks/user/${userId}`, {
+          tasksRes = await fetch(`${API_BASE_URL}/api/tasks/user/${userId}`, {
             headers: authHeaders,
           });
         }
@@ -224,7 +221,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   ): Promise<Project> => {
     try {
       const token = sessionStorage.getItem("token");
-      const response = await fetch(`${API_BASE_URL}/projects`, {
+      const response = await fetch(`${API_BASE_URL}/api/projects`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -309,7 +306,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
   const updateProject = async (id: string, updates: Partial<Project>) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/projects/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/projects/${id}`, {
         method: "PUT",
         headers: getAuthHeaders(),
         body: JSON.stringify(updates),
@@ -332,7 +329,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
   const deleteProject = async (id: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/projects/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/projects/${id}`, {
         method: "DELETE",
         headers: getAuthHeaders(false),
       });
@@ -381,7 +378,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     role: string,
   ) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/user-projects`, {
+      const response = await fetch(`${API_BASE_URL}/api/user-projects`, {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify({ userId, projectId, role }),
@@ -399,7 +396,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   const removeUserFromProject = async (userId: string, projectId: string) => {
     try {
       const response = await fetch(
-        `${API_BASE_URL}/user-projects/${userId}/${projectId}`,
+        `${API_BASE_URL}/api/user-projects/${userId}/${projectId}`,
         {
           method: "DELETE",
           headers: getAuthHeaders(false),
@@ -437,10 +434,10 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       // Lấy workUnits, tasks, comments, attachments song song
       const [workUnitsRes, tasksRes, commentsRes, attachmentsRes] =
         await Promise.all([
-          fetch(`${API_BASE_URL}/work-units/project/${projectId}`),
-          fetch(`${API_BASE_URL}/tasks/project/${projectId}`),
-          fetch(`${API_BASE_URL}/comments/project/${projectId}`),
-          fetch(`${API_BASE_URL}/attachments/project/${projectId}`),
+          fetch(`${API_BASE_URL}/api/work-units/project/${projectId}`),
+          fetch(`${API_BASE_URL}/api/tasks/project/${projectId}`),
+          fetch(`${API_BASE_URL}/api/comments/project/${projectId}`),
+          fetch(`${API_BASE_URL}/api/attachments/project/${projectId}`),
         ]);
 
       // WorkUnits
@@ -500,7 +497,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     data: Omit<WorkUnit, "id">,
   ): Promise<WorkUnit> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/work-units`, {
+      const response = await fetch(`${API_BASE_URL}/api/work-units`, {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify(data),
@@ -523,7 +520,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
   const updateWorkUnit = async (id: string, updates: Partial<WorkUnit>) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/work-units/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/work-units/${id}`, {
         method: "PUT",
         headers: getAuthHeaders(),
         body: JSON.stringify(updates),
@@ -546,7 +543,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
   const deleteWorkUnit = async (id: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/work-units/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/work-units/${id}`, {
         method: "DELETE",
         headers: getAuthHeaders(false),
       });
@@ -574,7 +571,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     endDate?: string,
     goal?: string,
   ): Promise<WorkUnit> => {
-    const response = await fetch(`${API_BASE_URL}/work-units/sprint`, {
+    const response = await fetch(`${API_BASE_URL}/api/work-units/sprint`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify({ projectId, name, startDate, endDate, goal }),
@@ -593,7 +590,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     data: Omit<Task, "id" | "createdAt" | "updatedAt">,
   ): Promise<Task> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/tasks`, {
+      const response = await fetch(`${API_BASE_URL}/api/tasks`, {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify({
@@ -616,7 +613,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
   const updateTask = async (id: string, updates: Partial<Task>) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/tasks/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/tasks/${id}`, {
         method: "PUT",
         headers: getAuthHeaders(),
         body: JSON.stringify(updates),
@@ -639,7 +636,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
   const deleteTask = async (id: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/tasks/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/tasks/${id}`, {
         method: "DELETE",
         headers: getAuthHeaders(false),
       });
@@ -677,7 +674,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     parentId?: string,
   ) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/comments`, {
+      const response = await fetch(`${API_BASE_URL}/api/comments`, {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify({
@@ -727,7 +724,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       formData.append("taskId", String(taskId));
       formData.append("uploadedBy", String(user?.id || user?._id));
 
-      const response = await fetch(`${API_BASE_URL}/attachments`, {
+      const response = await fetch(`${API_BASE_URL}/api/attachments`, {
         method: "POST",
         headers: getAuthHeaders(false),
         body: formData,
@@ -751,7 +748,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       const token = sessionStorage.getItem("token");
       console.log("Deleting attachment _id:", id);
 
-      const response = await fetch(`${API_BASE_URL}/attachments/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/attachments/${id}`, {
         method: "DELETE",
         headers: getAuthHeaders(false),
       });
@@ -770,7 +767,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   // Notification methods
   const markAsRead = async (id: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/notifications/${id}/read`, {
+      const response = await fetch(`${API_BASE_URL}/api/notifications/${id}/read`, {
         method: "PUT",
         headers: getAuthHeaders(),
       });
@@ -811,7 +808,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   const updateUserData = async (id: string, updates: Partial<User>) => {
     try {
       const token = sessionStorage.getItem("token");
-      const response = await fetch(`${API_BASE_URL}/users/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/users/${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -842,7 +839,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     try {
       const token = sessionStorage.getItem("token");
       const response = await fetch(
-        `${API_BASE_URL}/users/${id}/reset-password`,
+        `${API_BASE_URL}/api/users/${id}/reset-password`,
         {
           method: "PUT",
           headers: {
@@ -870,7 +867,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     try {
       if (!user) return;
 
-      const response = await fetch(`${API_BASE_URL}/audit-logs`, {
+      const response = await fetch(`${API_BASE_URL}/api/audit-logs`, {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify({

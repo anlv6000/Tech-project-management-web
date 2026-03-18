@@ -2,7 +2,7 @@ import React from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { Bell, Check, MessageSquare, FolderKanban, AlertCircle, UserPlus } from 'lucide-react';
-
+import { API_BASE_URL } from "../../config/baseApi";
 export default function NotificationsPage() {
   const { user } = useAuth();
   const { getUserNotifications, markAsRead } = useData();
@@ -30,7 +30,7 @@ export default function NotificationsPage() {
 
   const handleAcceptInvitation = async (notification: any) => {
     try {
-      const response = await fetch('http://localhost:5000/api/projects/accept-invitation', {
+      const response = await fetch(`${API_BASE_URL}/api/projects/accept-invitation`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

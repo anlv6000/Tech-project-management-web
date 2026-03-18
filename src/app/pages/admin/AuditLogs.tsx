@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useData } from "../../contexts/DataContext";
 import { FileText, Search, Filter } from "lucide-react";
-
+import { API_BASE_URL } from "../../config/baseApi";
 export default function AuditLogs() {
   const { auditLogs, getAllUsers, addAuditLog } = useData();
   const [searchQuery, setSearchQuery] = useState("");

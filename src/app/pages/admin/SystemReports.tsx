@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { useData } from "../../contexts/DataContext";
+import { API_BASE_URL } from "../../config/baseApi";
 import {
   LineChart,
   Line,

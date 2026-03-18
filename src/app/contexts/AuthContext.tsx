@@ -6,10 +6,7 @@ import React, {
   ReactNode,
 } from "react";
 import { User, UserRole } from "../types";
-
-const API_BASE_URL =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined) ||
-  "http://localhost:5000/api";
+import { API_BASE_URL } from "../config/baseApi";
 
 interface AuthContextType {
   user: User | null;
@@ -59,7 +56,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/users/auth/login`, {
+      const response = await fetch(`${API_BASE_URL}/api/users/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -93,7 +90,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     password: string,
   ): Promise<boolean> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/users/auth/register`, {
+      const response = await fetch(`${API_BASE_URL}/api/users/auth/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -123,7 +120,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const token = sessionStorage.getItem("token");
       if (token && user) {
-        await fetch(`${API_BASE_URL}/audit-logs`, {
+        await fetch(`${API_BASE_URL}/api/audit-logs`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -157,7 +154,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log("token:", token);
       console.log("updates:", updates);
 
-      const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -218,7 +215,7 @@ export const registerUser = async (
   email: string,
   password: string,
 ) => {
-  const res = await fetch(`${API_BASE_URL}/users/auth/register`, {
+  const res = await fetch(`${API_BASE_URL}/api/users/auth/register`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -238,7 +235,7 @@ export const createUser = async (
   email: string,
   password: string,
 ) => {
-  const res = await fetch(`${API_BASE_URL}/users/auth/create-user`, {
+  const res = await fetch(`${API_BASE_URL}/api/users/auth/create-user`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -254,7 +251,7 @@ export const createUser = async (
 };
 
 export const verifyOtp = async (email: string, otp: string) => {
-  const res = await fetch(`${API_BASE_URL}/users/auth/verify-otp`, {
+  const res = await fetch(`${API_BASE_URL}/api/users/auth/verify-otp`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -269,7 +266,7 @@ export const verifyOtp = async (email: string, otp: string) => {
 };
 
 export const resendOtp = async (email: string) => {
-  const res = await fetch(`${API_BASE_URL}/users/auth/resend-otp`, {
+  const res = await fetch(`${API_BASE_URL}/api/users/auth/resend-otp`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
