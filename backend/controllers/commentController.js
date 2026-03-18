@@ -9,6 +9,7 @@ export const getTaskComments = async (req, res) => {
       .populate("userId", "-password")
       .sort("createdAt")
       .lean();
+
     res.json(comments);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -21,7 +22,9 @@ export const getCommentById = async (req, res) => {
       "userId",
       "-password",
     );
+
     if (!comment) return res.status(404).json({ message: "Comment not found" });
+
     res.json(comment);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -30,12 +33,12 @@ export const getCommentById = async (req, res) => {
 
 export const createComment = async (req, res) => {
   try {
-    const { taskId, userId, content, parentId } = req.body;
+    const { taskId, content, parentId } = req.body;
 
     const comment = new Comment({
       _id: new mongoose.Types.ObjectId(),
       taskId: new mongoose.Types.ObjectId(taskId),
-      userId: new mongoose.Types.ObjectId(userId),
+      userId: new mongoose.Types.ObjectId(req.user._id),
       content,
       parentId: parentId ? new mongoose.Types.ObjectId(parentId) : null,
     });
@@ -70,6 +73,7 @@ export const updateComment = async (req, res) => {
     ).populate("userId", "-password");
 
     if (!updated) return res.status(404).json({ message: "Comment not found" });
+
     await createAuditLogFromRequest(req, {
       action: "update",
       entity: "comment",
@@ -86,7 +90,9 @@ export const updateComment = async (req, res) => {
 export const deleteComment = async (req, res) => {
   try {
     const comment = await Comment.findByIdAndDelete(req.params.id);
+
     if (!comment) return res.status(404).json({ message: "Comment not found" });
+
     await createAuditLogFromRequest(req, {
       action: "delete",
       entity: "comment",

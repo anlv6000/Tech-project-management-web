@@ -6,7 +6,7 @@ import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 import { createAuditLogFromRequest } from "../utils/auditLogger.js";
 import nodemailer from "nodemailer";
-
+import { normalizeProjectRole } from "../middleware/projectPermissions.js";
 export const getAllProjects = async (req, res) => {
   try {
     const projects = await Project.find().populate("createdBy", "-password");
@@ -47,8 +47,7 @@ export const getUserProjects = async (req, res) => {
 };
 
 export const createProject = async (req, res) => {
-  const { name, description, methodology, startDate, endDate, createdBy } =
-    req.body;
+  const { name, description, methodology, startDate, endDate } = req.body;
 
   try {
     const project = new Project({
@@ -58,14 +57,14 @@ export const createProject = async (req, res) => {
       methodology,
       startDate: new Date(startDate),
       endDate: new Date(endDate),
-      createdBy: new mongoose.Types.ObjectId(createdBy),
+      createdBy: new mongoose.Types.ObjectId(req.user._id),
     });
 
     const savedProject = await project.save();
 
     const userProject = new UserProject({
       _id: new mongoose.Types.ObjectId(),
-      userId: new mongoose.Types.ObjectId(createdBy),
+      userId: new mongoose.Types.ObjectId(req.user._id),
       projectId: savedProject._id,
       role: "projectAdmin",
     });
@@ -112,6 +111,13 @@ export const updateProject = async (req, res) => {
       return res.status(404).json({ message: "Project not found" });
     }
 
+    await createAuditLogFromRequest(req, {
+      action: "update",
+      entity: "project",
+      entityId: updatedProject._id,
+      details: `${req.user?.fullName || "User"} updated project ${updatedProject.name}`,
+    });
+
     res.json(updatedProject);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -141,7 +147,9 @@ export const deleteProject = async (req, res) => {
 export const inviteUserToProject = async (req, res) => {
   try {
     const { projectId } = req.params;
-    const { email, fullName, role = "Member" } = req.body;
+    const { email, fullName, role = "member" } = req.body;
+
+    const normalizedRole = normalizeProjectRole(role);
 
     let user = null;
     if (email) {
@@ -156,6 +164,17 @@ export const inviteUserToProject = async (req, res) => {
     }
 
     if (user) {
+      const existingMember = await UserProject.findOne({
+        userId: user._id,
+        projectId,
+      });
+
+      if (existingMember) {
+        return res
+          .status(400)
+          .json({ message: "User is already in this project" });
+      }
+
       const existingInvitation = await Notification.findOne({
         userId: user._id,
         type: "invitation",
@@ -170,7 +189,7 @@ export const inviteUserToProject = async (req, res) => {
       }
 
       const invitationToken = jwt.sign(
-        { email: user.email, projectId, role },
+        { email: user.email, projectId, role: normalizedRole },
         process.env.JWT_SECRET,
         { expiresIn: "7d" },
       );
@@ -180,11 +199,11 @@ export const inviteUserToProject = async (req, res) => {
         userId: user._id,
         type: "invitation",
         title: `Project Invitation: ${project.name}`,
-        message: `You have been invited to join the project "${project.name}" as ${role}`,
+        message: `You have been invited to join the project "${project.name}" as ${normalizedRole}`,
         data: {
           projectId,
           projectName: project.name,
-          role,
+          role: normalizedRole,
           status: "pending",
           invitationToken,
         },
@@ -201,15 +220,12 @@ export const inviteUserToProject = async (req, res) => {
 
     if (!user && email) {
       const invitationToken = jwt.sign(
-        { email, projectId, role },
+        { email, projectId, role: normalizedRole },
         process.env.JWT_SECRET,
         { expiresIn: "7d" },
       );
 
       const invitationLink = `${process.env.FRONTEND_URL || "http://localhost:5173"}/accept-invitation?token=${invitationToken}`;
-
-      console.log("Invitation link (send via email):", invitationLink);
-      console.log("Token details:", { email, projectId, role });
 
       const transporter = nodemailer.createTransport({
         service: "gmail",
@@ -223,7 +239,7 @@ export const inviteUserToProject = async (req, res) => {
         from: process.env.EMAIL,
         to: email,
         subject: `Invitation to join project ${project.name}`,
-        text: `You have been invited to join the project "${project.name}" as ${role}.
+        text: `You have been invited to join the project "${project.name}" as ${normalizedRole}.
 Click the link below to accept:
 ${invitationLink}
 
@@ -257,27 +273,23 @@ export const acceptInvitation = async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(404).json({ message: "User not found. Please register first." });
+      return res
+        .status(404)
+        .json({ message: "User not found. Please register first." });
     }
 
-    const existingUserProject = await UserProject.findOne({ userId: user._id, projectId });
+    const existingUserProject = await UserProject.findOne({
+      userId: user._id,
+      projectId,
+    });
+
     if (existingUserProject) {
-      return res.status(400).json({ message: "You are already a member of this project" });
+      return res
+        .status(400)
+        .json({ message: "You are already a member of this project" });
     }
 
-    const roleMap = {
-      projectAdmin: "projectAdmin",
-      pm: "pm",
-      member: "member",
-      viewer: "viewer",
-      Admin: "projectAdmin",
-      Manager: "pm",
-      Member: "member",
-      Viewer: "viewer",
-    };
-
-    const finalRole = roleMap[role] || "member";
-
+    const finalRole = normalizeProjectRole(role);
 
     const userProject = new UserProject({
       _id: new mongoose.Types.ObjectId(),
@@ -290,7 +302,7 @@ export const acceptInvitation = async (req, res) => {
 
     await Notification.findOneAndUpdate(
       { userId: user._id, type: "invitation", "data.projectId": projectId },
-      { "data.status": "accepted", isRead: true }
+      { "data.status": "accepted", isRead: true },
     );
 
     const project = await Project.findById(projectId);
@@ -302,9 +314,14 @@ export const acceptInvitation = async (req, res) => {
       message: `You have successfully joined the project as ${finalRole}`,
       data: { projectId },
     });
+
     await welcomeNotification.save();
 
-    res.json({ success: true, message: "Successfully joined the project", projectId });
+    res.json({
+      success: true,
+      message: "Successfully joined the project",
+      projectId,
+    });
   } catch (error) {
     if (error.name === "JsonWebTokenError") {
       return res.status(400).json({ message: "Invalid invitation token" });
@@ -312,11 +329,10 @@ export const acceptInvitation = async (req, res) => {
     if (error.name === "TokenExpiredError") {
       return res.status(400).json({ message: "Invitation token has expired" });
     }
-    console.error("❌ acceptInvitation error:", error);
+    console.error("acceptInvitation error:", error);
     res.status(500).json({ message: error.message });
   }
 };
-
 
 export const completeProject = async (req, res) => {
   try {

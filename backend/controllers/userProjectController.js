@@ -4,6 +4,10 @@ import Task from "../models/Task.js";
 import Comment from "../models/Comment.js";
 import Attachment from "../models/Attachment.js";
 import { createAuditLogFromRequest } from "../utils/auditLogger.js";
+import { normalizeProjectRole } from "../middleware/projectPermissions.js";
+
+const VALID_ROLES = ["projectAdmin", "pm", "member", "viewer"];
+const EDITABLE_ROLES_BY_PROJECT_ADMIN = ["pm", "member", "viewer"];
 
 export const getAllUserProjects = async (req, res) => {
   try {
@@ -20,7 +24,13 @@ export const getProjectMembers = async (req, res) => {
     const members = await UserProject.find({ projectId })
       .populate("userId", "-password")
       .lean();
-    res.json(members);
+
+    res.json(
+      members.map((member) => ({
+        ...member,
+        role: normalizeProjectRole(member.role),
+      })),
+    );
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -30,22 +40,26 @@ export const addUserToProject = async (req, res) => {
   try {
     const { userId, projectId, role } = req.body;
 
+    if (!userId || !projectId) {
+      return res
+        .status(400)
+        .json({ message: "userId and projectId are required" });
+    }
+
+    const normalizedRole = normalizeProjectRole(role);
+
+    if (!VALID_ROLES.includes(normalizedRole)) {
+      return res.status(400).json({ message: "Invalid project role" });
+    }
+
     const existingUserProject = await UserProject.findOne({
       userId,
       projectId,
     });
+
     if (existingUserProject) {
       return res.status(400).json({ message: "User already added to project" });
     }
-
-    const normalizedRoleMap = {
-      Admin: "projectAdmin",
-      Lead: "pm",
-      Member: "member",
-      Viewer: "viewer",
-    };
-
-    const normalizedRole = normalizedRoleMap[role] || "member";
 
     const userProject = new UserProject({
       _id: new mongoose.Types.ObjectId(),
@@ -64,7 +78,7 @@ export const addUserToProject = async (req, res) => {
       action: "create",
       entity: "userproject",
       entityId: saved._id,
-      details: `${req.user?.fullName || "User"} added user ${userId} to project ${projectId} as ${role || "Member"}`,
+      details: `${req.user?.fullName || "User"} added user ${userId} to project ${projectId} as ${normalizedRole}`,
     });
 
     res.status(201).json(populated);
@@ -77,17 +91,36 @@ export const removeUserFromProject = async (req, res) => {
   try {
     const { userId, projectId } = req.params;
 
-    const userProject = await UserProject.findOneAndDelete({
+    const targetMembership = await UserProject.findOne({
       userId: new mongoose.Types.ObjectId(userId),
       projectId: new mongoose.Types.ObjectId(projectId),
     });
 
-    if (!userProject)
+    if (!targetMembership) {
       return res.status(404).json({ message: "User not found in project" });
+    }
+
+    const normalizedRole = normalizeProjectRole(targetMembership.role);
+
+    if (normalizedRole === "projectAdmin") {
+      const adminCount = await UserProject.countDocuments({
+        projectId: new mongoose.Types.ObjectId(projectId),
+        role: "projectAdmin",
+      });
+
+      if (adminCount <= 1) {
+        return res.status(400).json({
+          message: "Cannot remove the last project admin",
+        });
+      }
+    }
+
+    await UserProject.findByIdAndDelete(targetMembership._id);
+
     await createAuditLogFromRequest(req, {
       action: "delete",
       entity: "userproject",
-      entityId: userProject._id,
+      entityId: targetMembership._id,
       details: `${req.user?.fullName || "User"} removed user ${userId} from project ${projectId}`,
     });
 
@@ -102,26 +135,77 @@ export const updateUserRole = async (req, res) => {
     const { userId, projectId } = req.params;
     const { role } = req.body;
 
-    const userProject = await UserProject.findOneAndUpdate(
-      {
-        userId: new mongoose.Types.ObjectId(userId),
-        projectId: new mongoose.Types.ObjectId(projectId),
-      },
-      { role },
-      { new: true },
-    ).populate("userId", "-password");
+    console.log("updateUserRole called with:", {
+      userId,
+      projectId,
+      role,
+      requester: req.user?._id,
+    });
 
-    if (!userProject)
+    const normalizedRole = normalizeProjectRole(role);
+
+    console.log("normalizedRole =", normalizedRole);
+
+    if (!VALID_ROLES.includes(normalizedRole)) {
+      return res.status(400).json({ message: "Invalid project role" });
+    }
+
+    if (!EDITABLE_ROLES_BY_PROJECT_ADMIN.includes(normalizedRole)) {
+      return res.status(400).json({
+        message:
+          "Project admin can only assign Project Manager, Member, or Viewer",
+      });
+    }
+
+    const requesterId = String(req.user?._id || req.user?.id || "");
+    if (String(userId) === requesterId) {
+      return res.status(400).json({
+        message: "You cannot change your own project role",
+      });
+    }
+
+    const userProject = await UserProject.findOne({
+      userId: new mongoose.Types.ObjectId(userId),
+      projectId: new mongoose.Types.ObjectId(projectId),
+    });
+
+    console.log("found userProject =", userProject);
+
+    if (!userProject) {
       return res.status(404).json({ message: "User not found in project" });
+    }
+
+    const oldRole = normalizeProjectRole(userProject.role);
+
+    if (oldRole === "projectAdmin") {
+      return res.status(400).json({
+        message: "Cannot change the role of a project admin from this screen",
+      });
+    }
+
+    userProject.role = normalizedRole;
+    await userProject.save();
+
+    console.log("saved userProject =", userProject);
+
+    const populated = await UserProject.findById(userProject._id).populate(
+      "userId",
+      "-password",
+    );
+
     await createAuditLogFromRequest(req, {
       action: "update",
       entity: "userproject",
       entityId: userProject._id,
-      details: `${req.user?.fullName || "User"} changed role of user ${userId} in project ${projectId} to ${role}`,
+      details: `${req.user?.fullName || "User"} changed role of user ${userId} in project ${projectId} from ${oldRole} to ${normalizedRole}`,
     });
 
-    res.json(userProject);
+    res.json({
+      ...populated.toObject(),
+      role: normalizeProjectRole(populated.role),
+    });
   } catch (error) {
+    console.error("updateUserRole error:", error);
     res.status(400).json({ message: error.message });
   }
 };
@@ -138,7 +222,12 @@ export const getUserProjectsByUserId = async (req, res) => {
       ],
     });
 
-    res.json(userProjects);
+    res.json(
+      userProjects.map((item) => ({
+        ...item.toObject(),
+        role: normalizeProjectRole(item.role),
+      })),
+    );
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -147,28 +236,27 @@ export const getUserProjectsByUserId = async (req, res) => {
 export const getUserData = async (req, res) => {
   try {
     const { userId } = req.params;
-    console.log("👉 getUserData called with userId:", userId);
 
-    // Query từng bảng và log kết quả
     const userProjects = await UserProject.find({ userId }).populate(
       "projectId",
     );
-    console.log("👉 userProjects:", userProjects);
-
     const tasks = await Task.find({
       $or: [{ createdBy: userId }, { assigneeId: userId }],
     });
-    console.log("👉 tasks:", tasks);
-
     const comments = await Comment.find({ userId });
-    console.log("👉 comments:", comments);
-
     const attachments = await Attachment.find({ uploadedBy: userId });
-    console.log("👉 attachments:", attachments);
 
-    res.json({ userProjects, tasks, comments, attachments });
+    res.json({
+      userProjects: userProjects.map((item) => ({
+        ...item.toObject(),
+        role: normalizeProjectRole(item.role),
+      })),
+      tasks,
+      comments,
+      attachments,
+    });
   } catch (error) {
-    console.error("❌ Error in getUserData:", error);
+    console.error("Error in getUserData:", error);
     res.status(500).json({ message: error.message });
   }
 };
