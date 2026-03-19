@@ -1,10 +1,8 @@
-// Database types matching the 7 tables
-
-export type UserRole = 'user' | 'admin';
+export type UserRole = "user" | "admin";
 export type ProjectRole = "projectAdmin" | "pm" | "member" | "viewer";
-export type Methodology = 'agile' | 'kanban' | 'waterfall';
-export type TaskStatus = 'todo' | 'in-progress' | 'done' | 'backlog';
-export type WorkUnitType = 'sprint' | 'column' | 'phase';
+export type Methodology = "agile" | "kanban" | "waterfall";
+export type TaskStatus = "todo" | "in-progress" | "done" | "backlog";
+export type WorkUnitType = "sprint" | "column" | "phase";
 export type TaskType =
   | "parent"
   | "subtask"
@@ -27,6 +25,30 @@ export interface User {
   updatedAt?: string;
 }
 
+export interface UserRef {
+  id?: string;
+  _id?: string;
+  fullName?: string;
+  email?: string;
+  role?: UserRole;
+  avatar?: string;
+}
+
+export interface ProjectRef {
+  id?: string;
+  _id?: string;
+  name?: string;
+  description?: string;
+  methodology?: Methodology;
+  startDate?: string;
+  endDate?: string;
+  createdBy?: string | UserRef;
+  createdAt?: string;
+  isArchived?: boolean;
+  isCompleted?: boolean;
+  updatedAt?: string;
+}
+
 export interface Project {
   id?: string;
   _id?: string;
@@ -35,7 +57,7 @@ export interface Project {
   methodology: Methodology;
   startDate: string;
   endDate: string;
-  createdBy: string;
+  createdBy: string | UserRef;
   createdAt: string;
   isArchived: boolean;
   isCompleted: boolean;
@@ -45,8 +67,8 @@ export interface Project {
 export interface UserProject {
   id?: string;
   _id?: string;
-  userId: string;
-  projectId: string;
+  userId: string | UserRef;
+  projectId: string | ProjectRef;
   role: ProjectRole;
   joinedAt: string;
 }
@@ -63,12 +85,7 @@ export interface WorkUnit {
   goal?: string;
   createdAt?: string;
   updatedAt?: string;
-  status?: string; // Added optional status property
-}
-
-export interface UserRef {
-  _id: string;
-  fullName?: string;
+  status?: string;
 }
 
 export interface Task {
@@ -78,25 +95,26 @@ export interface Task {
   workUnitId: string;
   title: string;
   description: string;
-  assigneeId?: string | UserRef; // Can be a string ID or a populated user reference
+  assigneeId?: string | UserRef;
   status: TaskStatus;
   deadline?: string;
   createdBy: string | UserRef;
   createdAt: string;
   updatedAt: string;
   order: number;
-  timeSpent?: number; // in hours
-   type: TaskType;
+  timeSpent?: number;
+  parentId?: string;
+  type: TaskType;
 }
 
 export interface Comment {
   id?: string;
   _id?: string;
   taskId: string;
-  userId: string;
+  userId: string | UserRef;
   content: string;
   createdAt: string;
-  parentId?: string; // for replies
+  parentId?: string;
   updatedAt?: string;
 }
 
@@ -107,7 +125,7 @@ export interface Attachment {
   fileName: string;
   fileUrl: string;
   fileSize: number;
-  uploadedBy: string;
+  uploadedBy: string | UserRef;
   uploadedAt: string;
 }
 
@@ -117,7 +135,7 @@ export interface Notification {
   userId: string;
   title: string;
   message: string;
-  type: 'task' | 'comment' | 'project' | 'system';
+  type: "task" | "comment" | "project" | "system" | "invitation";
   isRead: boolean;
   createdAt: string;
   link?: string;
@@ -126,7 +144,7 @@ export interface Notification {
 export interface AuditLog {
   id?: string;
   _id?: string;
-  userId: string | { _id?: string; id?: string; fullName?: string; email?: string };
+  userId: string | UserRef;
   action: string;
   entity: string;
   entityId: string;

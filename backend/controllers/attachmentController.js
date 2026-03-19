@@ -2,17 +2,16 @@ import Attachment from "../models/Attachment.js";
 import mongoose from "mongoose";
 import multer from "multer";
 import path from "path";
-import fs from "fs";
 import { fileURLToPath } from "url";
 import { createAuditLogFromRequest } from "../utils/auditLogger.js";
 
-// Tạo __filename và __dirname trong ESM
+// ESM helpers
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/attachments"); // Save files to the uploads/attachments directory
+    cb(null, "uploads/attachments");
   },
   filename: (req, file, cb) => {
     const uniqueName = `${Date.now()}-${file.originalname}`;
@@ -32,14 +31,13 @@ const upload = multer({
   },
 });
 
-const attachmentsFilePath = path.join(__dirname, "../data/attachments.json");
-
 export const getTaskAttachments = async (req, res) => {
   try {
     const { taskId } = req.params;
     const attachments = await Attachment.find({ taskId })
       .populate("uploadedBy", "-password")
       .sort("-uploadedAt");
+
     res.json(attachments);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -52,8 +50,11 @@ export const getAttachmentById = async (req, res) => {
       "uploadedBy",
       "-password",
     );
-    if (!attachment)
+
+    if (!attachment) {
       return res.status(404).json({ message: "Attachment not found" });
+    }
+
     res.json(attachment);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -67,26 +68,27 @@ export const createAttachment = async (req, res) => {
     }
 
     try {
-      const { taskId, uploadedBy } = req.body;
+      const { taskId } = req.body;
+
+      if (!req.file) {
+        return res.status(400).json({ message: "File is required" });
+      }
+
       const fileName = req.file.originalname;
       const fileUrl = `/uploads/attachments/${req.file.filename}`;
       const fileSize = req.file.size;
 
-      const newAttachment = {
-        _id: new mongoose.Types.ObjectId().toString(),
-        taskId: new mongoose.Types.ObjectId(taskId).toString(),
+      const attachment = new Attachment({
+        _id: new mongoose.Types.ObjectId(),
+        taskId: new mongoose.Types.ObjectId(taskId),
         fileName,
         fileUrl,
         fileSize,
-        uploadedBy: new mongoose.Types.ObjectId(uploadedBy).toString(),
-        uploadedAt: new Date().toISOString(),
-      };
+        uploadedBy: new mongoose.Types.ObjectId(req.user._id),
+        uploadedAt: new Date(),
+      });
 
-      // ✅ Chỉ lưu vào MongoDB
-      const attachment = new Attachment(newAttachment);
       const saved = await attachment.save();
-
-      // Populate để trả về thông tin user (trừ password)
       const populated = await Attachment.findById(saved._id).populate(
         "uploadedBy",
         "-password",
@@ -110,8 +112,11 @@ export const createAttachment = async (req, res) => {
 export const deleteAttachment = async (req, res) => {
   try {
     const attachment = await Attachment.findByIdAndDelete(req.params.id);
-    if (!attachment)
+
+    if (!attachment) {
       return res.status(404).json({ message: "Attachment not found" });
+    }
+
     await createAuditLogFromRequest(req, {
       action: "delete",
       entity: "attachment",

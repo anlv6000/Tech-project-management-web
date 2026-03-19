@@ -5,21 +5,21 @@ import { createAuditLogFromRequest } from "../utils/auditLogger.js";
 export const getProjectWorkUnits = async (req, res) => {
   try {
     const { projectId } = req.params;
+
     if (!projectId || projectId === "undefined") {
       return res.json([]);
     }
+
     const workUnits = await WorkUnit.find({ projectId }).sort("order");
     res.json(workUnits);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
-// workUnitController.js
 
 export const createSprint = async (req, res) => {
   try {
     const { projectId, name, startDate, endDate, goal } = req.body;
-    console.log("createSprint body:", req.body);
 
     const lastSprint = await WorkUnit.find({ projectId, type: "sprint" })
       .sort({ order: -1 })
@@ -28,7 +28,7 @@ export const createSprint = async (req, res) => {
     const nextOrder = lastSprint.length > 0 ? lastSprint[0].order + 1 : 1;
 
     const sprint = new WorkUnit({
-      projectId: new mongoose.Types.ObjectId(projectId), // ✅ convert
+      projectId: new mongoose.Types.ObjectId(projectId),
       name,
       type: "sprint",
       order: nextOrder,
@@ -38,6 +38,7 @@ export const createSprint = async (req, res) => {
     });
 
     const saved = await sprint.save();
+
     await createAuditLogFromRequest(req, {
       action: "create",
       entity: "workunit",
@@ -55,8 +56,11 @@ export const createSprint = async (req, res) => {
 export const getWorkUnitById = async (req, res) => {
   try {
     const workUnit = await WorkUnit.findById(req.params.id);
-    if (!workUnit)
+
+    if (!workUnit) {
       return res.status(404).json({ message: "WorkUnit not found" });
+    }
+
     res.json(workUnit);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -79,6 +83,7 @@ export const createWorkUnit = async (req, res) => {
     });
 
     const saved = await workUnit.save();
+
     await createAuditLogFromRequest(req, {
       action: "create",
       entity: "workunit",
@@ -109,8 +114,10 @@ export const updateWorkUnit = async (req, res) => {
       { new: true },
     );
 
-    if (!updated)
+    if (!updated) {
       return res.status(404).json({ message: "WorkUnit not found" });
+    }
+
     await createAuditLogFromRequest(req, {
       action: "update",
       entity: "workunit",
@@ -127,8 +134,11 @@ export const updateWorkUnit = async (req, res) => {
 export const deleteWorkUnit = async (req, res) => {
   try {
     const workUnit = await WorkUnit.findByIdAndDelete(req.params.id);
-    if (!workUnit)
+
+    if (!workUnit) {
       return res.status(404).json({ message: "WorkUnit not found" });
+    }
+
     await createAuditLogFromRequest(req, {
       action: "delete",
       entity: "workunit",

@@ -1,18 +1,16 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router";
 import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
-import { Task } from "../../types";
-import { Attachment } from "../../types";
+import { Task, Attachment, ProjectRole } from "../../types";
 import { API_BASE_URL } from "../../config/baseApi";
 import {
   ArrowLeft,
   Plus,
   X,
   Calendar,
-  User,
   MessageSquare,
   Paperclip,
   Clock,
@@ -27,8 +25,6 @@ import {
   canAssignTask,
   canLogWork,
   canCreateSubTask,
-  canUpdateSubTask,
-  canDeleteSubTask,
   canUploadAttachment,
   canDeleteAttachment,
   canComment,
@@ -36,6 +32,7 @@ import {
 } from "./permissions";
 
 const ItemType = "TASK";
+
 const getAuthJsonHeaders = () => {
   const token = sessionStorage.getItem("token");
   return {
@@ -44,17 +41,41 @@ const getAuthJsonHeaders = () => {
   };
 };
 
+const normalizeId = (id: any) => {
+  if (!id) return "";
+  if (typeof id === "object" && id._id) return String(id._id);
+  if (typeof id === "object" && id.id) return String(id.id);
+  return String(id);
+};
+
 interface TaskCardProps {
   task: Task;
   onClick: () => void;
   users: any[];
-  isProjectCompleted: boolean; // Add this prop
+  isProjectCompleted: boolean;
+  currentProjectRole?: ProjectRole;
+  currentUserId: string;
 }
 
-function TaskCard({ task, onClick, users, isProjectCompleted }: TaskCardProps) {
+function TaskCard({
+  task,
+  onClick,
+  users,
+  isProjectCompleted,
+  currentProjectRole,
+  currentUserId,
+}: TaskCardProps) {
+  const canEditThisTask =
+    !!currentProjectRole &&
+    canEditTask(task, currentProjectRole, currentUserId);
+
   const [{ isDragging }, drag] = useDrag({
     type: ItemType,
     item: { id: task.id || task._id, workUnitId: task.workUnitId },
+    canDrag:
+      !isProjectCompleted &&
+      !!currentProjectRole &&
+      ["projectAdmin", "pm"].includes(currentProjectRole),
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
@@ -69,8 +90,14 @@ function TaskCard({ task, onClick, users, isProjectCompleted }: TaskCardProps) {
   const [editError, setEditError] = useState("");
 
   const handleSaveEdit = async () => {
+    if (!canEditThisTask) {
+      setEditError("You do not have permission to edit this task.");
+      return;
+    }
+
     setEditLoading(true);
     setEditError("");
+
     try {
       const response = await fetch(
         `${API_BASE_URL}/api/tasks/${task.id || task._id}`,
@@ -80,6 +107,7 @@ function TaskCard({ task, onClick, users, isProjectCompleted }: TaskCardProps) {
           body: JSON.stringify(editTaskData),
         },
       );
+
       if (response.ok) {
         alert("Task updated successfully!");
         setShowEditModal(false);
@@ -114,26 +142,32 @@ function TaskCard({ task, onClick, users, isProjectCompleted }: TaskCardProps) {
       <div
         ref={drag as any}
         onClick={onClick}
-        className={`p-4 rounded-lg border hover:shadow-md cursor-pointer transition-all ${statusColor} ${isDragging ? "opacity-50" : "opacity-100"} ${isProjectCompleted ? "cursor-not-allowed" : ""}`}
+        className={`p-4 rounded-lg border hover:shadow-md transition-all ${statusColor} ${
+          isDragging ? "opacity-50" : "opacity-100"
+        } ${isProjectCompleted ? "cursor-not-allowed" : "cursor-pointer"}`}
       >
         <div className="flex justify-between items-start">
           <h3 className="font-medium text-gray-900 mb-2">{task.title}</h3>
-          <button
-            onClick={(e) => {
-              e.stopPropagation(); // tránh trigger detail
-              setShowEditModal(true);
-            }}
-            className="text-gray-600 hover:text-gray-800"
-          >
-            <Pencil className="w-4 h-4" />
-          </button>
+
+          {canEditThisTask && !isProjectCompleted && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowEditModal(true);
+              }}
+              className="text-gray-600 hover:text-gray-800"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+          )}
         </div>
+
         {task.description && (
           <p className="text-sm text-gray-600 mb-3 line-clamp-2">
             {task.description}
           </p>
         )}
-        {/* giữ nguyên phần comments, attachments, deadline */}
+
         <div className="flex items-center gap-3 text-gray-600 text-sm">
           {comments.length > 0 && (
             <div className="flex items-center gap-1">
@@ -141,19 +175,22 @@ function TaskCard({ task, onClick, users, isProjectCompleted }: TaskCardProps) {
               <span>{comments.length}</span>
             </div>
           )}
+
           {attachments.length > 0 && (
             <div className="flex items-center gap-1">
               <Paperclip className="w-4 h-4" />
               <span>{attachments.length}</span>
             </div>
           )}
-          {task.timeSpent && (
+
+          {task.timeSpent ? (
             <div className="flex items-center gap-1">
               <Clock className="w-4 h-4" />
               <span>{task.timeSpent}h</span>
             </div>
-          )}
+          ) : null}
         </div>
+
         {task.deadline && (
           <div className="flex items-center gap-1 text-xs text-gray-500 mt-2">
             <Calendar className="w-3 h-3" />
@@ -171,6 +208,7 @@ function TaskCard({ task, onClick, users, isProjectCompleted }: TaskCardProps) {
                 <X className="w-5 h-5 text-gray-600" />
               </button>
             </div>
+
             <input
               type="text"
               value={editTaskData.title}
@@ -180,6 +218,7 @@ function TaskCard({ task, onClick, users, isProjectCompleted }: TaskCardProps) {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3"
               placeholder="Task Title"
             />
+
             <textarea
               value={editTaskData.description}
               onChange={(e) =>
@@ -191,7 +230,9 @@ function TaskCard({ task, onClick, users, isProjectCompleted }: TaskCardProps) {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3"
               placeholder="Task Description"
             />
+
             {editError && <p className="text-red-600 mb-2">{editError}</p>}
+
             <div className="flex justify-end gap-4">
               <button
                 onClick={() => setShowEditModal(false)}
@@ -199,6 +240,7 @@ function TaskCard({ task, onClick, users, isProjectCompleted }: TaskCardProps) {
               >
                 Cancel
               </button>
+
               <button
                 onClick={handleSaveEdit}
                 disabled={editLoading}
@@ -221,7 +263,9 @@ interface ColumnProps {
   onDrop: (taskId: string, newWorkUnitId: string) => void;
   onAddTask: (workUnitId: string) => void;
   users: any[];
-  isProjectCompleted: boolean; // Add this prop
+  isProjectCompleted: boolean;
+  currentProjectRole?: ProjectRole;
+  currentUserId: string;
 }
 
 function Column({
@@ -232,10 +276,17 @@ function Column({
   onAddTask,
   users,
   isProjectCompleted,
+  currentProjectRole,
+  currentUserId,
 }: ColumnProps) {
   const workUnitId = workUnit.id || workUnit._id || "";
+
   const [{ isOver }, drop] = useDrop({
     accept: ItemType,
+    canDrop: () =>
+      !isProjectCompleted &&
+      !!currentProjectRole &&
+      ["projectAdmin", "pm"].includes(currentProjectRole),
     drop: (item: { id: string; workUnitId: string }) => {
       if (item.workUnitId !== workUnitId) {
         onDrop(item.id, workUnitId);
@@ -253,14 +304,17 @@ function Column({
           <h2 className="text-lg font-bold text-gray-900">{workUnit.name}</h2>
           <p className="text-sm text-gray-600">{tasks.length} tasks</p>
         </div>
-        {!isProjectCompleted && ( // Hide '+ Task' button if project is completed
-          <button
-            onClick={() => onAddTask(workUnitId)}
-            className="p-1.5 hover:bg-gray-100 rounded-lg"
-          >
-            <Plus className="w-5 h-5 text-gray-600" />
-          </button>
-        )}
+
+        {!isProjectCompleted &&
+          currentProjectRole &&
+          canCreateTask(currentProjectRole) && (
+            <button
+              onClick={() => onAddTask(workUnitId)}
+              className="p-1.5 hover:bg-gray-100 rounded-lg"
+            >
+              <Plus className="w-5 h-5 text-gray-600" />
+            </button>
+          )}
       </div>
 
       <div
@@ -277,7 +331,9 @@ function Column({
             task={task}
             onClick={() => onTaskClick(task)}
             users={users}
-            isProjectCompleted={isProjectCompleted} // Pass the prop here
+            isProjectCompleted={isProjectCompleted}
+            currentProjectRole={currentProjectRole}
+            currentUserId={currentUserId}
           />
         ))}
       </div>
@@ -288,8 +344,10 @@ function Column({
 export default function TaskBoard() {
   const { projectId } = useParams<{ projectId: string }>();
   const { user } = useAuth();
+
   const {
     getProject,
+    getProjectMembers,
     getProjectWorkUnits,
     getTasksByWorkUnit,
     updateTask,
@@ -299,7 +357,6 @@ export default function TaskBoard() {
     getTaskAttachments,
     addComment,
     loadProjectData,
-    getAllUserProjects,
     createSprint,
     addAttachment,
     removeAttachment,
@@ -324,8 +381,43 @@ export default function TaskBoard() {
   const [newSubTaskTitle, setNewSubTaskTitle] = useState("");
   const [newSubTaskDesc, setNewSubTaskDesc] = useState("");
   const [taskStack, setTaskStack] = useState<Task[]>([]);
+
   const selectedTask =
     taskStack.length > 0 ? taskStack[taskStack.length - 1] : null;
+
+  if (!projectId || !user) return null;
+
+  useEffect(() => {
+    if (projectId && projectId !== "undefined") {
+      loadProjectData(projectId);
+    }
+  }, [projectId, loadProjectData]);
+
+  const project = getProject(projectId);
+  const isProjectCompleted = project?.isCompleted || false;
+  const workUnits = getProjectWorkUnits(projectId) || [];
+  const users = getAllUsers() || [];
+  const members = getProjectMembers(projectId) || [];
+
+  const currentUserId = normalizeId(user?.id || user?._id).trim();
+
+  const currentMember = members.find((member: any) => {
+    const memberUserId = normalizeId(
+      member.userId?._id || member.userId,
+    ).trim();
+    return memberUserId === currentUserId;
+  });
+
+  const currentProjectRole = currentMember?.role as ProjectRole | undefined;
+
+  const projectMembers = members
+    .map((member: any) => member.userId)
+    .filter(Boolean);
+
+  if (!project) return null;
+
+  const selectedTaskId = selectedTask?.id || selectedTask?._id || "";
+
   const handleTaskClick = async (task: Task) => {
     setTaskStack([task]);
     setTaskChanges({});
@@ -351,7 +443,6 @@ export default function TaskBoard() {
     await loadSubTasks(subTask);
   };
 
-  // Breadcrumb: click vào task ở level bất kỳ
   const handleBreadcrumbClick = async (index: number) => {
     const targetTask = taskStack[index];
     setTaskStack((prev) => prev.slice(0, index + 1));
@@ -360,14 +451,19 @@ export default function TaskBoard() {
   };
 
   const handleCreateSubTask = async () => {
+    if (!selectedTask) return;
+
+    if (!currentProjectRole || !canCreateSubTask(currentProjectRole)) {
+      alert("You do not have permission to create sub-tasks.");
+      return;
+    }
+
     if (!newSubTaskTitle.trim() || !newSubTaskDesc.trim()) {
       alert("Title and description are required");
       return;
     }
-    if (!selectedTask) return;
 
     const parentId = selectedTask.id || selectedTask._id;
-    const taskId = selectedTask.id || selectedTask._id;
 
     try {
       const res = await fetch(`${API_BASE_URL}/api/tasks`, {
@@ -381,10 +477,15 @@ export default function TaskBoard() {
           status: "todo",
           createdBy: user?.id || user?._id,
           order: subTasks.length,
-          parentId: parentId,
-          type: "subtask", // 👈 thêm field type
+          parentId,
+          type: "subtask",
         }),
       });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to create sub-task");
+      }
 
       const newSub = await res.json();
       setSubTasks((prev) => [...prev, newSub]);
@@ -398,6 +499,15 @@ export default function TaskBoard() {
 
   const handleToggleSubTask = async (subTask: Task) => {
     if (isProjectCompleted) return;
+
+    if (
+      !currentProjectRole ||
+      !canSaveTask(subTask, currentProjectRole, currentUserId)
+    ) {
+      alert("You do not have permission to update this sub-task.");
+      return;
+    }
+
     const subId = subTask.id || subTask._id;
     const newStatus = subTask.status === "done" ? "todo" : "done";
 
@@ -407,6 +517,7 @@ export default function TaskBoard() {
         headers: getAuthJsonHeaders(),
         body: JSON.stringify({ ...subTask, status: newStatus }),
       });
+
       setSubTasks((prev) =>
         prev.map((st) =>
           st.id === subId || st._id === subId
@@ -419,49 +530,13 @@ export default function TaskBoard() {
     }
   };
 
-  if (!projectId || !user) return null;
-
-  // Load project data on mount
-  React.useEffect(() => {
-    if (projectId && projectId !== "undefined") {
-      loadProjectData(projectId);
-    }
-  }, [projectId]);
-
-  const project = getProject(projectId);
-  const isProjectCompleted = project?.isCompleted || false;
-  const workUnits = getProjectWorkUnits(projectId) || []; // Ensure 'workUnits' is defined
-  const users = getAllUsers() || []; // Ensure 'users' is defined
-  const allUserProjects = getAllUserProjects ? getAllUserProjects() : [];
-  const currentUserProject = allUserProjects.find(
-    (up) => up.projectId === projectId && up.userId === (user?.id || user?._id)
-  );
-  const projectIdStr = String(projectId);
-  const projectUserProjects = allUserProjects.filter((up) => {
-    const pid = String(up.projectId || "").trim();
-    return pid === projectIdStr;
-  });
-  const memberIds = projectUserProjects.map((up) =>
-    String(up.userId || "").trim(),
-  );
-  const projectMembers = users.filter((u: any) => {
-    // Ensure 'projectMembers' is defined and add type for 'u'
-    const userId = String(u.id || u._id || "").trim();
-    return memberIds.includes(userId);
-  });
-
-  if (!project) return null; // Ensure 'project' is defined before usage
-
-  const normalizeId = (id: any) => {
-    // Ensure 'normalizeId' is defined
-    if (!id) return "";
-    if (typeof id === "object" && id._id) return String(id._id);
-    return String(id);
-  };
-
   const handleDrop = async (taskId: string, newWorkUnitId: string) => {
-    // Ensure 'handleDrop' is defined
     if (!taskId || !newWorkUnitId) return;
+
+    if (!currentProjectRole || !canAssignTask(currentProjectRole)) {
+      alert("You do not have permission to move tasks.");
+      return;
+    }
 
     const tasksInUnit = getTasksByWorkUnit(newWorkUnitId).filter(
       (t: any) => !t.parentId,
@@ -476,12 +551,21 @@ export default function TaskBoard() {
   };
 
   const handleAddTask = (workUnitId: string) => {
-    // Ensure 'handleAddTask' is defined
+    if (!currentProjectRole || !canCreateTask(currentProjectRole)) {
+      alert("You do not have permission to create tasks.");
+      return;
+    }
+
     setCreateWorkUnitId(workUnitId);
     setShowCreateTask(true);
   };
 
   const handleOpenSprintModal = () => {
+    if (!currentProjectRole || !canCreateWorkUnit(currentProjectRole)) {
+      alert("You do not have permission to create sprint.");
+      return;
+    }
+
     setSprintName("");
     setShowSprintModal(true);
   };
@@ -490,7 +574,7 @@ export default function TaskBoard() {
     try {
       await createSprint(
         projectId,
-        `Sprint ${sprintName}`, // tên do người dùng nhập
+        `Sprint ${sprintName}`,
         undefined,
         undefined,
         "Goal cho sprint",
@@ -502,8 +586,12 @@ export default function TaskBoard() {
   };
 
   const handleAddAttachment = async (file: File) => {
-    console.log("handleAddAttachment called with:", file.name);
     if (!selectedTask || !user) return;
+
+    if (!currentProjectRole || !canUploadAttachment(currentProjectRole)) {
+      alert("You do not have permission to upload attachments.");
+      return;
+    }
 
     const taskId = selectedTask.id || selectedTask._id;
     if (!taskId) return;
@@ -513,6 +601,14 @@ export default function TaskBoard() {
 
   const handleSaveTask = () => {
     if (!selectedTask) return;
+
+    if (
+      !currentProjectRole ||
+      !canSaveTask(selectedTask, currentProjectRole, currentUserId)
+    ) {
+      alert("You do not have permission to update this task.");
+      return;
+    }
 
     const selectedTaskId = String(selectedTask.id || selectedTask._id || "");
     if (!selectedTaskId) return;
@@ -537,19 +633,22 @@ export default function TaskBoard() {
   };
 
   const handleCancelClose = () => {
-    // Ensure 'handleCancelClose' is defined
     setShowUnsavedChanges(false);
   };
 
   const handleConfirmClose = () => {
-    // Ensure 'handleConfirmClose' is defined
     setShowUnsavedChanges(false);
     setTaskChanges({});
+    setTaskStack([]);
     setSubTasks([]);
   };
 
   const handleCreateTask = () => {
-    // Ensure 'handleCreateTask' is defined
+    if (!currentProjectRole || !canCreateTask(currentProjectRole)) {
+      alert("You do not have permission to create tasks.");
+      return;
+    }
+
     if (!newTaskTitle.trim()) {
       alert("Task title is required");
       return;
@@ -563,11 +662,11 @@ export default function TaskBoard() {
     const normalizedWorkUnitId = String(createWorkUnitId).trim();
     const tasksInUnit = getTasksByWorkUnit(normalizedWorkUnitId);
 
-    // Check for unique task title within the same column
     const existingTask = tasksInUnit.find(
-      (task) =>
+      (task: any) =>
         task.title.trim().toLowerCase() === newTaskTitle.trim().toLowerCase(),
     );
+
     if (existingTask) {
       alert("Task title must be unique within the same column");
       return;
@@ -581,7 +680,7 @@ export default function TaskBoard() {
       status: "todo",
       createdBy: user.id || user._id || "",
       order: tasksInUnit.length,
-      type: "parent", // 👈 thêm field type
+      type: "parent",
     });
 
     setShowCreateTask(false);
@@ -590,15 +689,38 @@ export default function TaskBoard() {
   };
 
   const handleTaskChange = (field: keyof Task, value: any) => {
-    // Ensure 'handleTaskChange' is defined
+    if (!selectedTask || !currentProjectRole) return;
+
+    if (
+      field === "status" &&
+      !canUpdateStatus(selectedTask, currentProjectRole, currentUserId)
+    ) {
+      alert("You do not have permission to update task status.");
+      return;
+    }
+
+    if (field === "assigneeId" && !canAssignTask(currentProjectRole)) {
+      alert("You do not have permission to assign task.");
+      return;
+    }
+
+    if (
+      field !== "status" &&
+      field !== "assigneeId" &&
+      !canSaveTask(selectedTask, currentProjectRole, currentUserId)
+    ) {
+      alert("You do not have permission to update this task.");
+      return;
+    }
+
     setTaskChanges((prev) => ({ ...prev, [field]: value }));
 
     if (field === "assigneeId" && selectedTask) {
       const assignedUser = users?.find(
-        (u: any) => String(u.id || u._id) === String(value),
+        (u: any) => String(normalizeId(u.id || u._id)) === String(value),
       );
+
       if (assignedUser) {
-        // Send notification
         fetch(`${API_BASE_URL}/api/notifications`, {
           method: "POST",
           headers: getAuthJsonHeaders(),
@@ -618,24 +740,34 @@ export default function TaskBoard() {
   const handleAddComment = () => {
     if (!newComment.trim() || !selectedTask) return;
 
-    addComment(selectedTaskId, newComment);
+    if (!currentProjectRole || !canComment(currentProjectRole)) {
+      alert("You do not have permission to comment.");
+      return;
+    }
 
+    addComment(selectedTaskId, newComment);
     setNewComment("");
   };
 
   const handleLogTime = () => {
-    if (!timeLog) return;
+    if (!timeLog || !selectedTask) return;
+
+    if (
+      !currentProjectRole ||
+      !canLogWork(selectedTask, currentProjectRole, currentUserId)
+    ) {
+      alert("You do not have permission to log work on this task.");
+      return;
+    }
 
     const hours = parseFloat(timeLog);
     if (isNaN(hours) || hours <= 0) return;
 
     const currentTimeSpent = selectedTask?.timeSpent || 0;
     updateTask(selectedTaskId, { timeSpent: currentTimeSpent + hours });
-
     setTimeLog("");
   };
 
-  const selectedTaskId = selectedTask?.id || selectedTask?._id || "";
   const selectedTaskAttachments = selectedTaskId
     ? getTaskAttachments(selectedTaskId)
     : [];
@@ -656,8 +788,9 @@ export default function TaskBoard() {
   const selectedTaskComments = selectedTask
     ? getTaskComments(selectedTaskId)
     : [];
+
   const updatedComments = (selectedTaskComments || []).map((comment: any) => {
-    const foundUser = comment.userId; // đã populate
+    const foundUser = comment.userId;
     return {
       ...comment,
       author: foundUser ? foundUser.fullName : "Unknown User",
@@ -671,7 +804,6 @@ export default function TaskBoard() {
 
   const handleOpenFullscreen = (attachment: Attachment) => {
     const fullUrl = `${API_BASE_URL}${attachment.fileUrl}`;
-    console.log("Fullscreen image URL:", fullUrl);
     setFullscreenImage(fullUrl);
     setFullscreenAttachment(attachment);
   };
@@ -682,17 +814,33 @@ export default function TaskBoard() {
   };
 
   const handleDeleteAttachment = async (attachmentId: string) => {
+    const attachment = updatedAttachments.find(
+      (att: any) => String(att._id || att.id) === String(attachmentId),
+    );
+
+    if (
+      !currentProjectRole ||
+      !canDeleteAttachment(
+        currentProjectRole,
+        attachment?.uploadedBy,
+        currentUserId,
+      )
+    ) {
+      alert("You do not have permission to delete this attachment.");
+      return;
+    }
+
     try {
       await removeAttachment(attachmentId);
+
       if (selectedTask) {
         const taskId = selectedTask._id ?? selectedTask.id;
         if (typeof taskId === "string") {
           getTaskAttachments(taskId);
         }
       }
-      // Đóng fullscreen sau khi xoá
+
       handleCloseFullscreen();
-      // Hiện alert mặc định
       alert("Attachment deleted successfully");
     } catch (error) {
       console.error("Failed to delete attachment:", error);
@@ -703,6 +851,11 @@ export default function TaskBoard() {
   const handleDeleteWorkUnit = async (workUnitId: string) => {
     if (!projectId) return;
 
+    if (!currentProjectRole || !canCreateWorkUnit(currentProjectRole)) {
+      alert("You do not have permission to delete work units.");
+      return;
+    }
+
     const confirmDelete = window.confirm(
       "Are you sure you want to delete this work unit? All tasks in this work unit will also be deleted.",
     );
@@ -710,7 +863,7 @@ export default function TaskBoard() {
 
     try {
       await deleteWorkUnit(workUnitId);
-      loadProjectData(projectId); // Refresh project data
+      loadProjectData(projectId);
     } catch (error) {
       console.error("Failed to delete work unit:", error);
     }
@@ -719,7 +872,6 @@ export default function TaskBoard() {
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="h-full flex flex-col bg-gray-50">
-        {/* Header */}
         <div className="bg-white border-b p-4">
           <div className="max-w-[1600px] mx-auto">
             <Link
@@ -729,34 +881,36 @@ export default function TaskBoard() {
               <ArrowLeft className="w-4 h-4" />
               Back to Project
             </Link>
+
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
                   {project?.name}
-                </h1>{" "}
-                {/* Ensure 'project' is defined */}
+                </h1>
                 <p className="text-sm text-gray-600 capitalize">
                   {project?.methodology} Board
-                </p>{" "}
-                {/* Ensure 'project' is defined */}
+                </p>
               </div>
+
               {project?.methodology === "agile" &&
                 !isProjectCompleted &&
-                currentUserProject &&
-                canCreateWorkUnit(currentUserProject.role) && (
+                currentProjectRole &&
+                canCreateWorkUnit(currentProjectRole) && (
                   <button
-                    onClick={handleOpenSprintModal} // mở modal thay vì gọi trực tiếp
+                    onClick={handleOpenSprintModal}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                   >
                     ➕ New Sprint
                   </button>
                 )}
+
               {showSprintModal && (
                 <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
                   <div className="bg-white p-6 rounded-lg shadow-lg w-[400px] bg-opacity-90">
                     <h2 className="text-lg font-semibold mb-4">
                       Tạo Sprint mới
                     </h2>
+
                     <input
                       type="text"
                       value={sprintName}
@@ -764,6 +918,7 @@ export default function TaskBoard() {
                       placeholder="Nhập tên sprint"
                       className="w-full px-3 py-2 border rounded mb-4"
                     />
+
                     <div className="flex justify-end gap-2">
                       <button
                         onClick={() => setShowSprintModal(false)}
@@ -785,14 +940,13 @@ export default function TaskBoard() {
           </div>
         </div>
 
-        {/* Board */}
         <div className="flex-1 overflow-x-auto p-4">
           <div className="max-w-[1600px] mx-auto">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 h-full">
               {workUnits.map((workUnit: any) => {
-                // Add type for 'workUnit'
                 const workUnitId = workUnit.id || workUnit._id || "";
                 const tasks = getTasksByWorkUnit(workUnitId);
+
                 return (
                   <div
                     key={workUnitId}
@@ -803,15 +957,20 @@ export default function TaskBoard() {
                       tasks={tasks}
                       onTaskClick={handleTaskClick}
                       onDrop={(taskId, newWorkUnitId) => {
-                        if (isProjectCompleted) return; // bỏ qua nếu project complete
+                        if (isProjectCompleted) return;
                         return handleDrop(taskId, newWorkUnitId);
                       }}
                       onAddTask={handleAddTask}
                       users={users}
                       isProjectCompleted={isProjectCompleted}
+                      currentProjectRole={currentProjectRole}
+                      currentUserId={currentUserId}
                     />
+
                     {project?.methodology === "agile" &&
-                      !isProjectCompleted && (
+                      !isProjectCompleted &&
+                      currentProjectRole &&
+                      canCreateWorkUnit(currentProjectRole) && (
                         <button
                           onClick={() => handleDeleteWorkUnit(workUnitId)}
                           className="absolute bottom-2 right-2 text-xs text-red-600 hover:text-red-800"
@@ -826,13 +985,11 @@ export default function TaskBoard() {
           </div>
         </div>
 
-        {/* Task Detail Modal */}
         {selectedTask && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
               <div className="p-6 border-b flex items-start justify-between sticky top-0 bg-white z-10">
                 <div className="flex-1">
-                  {/* Breadcrumb */}
                   {taskStack.length > 1 && (
                     <div className="flex items-center gap-1 text-sm mb-3 flex-wrap">
                       {taskStack.map((t, index) => (
@@ -857,7 +1014,6 @@ export default function TaskBoard() {
                     </div>
                   )}
 
-                  {/* Back button nếu đang ở sub-task */}
                   {taskStack.length > 1 && (
                     <button
                       onClick={() =>
@@ -902,7 +1058,6 @@ export default function TaskBoard() {
               </div>
 
               <div className="p-6 space-y-6">
-                {/* Description */}
                 <div>
                   <h3 className="font-medium text-gray-900 mb-2">
                     Description
@@ -912,20 +1067,33 @@ export default function TaskBoard() {
                   </p>
                 </div>
 
-                {/* Details */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Status
                     </label>
                     <select
-                      disabled={isProjectCompleted}
+                      disabled={
+                        isProjectCompleted ||
+                        !currentProjectRole ||
+                        !canUpdateStatus(
+                          selectedTask,
+                          currentProjectRole,
+                          currentUserId,
+                        )
+                      }
                       value={taskChanges.status ?? selectedTask.status}
                       onChange={(e) =>
                         handleTaskChange("status", e.target.value)
                       }
                       className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${
-                        isProjectCompleted
+                        isProjectCompleted ||
+                        !currentProjectRole ||
+                        !canUpdateStatus(
+                          selectedTask,
+                          currentProjectRole,
+                          currentUserId,
+                        )
                           ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                           : "focus:outline-none focus:ring-2 focus:ring-blue-500"
                       }`}
@@ -941,7 +1109,11 @@ export default function TaskBoard() {
                       Assignee
                     </label>
                     <select
-                      disabled={isProjectCompleted}
+                      disabled={
+                        isProjectCompleted ||
+                        !currentProjectRole ||
+                        !canAssignTask(currentProjectRole)
+                      }
                       value={(() => {
                         if (taskChanges.assigneeId)
                           return normalizeId(taskChanges.assigneeId);
@@ -956,14 +1128,16 @@ export default function TaskBoard() {
                         )
                       }
                       className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${
-                        isProjectCompleted
+                        isProjectCompleted ||
+                        !currentProjectRole ||
+                        !canAssignTask(currentProjectRole)
                           ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                           : "focus:outline-none focus:ring-2 focus:ring-blue-500"
                       }`}
                     >
                       <option value="">Unassigned</option>
                       {projectMembers.map((u: any) => {
-                        const userId = normalizeId(u.id || u._id);
+                        const userId = normalizeId(u._id || u.id);
                         return (
                           <option key={userId} value={userId}>
                             {u.fullName}
@@ -973,7 +1147,7 @@ export default function TaskBoard() {
                     </select>
                   </div>
                 </div>
-                {/* Time Tracking */}
+
                 <div>
                   <h3 className="font-medium text-gray-900 mb-2">
                     Time Tracking
@@ -987,46 +1161,57 @@ export default function TaskBoard() {
                         </span>
                       </p>
                     </div>
-                    <input
-                      type="number"
-                      value={timeLog}
-                      onChange={(e) => setTimeLog(e.target.value)}
-                      placeholder="Hours"
-                      step="0.5"
-                      className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <button
-                      disabled={isProjectCompleted}
-                      onClick={handleLogTime}
-                      className={`px-4 py-2 rounded-lg ${
-                        isProjectCompleted
-                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                          : "bg-blue-600 text-white hover:bg-blue-700"
-                      }`}
-                    >
-                      Log Time
-                    </button>
+
+                    {currentProjectRole &&
+                      canLogWork(
+                        selectedTask,
+                        currentProjectRole,
+                        currentUserId,
+                      ) && (
+                        <>
+                          <input
+                            type="number"
+                            value={timeLog}
+                            onChange={(e) => setTimeLog(e.target.value)}
+                            placeholder="Hours"
+                            step="0.5"
+                            className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <button
+                            disabled={isProjectCompleted}
+                            onClick={handleLogTime}
+                            className={`px-4 py-2 rounded-lg ${
+                              isProjectCompleted
+                                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                                : "bg-blue-600 text-white hover:bg-blue-700"
+                            }`}
+                          >
+                            Log Time
+                          </button>
+                        </>
+                      )}
                   </div>
                 </div>
 
-                {/* Sub-Tasks */}
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-medium text-gray-900">
                       Sub-tasks ({subTasks.length})
                     </h3>
-                    {!isProjectCompleted && (
-                      <button
-                        onClick={() => setShowAddSubTask(!showAddSubTask)}
-                        className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
-                      >
-                        <Plus className="w-4 h-4" />
-                        Add sub-task
-                      </button>
-                    )}
+
+                    {!isProjectCompleted &&
+                      currentProjectRole &&
+                      canCreateSubTask(currentProjectRole) && (
+                        <button
+                          onClick={() => setShowAddSubTask(!showAddSubTask)}
+                          className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Add sub-task
+                        </button>
+                      )}
                   </div>
 
-                  {/* Progress bar */}
                   {subTasks.length > 0 &&
                     (() => {
                       const doneCount = subTasks.filter(
@@ -1035,6 +1220,7 @@ export default function TaskBoard() {
                       const percent = Math.round(
                         (doneCount / subTasks.length) * 100,
                       );
+
                       return (
                         <div className="mb-3">
                           <div className="flex justify-between text-xs text-gray-500 mb-1">
@@ -1053,10 +1239,13 @@ export default function TaskBoard() {
                       );
                     })()}
 
-                  {/* Sub-task list */}
                   <div className="space-y-2">
                     {subTasks.map((subTask) => {
                       const subId = subTask.id || subTask._id || "";
+                      const canToggleThisSubtask =
+                        !!currentProjectRole &&
+                        canSaveTask(subTask, currentProjectRole, currentUserId);
+
                       return (
                         <div
                           key={subId}
@@ -1066,11 +1255,13 @@ export default function TaskBoard() {
                             type="checkbox"
                             checked={subTask.status === "done"}
                             onChange={() => handleToggleSubTask(subTask)}
-                            disabled={isProjectCompleted}
+                            disabled={
+                              isProjectCompleted || !canToggleThisSubtask
+                            }
                             className="w-4 h-4 accent-blue-600 cursor-pointer"
-                            onClick={(e) => e.stopPropagation()} // ngăn bubble lên div
+                            onClick={(e) => e.stopPropagation()}
                           />
-                          {/* ↓ Thêm onClick vào title để navigate */}
+
                           <span
                             onClick={() => handleSubTaskClick(subTask)}
                             className={`flex-1 text-sm cursor-pointer hover:text-blue-600 hover:underline ${
@@ -1081,6 +1272,7 @@ export default function TaskBoard() {
                           >
                             {subTask.title}
                           </span>
+
                           <span
                             className={`text-xs px-2 py-0.5 rounded-full ${
                               subTask.status === "done"
@@ -1097,7 +1289,6 @@ export default function TaskBoard() {
                     })}
                   </div>
 
-                  {/* Add sub-task form */}
                   {showAddSubTask && (
                     <div className="mt-3 p-3 border border-dashed border-blue-300 rounded-lg bg-blue-50 space-y-2">
                       <input
@@ -1107,6 +1298,7 @@ export default function TaskBoard() {
                         placeholder="Sub-task title..."
                         className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
+
                       <input
                         type="text"
                         value={newSubTaskDesc}
@@ -1114,6 +1306,7 @@ export default function TaskBoard() {
                         placeholder="Description..."
                         className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
+
                       <div className="flex gap-2 justify-end">
                         <button
                           onClick={() => setShowAddSubTask(false)}
@@ -1132,18 +1325,17 @@ export default function TaskBoard() {
                   )}
                 </div>
 
-                {/* Attachments */}
                 <div>
                   <h3 className="font-medium text-gray-900 mb-2">
                     Attachments ({updatedAttachments.length})
                   </h3>
 
-                  {/* Hiển thị thumbnail ảnh hoặc file */}
                   <div className="flex flex-wrap gap-3 mb-4">
                     {updatedAttachments.map((att) => {
                       const isImage = att.fileUrl.match(
                         /\.(jpg|jpeg|png|gif)$/i,
                       );
+
                       return (
                         <div key={att._id} className="relative">
                           {isImage ? (
@@ -1164,25 +1356,26 @@ export default function TaskBoard() {
                     })}
                   </div>
 
-                  {/* Upload attachment */}
-                  <div className="mt-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Add Attachment (only images)
-                    </label>
-                    <input
-                      disabled={isProjectCompleted}
-                      type="file"
-                      onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          handleAddAttachment(e.target.files[0]);
-                        }
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
+                  {currentProjectRole &&
+                    canUploadAttachment(currentProjectRole) && (
+                      <div className="mt-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Add Attachment (only images)
+                        </label>
+                        <input
+                          disabled={isProjectCompleted}
+                          type="file"
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              handleAddAttachment(e.target.files[0]);
+                            }
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    )}
                 </div>
 
-                {/* Fullscreen modal */}
                 {fullscreenImage && fullscreenAttachment && (
                   <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
                     <div className="relative">
@@ -1191,31 +1384,41 @@ export default function TaskBoard() {
                         alt={fullscreenAttachment.fileName}
                         className="max-h-screen max-w-screen"
                       />
+
                       <div className="absolute top-2 right-2 flex gap-2">
                         <a
-                          href={`${API_BASE_URL}/download/attachments/${fullscreenAttachment.fileUrl.split("/").pop()}`}
+                          href={`${API_BASE_URL}/download/attachments/${fullscreenAttachment.fileUrl
+                            .split("/")
+                            .pop()}`}
                           className="bg-white px-2 py-1 rounded text-sm"
                         >
                           Download
                         </a>
 
-                        <button
-                          onClick={() => {
-                            if (fullscreenAttachment._id) {
-                              const confirmDelete = window.confirm(
-                                "Bạn có chắc chắn muốn xoá file này không?",
-                              );
-                              if (confirmDelete) {
-                                handleDeleteAttachment(
-                                  fullscreenAttachment._id,
-                                );
-                              }
-                            }
-                          }}
-                          className="bg-red-600 text-white px-2 py-1 rounded text-sm"
-                        >
-                          Delete
-                        </button>
+                        {currentProjectRole &&
+                          canDeleteAttachment(
+                            currentProjectRole,
+                            fullscreenAttachment.uploadedBy,
+                            currentUserId,
+                          ) && (
+                            <button
+                              onClick={() => {
+                                if (fullscreenAttachment._id) {
+                                  const confirmDelete = window.confirm(
+                                    "Bạn có chắc chắn muốn xoá file này không?",
+                                  );
+                                  if (confirmDelete) {
+                                    handleDeleteAttachment(
+                                      fullscreenAttachment._id,
+                                    );
+                                  }
+                                }
+                              }}
+                              className="bg-red-600 text-white px-2 py-1 rounded text-sm"
+                            >
+                              Delete
+                            </button>
+                          )}
 
                         <button
                           onClick={handleCloseFullscreen}
@@ -1228,11 +1431,11 @@ export default function TaskBoard() {
                   </div>
                 )}
 
-                {/* Comments */}
                 <div>
                   <h3 className="font-medium text-gray-900 mb-3">
                     Comments ({updatedComments.length})
                   </h3>
+
                   <div className="space-y-3 mb-4">
                     {updatedComments.map((comment) => (
                       <div
@@ -1244,6 +1447,7 @@ export default function TaskBoard() {
                             {comment.authorInitial}
                           </span>
                         </div>
+
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="font-medium text-gray-900">
@@ -1259,37 +1463,56 @@ export default function TaskBoard() {
                     ))}
                   </div>
 
-                  <div className="flex gap-3">
-                    <input
-                      type="text"
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      placeholder="Add a comment..."
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      onKeyPress={(e) =>
-                        e.key === "Enter" && handleAddComment()
-                      }
-                    />
-                    <button
-                      disabled={isProjectCompleted}
-                      onClick={handleAddComment}
-                      className={`px-4 py-2 rounded-lg ${
-                        isProjectCompleted
-                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                          : "bg-blue-600 text-white hover:bg-blue-700"
-                      }`}
-                    >
-                      Comment
-                    </button>
-                  </div>
+                  {currentProjectRole && canComment(currentProjectRole) && (
+                    <div className="flex gap-3">
+                      <input
+                        type="text"
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        placeholder="Add a comment..."
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        onKeyPress={(e) =>
+                          e.key === "Enter" && handleAddComment()
+                        }
+                      />
+
+                      <button
+                        disabled={isProjectCompleted}
+                        onClick={handleAddComment}
+                        className={`px-4 py-2 rounded-lg ${
+                          isProjectCompleted
+                            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                            : "bg-blue-600 text-white hover:bg-blue-700"
+                        }`}
+                      >
+                        Comment
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Footer with Done button */}
               <div className="p-6 border-t bg-gray-50 flex justify-end">
                 <button
                   onClick={handleSaveTask}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                  disabled={
+                    !currentProjectRole ||
+                    !canSaveTask(
+                      selectedTask,
+                      currentProjectRole,
+                      currentUserId,
+                    )
+                  }
+                  className={`px-6 py-2 rounded-lg font-medium ${
+                    !currentProjectRole ||
+                    !canSaveTask(
+                      selectedTask,
+                      currentProjectRole,
+                      currentUserId,
+                    )
+                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                      : "bg-blue-600 text-white hover:bg-blue-700"
+                  }`}
                 >
                   Done
                 </button>
@@ -1298,7 +1521,6 @@ export default function TaskBoard() {
           </div>
         )}
 
-        {/* Unsaved Changes Warning */}
         {showUnsavedChanges && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg max-w-md w-full p-6">
@@ -1309,6 +1531,7 @@ export default function TaskBoard() {
                 You have unsaved changes. Are you sure you want to close without
                 saving?
               </p>
+
               <div className="flex gap-3 justify-end">
                 <button
                   onClick={handleCancelClose}
@@ -1327,7 +1550,6 @@ export default function TaskBoard() {
           </div>
         )}
 
-        {/* Create Task Modal */}
         {showCreateTask && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg max-w-md w-full">
@@ -1340,6 +1562,7 @@ export default function TaskBoard() {
                   <X className="w-5 h-5" />
                 </button>
               </div>
+
               <div className="p-6 space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1354,6 +1577,7 @@ export default function TaskBoard() {
                     autoFocus
                   />
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Description
@@ -1366,6 +1590,7 @@ export default function TaskBoard() {
                     placeholder="Task description..."
                   />
                 </div>
+
                 <div className="flex gap-3">
                   <button
                     onClick={() => setShowCreateTask(false)}

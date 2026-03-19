@@ -8,11 +8,13 @@ export const getTasksByProject = async (req, res) => {
     if (!projectId || projectId === "undefined") {
       return res.json([]);
     }
+
     const tasks = await Task.find({ projectId })
       .populate("assigneeId", "-password")
       .populate("createdBy", "-password")
       .sort("-createdAt")
       .lean();
+
     res.json(tasks);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -27,6 +29,7 @@ export const getTasksByWorkUnit = async (req, res) => {
       .populate("createdBy", "-password")
       .sort("order")
       .lean();
+
     res.json(tasks);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -38,7 +41,9 @@ export const getTaskById = async (req, res) => {
     const task = await Task.findById(req.params.id)
       .populate("assigneeId", "-password")
       .populate("createdBy", "-password");
+
     if (!task) return res.status(404).json({ message: "Task not found" });
+
     res.json(task);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -55,7 +60,6 @@ export const createTask = async (req, res) => {
       assigneeId,
       status,
       deadline,
-      createdBy,
       order,
       timeSpent,
       parentId,
@@ -71,7 +75,7 @@ export const createTask = async (req, res) => {
       assigneeId: assigneeId ? new mongoose.Types.ObjectId(assigneeId) : null,
       status: status || "todo",
       deadline: deadline ? new Date(deadline) : null,
-      createdBy: new mongoose.Types.ObjectId(createdBy),
+      createdBy: new mongoose.Types.ObjectId(req.user._id),
       order: order || 0,
       timeSpent: timeSpent || 0,
       parentId: parentId ? new mongoose.Types.ObjectId(parentId) : null,
@@ -79,6 +83,7 @@ export const createTask = async (req, res) => {
     });
 
     const saved = await task.save();
+
     const populated = await Task.findById(saved._id)
       .populate("assigneeId", "-password")
       .populate("createdBy", "-password");
@@ -98,42 +103,55 @@ export const createTask = async (req, res) => {
 
 export const updateTask = async (req, res) => {
   try {
-    const {
-      title,
-      description,
-      assigneeId,
-      status,
-      deadline,
-      order,
-      timeSpent,
-      workUnitId,
-      type,
-    } = req.body;
+    const existingTask = req.task || (await Task.findById(req.params.id));
 
-    const updated = await Task.findByIdAndUpdate(
-      req.params.id,
-      {
-        title,
-        description,
-        assigneeId: assigneeId ? new mongoose.Types.ObjectId(assigneeId) : null,
-        status,
-        deadline: deadline ? new Date(deadline) : undefined,
-        order,
-        timeSpent,
-        workUnitId: workUnitId
-          ? new mongoose.Types.ObjectId(workUnitId)
-          : undefined, // ✅ cập nhật
-        workUnitId: workUnitId
-          ? new mongoose.Types.ObjectId(workUnitId)
-          : undefined,
-        type: type || undefined,
-      },
-      { new: true },
-    )
+    if (!existingTask) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    const updates = {};
+    const allowedFields = [
+      "title",
+      "description",
+      "assigneeId",
+      "status",
+      "deadline",
+      "order",
+      "timeSpent",
+      "workUnitId",
+      "type",
+    ];
+
+    for (const field of allowedFields) {
+      if (field in req.body) {
+        if (field === "assigneeId") {
+          updates.assigneeId = req.body.assigneeId
+            ? new mongoose.Types.ObjectId(req.body.assigneeId)
+            : null;
+        } else if (field === "deadline") {
+          updates.deadline = req.body.deadline
+            ? new Date(req.body.deadline)
+            : null;
+        } else if (field === "workUnitId") {
+          updates.workUnitId = req.body.workUnitId
+            ? new mongoose.Types.ObjectId(req.body.workUnitId)
+            : null;
+        } else {
+          updates[field] = req.body[field];
+        }
+      }
+    }
+
+    const updated = await Task.findByIdAndUpdate(req.params.id, updates, {
+      new: true,
+    })
       .populate("assigneeId", "-password")
       .populate("createdBy", "-password");
 
-    if (!updated) return res.status(404).json({ message: "Task not found" });
+    if (!updated) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
     await createAuditLogFromRequest(req, {
       action: "update",
       entity: "task",
@@ -150,7 +168,9 @@ export const updateTask = async (req, res) => {
 export const deleteTask = async (req, res) => {
   try {
     const task = await Task.findByIdAndDelete(req.params.id);
+
     if (!task) return res.status(404).json({ message: "Task not found" });
+
     await createAuditLogFromRequest(req, {
       action: "delete",
       entity: "task",
@@ -182,7 +202,6 @@ export const getTasksByUserId = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    // Lấy tất cả task do user tạo hoặc được assign
     const tasks = await Task.find({
       $or: [{ createdBy: userId }, { assigneeId: userId }],
     })
@@ -205,6 +224,7 @@ export const getSubTasks = async (req, res) => {
       .populate("createdBy", "-password")
       .sort("order")
       .lean();
+
     res.json(subTasks);
   } catch (error) {
     res.status(500).json({ message: error.message });

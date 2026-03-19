@@ -4,6 +4,7 @@ import React, {
   useState,
   useEffect,
   ReactNode,
+  useCallback,
 } from "react";
 import {
   Project,
@@ -21,7 +22,6 @@ import {
 } from "../types";
 import { useAuth } from "./AuthContext";
 import { API_BASE_URL } from "../config/baseApi";
-
 
 interface DataContextType {
   // Projects
@@ -416,81 +416,102 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   };
 
   const getProjectMembers = (projectId: string) => {
-    // Normalize projectId for comparison
     const normalizedProjectId = String(projectId).trim();
+
     return userProjects.filter((up) => {
-      const upProjectId = String(up.projectId || "").trim();
+      const rawProjectId =
+        typeof up.projectId === "object"
+          ? (up.projectId as any)?._id || (up.projectId as any)?.id
+          : up.projectId;
+
+      const upProjectId = String(rawProjectId || "").trim();
       return upProjectId === normalizedProjectId;
     });
   };
 
   // Load project data on-demand
-  const loadProjectData = async (projectId: string) => {
-    if (!projectId || projectId.trim() === "") return;
+  const loadProjectData = useCallback(async (projectId: string) => {
+    if (!projectId || projectId === "undefined") return;
 
     const normalizedProjectId = String(projectId).trim();
 
     try {
-      // Lấy workUnits, tasks, comments, attachments song song
-      const [workUnitsRes, tasksRes, commentsRes, attachmentsRes] =
+      const [membersRes, workUnitsRes, tasksRes, commentsRes, attachmentsRes] =
         await Promise.all([
+          fetch(`${API_BASE_URL}/api/user-projects/project/${projectId}`),
           fetch(`${API_BASE_URL}/api/work-units/project/${projectId}`),
           fetch(`${API_BASE_URL}/api/tasks/project/${projectId}`),
           fetch(`${API_BASE_URL}/api/comments/project/${projectId}`),
           fetch(`${API_BASE_URL}/api/attachments/project/${projectId}`),
         ]);
 
-      // WorkUnits
+      if (membersRes.ok) {
+        const members = await membersRes.json();
+        setUserProjects((prev: any[]) => {
+          const filteredPrev = prev.filter((item: any) => {
+            const rawProjectId =
+              typeof item.projectId === "object"
+                ? item.projectId?._id || item.projectId?.id
+                : item.projectId;
+
+            return String(rawProjectId || "").trim() !== normalizedProjectId;
+          });
+
+          return [...filteredPrev, ...members];
+        });
+      }
+
       if (workUnitsRes.ok) {
-        const units = await workUnitsRes.json();
-        setWorkUnits((prev) => {
-          const existing = prev.filter(
-            (wu) => String(wu.projectId || "").trim() !== normalizedProjectId,
+        const workUnitsData = await workUnitsRes.json();
+        setWorkUnits((prev: any[]) => {
+          const filteredPrev = prev.filter(
+            (item: any) =>
+              String(item.projectId || "").trim() !== normalizedProjectId,
           );
-          return [...existing, ...units];
+          return [...filteredPrev, ...workUnitsData];
         });
       }
 
-      // Tasks
-      let tasksList: Task[] = [];
+      let projectTasks: any[] = [];
+
       if (tasksRes.ok) {
-        tasksList = await tasksRes.json();
-        setTasks((prev) => {
-          const existing = prev.filter(
-            (t) => String(t.projectId || "").trim() !== normalizedProjectId,
+        projectTasks = await tasksRes.json();
+        setTasks((prev: any[]) => {
+          const filteredPrev = prev.filter(
+            (item: any) =>
+              String(item.projectId || "").trim() !== normalizedProjectId,
           );
-          return [...existing, ...tasksList];
+          return [...filteredPrev, ...projectTasks];
         });
       }
 
-      const projectTaskIds = tasksList.map((t) => String(t.id || t._id));
+      const projectTaskIds = projectTasks.map((task: any) =>
+        String(task._id || task.id),
+      );
 
-      // Comments
       if (commentsRes.ok) {
-        const allComments: Comment[] = await commentsRes.json();
-        setComments((prev) => {
-          const existing = prev.filter(
-            (c) => !projectTaskIds.includes(String(c.taskId || "")),
+        const commentsData = await commentsRes.json();
+        setComments((prev: any[]) => {
+          const filteredPrev = prev.filter(
+            (item: any) => !projectTaskIds.includes(String(item.taskId || "")),
           );
-          return [...existing, ...allComments];
+          return [...filteredPrev, ...commentsData];
         });
       }
 
-      // Attachments
       if (attachmentsRes.ok) {
-        const allAttachments: Attachment[] = await attachmentsRes.json();
-        setAttachments((prev) => {
-          const existing = prev.filter(
-            (a) => !projectTaskIds.includes(String(a.taskId || "")),
+        const attachmentsData = await attachmentsRes.json();
+        setAttachments((prev: any[]) => {
+          const filteredPrev = prev.filter(
+            (item: any) => !projectTaskIds.includes(String(item.taskId || "")),
           );
-          return [...existing, ...allAttachments];
+          return [...filteredPrev, ...attachmentsData];
         });
       }
     } catch (error) {
       console.error("Failed to load project data:", error);
     }
-  };
-  [];
+  }, []);
 
   // WorkUnit methods
   const createWorkUnit = async (
@@ -767,10 +788,13 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   // Notification methods
   const markAsRead = async (id: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/notifications/${id}/read`, {
-        method: "PUT",
-        headers: getAuthHeaders(),
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/api/notifications/${id}/read`,
+        {
+          method: "PUT",
+          headers: getAuthHeaders(),
+        },
+      );
 
       if (!response.ok) throw new Error("Failed to mark notification as read");
 
