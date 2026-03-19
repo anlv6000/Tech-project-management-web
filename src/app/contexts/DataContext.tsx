@@ -34,7 +34,8 @@ interface DataContextType {
   getProject: (id: string) => Project | undefined;
   getUserProjects: (userId: string) => Project[];
   getAllUserProjects: () => UserProject[];
-
+  refreshProjects: () => Promise<void>;
+  
   // UserProjects
   userProjects: UserProject[];
   addUserToProject: (userId: string, projectId: string, role: string) => void;
@@ -249,7 +250,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       const userProjectData = {
         userId: user?.id || user?._id,
         projectId: projectWithId.id || projectWithId._id,
-        role: "Admin",
+        role: "projectAdmin",
       };
       setUserProjects((prev) => [...prev, userProjectData as any]);
 
@@ -427,6 +428,24 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       const upProjectId = String(rawProjectId || "").trim();
       return upProjectId === normalizedProjectId;
     });
+  };
+  const refreshProjects = async () => {
+    try {
+      const projectsRes = await fetch(`${API_BASE_URL}/api/projects`);
+      const userProjectsRes = await fetch(`${API_BASE_URL}/api/user-projects`);
+
+      if (projectsRes.ok) {
+        const data = await projectsRes.json();
+        setProjects(data.map((p: any) => ({ ...p, id: p._id || p.id })));
+      }
+
+      if (userProjectsRes.ok) {
+        const data = await userProjectsRes.json();
+        setUserProjects(data.map((up: any) => ({ ...up, id: up._id || up.id })));
+      }
+    } catch (error) {
+      console.error("Failed to refresh projects:", error);
+    }
   };
 
   // Load project data on-demand
@@ -927,6 +946,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     getProject,
     getUserProjects,
     getAllUserProjects,
+    refreshProjects,
     userProjects,
     addUserToProject,
     removeUserFromProject,

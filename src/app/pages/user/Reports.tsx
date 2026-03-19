@@ -4,9 +4,10 @@ import { useData } from '../../contexts/DataContext';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Calendar } from 'lucide-react';
 import { API_BASE_URL } from "../../config/baseApi";
+import { useEffect } from "react";
 export default function Reports() {
   const { user } = useAuth();
-  const { getUserProjects, getTasksByProject } = useData();
+  const { getUserProjects, getTasksByProject, refreshProjects } = useData();
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
 
   if (!user) return null;
@@ -21,7 +22,9 @@ export default function Reports() {
   const todoTasks = projectTasks.filter(t => t.status === 'todo').length;
   const inProgressTasks = projectTasks.filter(t => t.status === 'in-progress').length;
   const doneTasks = projectTasks.filter(t => t.status === 'done').length;
-
+  useEffect(() => {
+    refreshProjects();
+  }, []);
   const statusData = [
     { name: 'To Do', count: todoTasks },
     { name: 'In Progress', count: inProgressTasks },

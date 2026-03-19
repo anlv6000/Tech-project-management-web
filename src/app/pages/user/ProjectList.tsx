@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import { useAuth } from "../../contexts/AuthContext";
 import { API_BASE_URL } from "../../config/baseApi";
 import { useData } from "../../contexts/DataContext";
-
+import { useEffect } from "react";
 import {
   Plus,
   Calendar,
@@ -25,6 +25,7 @@ export default function ProjectList() {
     getProjectMembers,
     getTasksByProject,
     createWorkUnit,
+    refreshProjects,
   } = useData();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -40,8 +41,20 @@ export default function ProjectList() {
   });
   const [inviteData, setInviteData] = useState({
     searchInput: "",
-    role: "Member",
+    role: "member", // mặc định
   });
+
+  // Dropdown chọn role
+  <select
+    value={inviteData.role}
+    onChange={(e) => setInviteData({ ...inviteData, role: e.target.value })}
+  >
+    <option value="projectAdmin">Project Admin</option>
+    <option value="pm">Project Manager</option>
+    <option value="member">Member</option>
+    <option value="viewer">Viewer</option>
+  </select>
+
   const [userSuggestions, setUserSuggestions] = useState<any[]>([]);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState("");
@@ -56,6 +69,9 @@ export default function ProjectList() {
 
   const userId = user.id || user._id || "";
   const projects = getUserProjects(userId);
+  useEffect(() => {
+    refreshProjects();
+  }, []);
   const token = sessionStorage.getItem("token");
   const authJsonHeaders = {
     "Content-Type": "application/json",
@@ -160,10 +176,10 @@ export default function ProjectList() {
         typeof userOrEmail === "string"
           ? { email: userOrEmail, role: inviteData.role }
           : {
-              fullName: userOrEmail.fullName || userOrEmail.name,
-              email: userOrEmail.email,
-              role: inviteData.role,
-            };
+            fullName: userOrEmail.fullName || userOrEmail.name,
+            email: userOrEmail.email,
+            role: inviteData.role,
+          };
 
       const response = await fetch(
         `${API_BASE_URL}/api/projects/${selectedProjectId}/invite`,
