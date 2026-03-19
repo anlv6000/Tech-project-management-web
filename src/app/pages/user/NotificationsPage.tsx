@@ -1,11 +1,13 @@
 import React from 'react';
+import { useNavigate } from 'react-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { Bell, Check, MessageSquare, FolderKanban, AlertCircle, UserPlus } from 'lucide-react';
 
 export default function NotificationsPage() {
+  const navigate = useNavigate();
   const { user } = useAuth();
-  const { getUserNotifications, markAsRead } = useData();
+  const { getUserNotifications, markAsRead, refreshNotifications, getTask } = useData();
 
   if (!user) return null;
 
@@ -28,6 +30,106 @@ export default function NotificationsPage() {
     }
   };
 
+  const resolvePjaxRoute = (actionLink: string) => {
+    const link = actionLink.split('?')[0];
+    const parts = link.split('/').filter(Boolean);
+
+    if (!parts.length) return null;
+
+    const projectIndex = parts.findIndex((p) => p === 'projects');
+    const taskIndex = parts.findIndex((p) => p === 'tasks');
+    const boardIndex = parts.findIndex((p) => p === 'board');
+
+    if (projectIndex >= 0) {
+      const projectId = parts[projectIndex + 1];
+
+      if (taskIndex >= 0 && projectId) {
+        const taskId = parts[taskIndex + 1];
+        if (taskId) {
+          return `/app/projects/${projectId}/board?taskId=${taskId}`;
+        }
+      }
+
+      if (boardIndex >= 0 && projectId) {
+        const query = actionLink.includes('?') ? actionLink.split('?')[1] : '';
+        return `/app/projects/${projectId}/board${query ? '?' + query : ''}`;
+      }
+
+      if (projectId) {
+        return `/app/projects/${projectId}`;
+      }
+    }
+
+    return null;
+  };
+
+  const handleNotificationClick = async (notification: any) => {
+    const notificationId = notification.id || notification._id || '';
+    if (notificationId) {
+      markAsRead(notificationId);
+    }
+
+    if (notification.actionLink) {
+      const actionLink = String(notification.actionLink);
+      const resolvedRoute = resolvePjaxRoute(actionLink);
+      if (resolvedRoute) {
+        navigate(resolvedRoute);
+        return;
+      }
+
+      if (actionLink.startsWith('http')) {
+        window.location.href = actionLink;
+        return;
+      }
+
+      navigate(actionLink);
+      return;
+    }
+
+    if (notification.type === 'project' || notification.type === 'invitation') {
+      const projectId = notification.data?.projectId || notification.relatedEntityId;
+      if (projectId) {
+        navigate(`/app/projects/${projectId}`);
+        return;
+      }
+
+      navigate('/app/projects');
+      return;
+    }
+
+    if (notification.relatedEntityType === 'task' || notification.type === 'task') {
+      const taskId = notification.relatedEntityId || notification.data?.taskId || '';
+      const task = taskId ? getTask(taskId) : undefined;
+      const projectId = task?.projectId || notification.data?.projectId;
+
+      if (projectId) {
+        const query = taskId ? `?taskId=${taskId}` : '';
+        navigate(`/app/projects/${projectId}/board${query}`);
+        return;
+      }
+
+      if (taskId) {
+        try {
+          const res = await fetch(`http://localhost:5000/api/tasks/${taskId}`);
+          if (res.ok) {
+            const taskDetail = await res.json();
+            if (taskDetail.projectId) {
+              navigate(`/app/projects/${taskDetail.projectId}/board?taskId=${taskId}`);
+              return;
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch task details for notification route', error);
+        }
+      }
+
+      navigate('/app/projects');
+      return;
+    }
+
+    navigate('/app/projects');
+  };
+
   const handleAcceptInvitation = async (notification: any) => {
     try {
       const response = await fetch('http://localhost:5000/api/projects/accept-invitation', {
@@ -36,14 +138,24 @@ export default function NotificationsPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          token: notification.data?.invitationToken
+          token: notification.data?.invitationToken,
         }),
       });
 
       if (response.ok) {
+        const data = await response.json();
         markAsRead(notification.id || notification._id || '');
-        // Refresh page or update state
-        window.location.reload();
+
+        await refreshNotifications(userId);
+
+        if (data?.projectId) {
+          // Stay on notifications so user sees welcome notification
+          // but also allow quickly jump into project
+          // navigate(`/app/projects/${data.projectId}`);
+          return;
+        }
+
+        return;
       }
     } catch (error) {
       console.error('Accept invitation error:', error);
@@ -73,7 +185,8 @@ export default function NotificationsPage() {
           {notifications.map((notification) => (
             <div
               key={notification.id || notification._id}
-              className={`bg-white p-4 rounded-lg border hover:shadow-md transition-shadow ${
+              onClick={() => handleNotificationClick(notification)}
+              className={`bg-white p-4 rounded-lg border hover:shadow-md transition-shadow cursor-pointer ${
                 !notification.isRead ? 'border-l-4 border-l-blue-600' : ''
               }`}
             >
@@ -101,7 +214,10 @@ export default function NotificationsPage() {
                     <div className="flex gap-2">
                       {notification.type === 'invitation' && notification.data?.status !== 'accepted' && (
                         <button
-                          onClick={() => handleAcceptInvitation(notification)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAcceptInvitation(notification);
+                          }}
                           className="px-3 py-1 text-sm bg-green-600 text-white hover:bg-green-700 rounded-lg"
                         >
                           Accept
@@ -109,7 +225,10 @@ export default function NotificationsPage() {
                       )}
                       {!notification.isRead && (
                         <button
-                          onClick={() => markAsRead(notification.id || notification._id || '')}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            markAsRead(notification.id || notification._id || '');
+                          }}
                           className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded-lg"
                         >
                           Mark as read

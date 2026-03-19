@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useParams, Link } from "react-router";
+import React, { useEffect, useState } from "react";
+import { useParams, useSearchParams, Link } from "react-router";
 import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { useData } from "../../contexts/DataContext";
@@ -291,6 +291,7 @@ export default function TaskBoard() {
   const { user } = useAuth();
   const {
     getProject,
+    getTask,
     getProjectWorkUnits,
     getTasksByWorkUnit,
     updateTask,
@@ -327,6 +328,20 @@ export default function TaskBoard() {
   const [taskStack, setTaskStack] = useState<Task[]>([]);
   const selectedTask =
     taskStack.length > 0 ? taskStack[taskStack.length - 1] : null;
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const taskId = searchParams.get("taskId");
+    if (taskId) {
+      const task = getTask(taskId);
+      if (task) {
+        setTaskStack([task]);
+        setTaskChanges({});
+        loadSubTasks(task);
+      }
+    }
+  }, [searchParams, getTask]);
+
   const handleTaskClick = async (task: Task) => {
     setTaskStack([task]);
     setTaskChanges({});
@@ -610,6 +625,11 @@ export default function TaskBoard() {
             message: `You have been assigned to task "${selectedTask.title}" in project ${project?.name}`,
             relatedEntityId: selectedTask.id || selectedTask._id,
             relatedEntityType: "task",
+            actionLink: `/app/projects/${selectedTask.projectId}/board?taskId=${selectedTask.id || selectedTask._id}`,
+            data: {
+              projectId: selectedTask.projectId,
+              taskId: selectedTask.id || selectedTask._id,
+            },
           }),
         });
       }

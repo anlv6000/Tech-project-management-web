@@ -84,6 +84,8 @@ interface DataContextType {
   notifications: Notification[];
   markAsRead: (id: string) => void;
   getUserNotifications: (userId: string) => Notification[];
+  refreshNotifications: (userId: string) => Promise<void>;
+  getTask: (id: string) => Task | undefined;
 
   // Users (for admin)
   users: User[];
@@ -349,6 +351,25 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     return projects.find((p) => p.id === id || p._id === id) as
       | Project
       | undefined;
+  };
+
+  const getTask = (id: string) => {
+    const normalizedId = String(id || "").trim();
+    return tasks.find((t) => String(t.id || t._id).trim() === normalizedId);
+  };
+
+  const refreshNotifications = async (userId: string) => {
+    const normalizedUserId = String(userId).trim();
+    if (!normalizedUserId) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/notifications/user/${normalizedUserId}`);
+      if (!response.ok) return;
+      const data = await response.json();
+      setNotifications(data.map((n: any) => ({ ...n, id: n.id || n._id })));
+    } catch (error) {
+      console.error('Unable to refresh notifications', error);
+    }
   };
 
   const getUserProjects = (userId: string): Project[] => {
@@ -931,8 +952,10 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     getTaskAttachments,
     getAttachmentById,
     notifications,
+    getTask,
     markAsRead,
     getUserNotifications,
+    refreshNotifications,
     users,
     getAllUsers,
     updateUserData,

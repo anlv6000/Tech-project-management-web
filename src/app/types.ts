@@ -117,10 +117,14 @@ export interface Notification {
   userId: string;
   title: string;
   message: string;
-  type: 'task' | 'comment' | 'project' | 'system';
+  type: 'task' | 'comment' | 'project' | 'system' | 'invitation' | 'mention';
   isRead: boolean;
   createdAt: string;
   link?: string;
+  relatedEntityId?: string;
+  relatedEntityType?: 'task' | 'project' | 'comment' | 'user';
+  actionLink?: string;
+  data?: Record<string, any>;
 }
 
 export interface AuditLog {
