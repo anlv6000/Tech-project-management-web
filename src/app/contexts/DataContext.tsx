@@ -35,7 +35,7 @@ interface DataContextType {
   getUserProjects: (userId: string) => Project[];
   getAllUserProjects: () => UserProject[];
   refreshProjects: () => Promise<void>;
-  
+
   // UserProjects
   userProjects: UserProject[];
   addUserToProject: (userId: string, projectId: string, role: string) => void;
@@ -82,6 +82,8 @@ interface DataContextType {
   notifications: Notification[];
   markAsRead: (id: string) => void;
   getUserNotifications: (userId: string) => Notification[];
+  refreshNotifications: (userId: string) => Promise<void>;
+  getTask: (id: string) => Task | undefined;
 
   // Users (for admin)
   users: User[];
@@ -221,16 +223,29 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     data: Omit<Project, "id" | "createdAt" | "isArchived">,
   ): Promise<Project> => {
     try {
+      // ✅ Check token và user trong sessionStorage
       const token = sessionStorage.getItem("token");
+      const savedUser = sessionStorage.getItem("currentUser");
+      console.log("[CreateProject] Checking sessionStorage...");
+      console.log("[CreateProject] Token:", token ? "Found" : "Missing");
+      console.log("[CreateProject] CurrentUser:", savedUser ? "Found" : "Missing");
+      if (!token || !savedUser) {
+        console.error("[CreateProject] No active session. Please login again.");
+        throw new Error("No active session. Please login again.");
+      }
+
+      const parsedUser = JSON.parse(savedUser);
+      console.log("[CreateProject] Parsed user:", parsedUser);
+
       const response = await fetch(`${API_BASE_URL}/api/projects`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token && { Authorization: `Bearer ${token}` }),
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           ...data,
-          createdBy: user?.id || user?._id,
+          createdBy: parsedUser.id || parsedUser._id,
         }),
       });
 
@@ -248,14 +263,14 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
       // Add the creator as an Admin in UserProject
       const userProjectData = {
-        userId: user?.id || user?._id,
+        userId: parsedUser.id || parsedUser._id,
         projectId: projectWithId.id || projectWithId._id,
         role: "projectAdmin",
       };
       setUserProjects((prev) => [...prev, userProjectData as any]);
 
       // Create default work units based on methodology
-      createDefaultWorkUnits(projectWithId);
+      await createDefaultWorkUnits(projectWithId);
 
       return projectWithId;
     } catch (error) {
@@ -263,6 +278,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       throw error;
     }
   };
+
 
   const createDefaultWorkUnits = async (project: Project) => {
     let defaultUnits: {
@@ -839,7 +855,24 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       );
   };
+  const getTask = (id: string) => {
+    const normalizedId = String(id || "").trim();
+    return tasks.find((t) => String(t.id || t._id).trim() === normalizedId);
+  };
 
+  const refreshNotifications = async (userId: string) => {
+    const normalizedUserId = String(userId).trim();
+    if (!normalizedUserId) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/notifications/user/${normalizedUserId}`);
+      if (!response.ok) return;
+      const data = await response.json();
+      setNotifications(data.map((n: any) => ({ ...n, id: n.id || n._id })));
+    } catch (error) {
+      console.error('Unable to refresh notifications', error);
+    }
+  };
   // User methods
   const getAllUsers = () => {
     return users.map((user) => ({
@@ -974,6 +1007,8 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     notifications,
     markAsRead,
     getUserNotifications,
+    refreshNotifications,
+    getTask,
     users,
     getAllUsers,
     updateUserData,
