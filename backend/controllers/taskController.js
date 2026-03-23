@@ -230,3 +230,120 @@ export const getSubTasks = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+export const getRelatedTasks = async (req, res) => {
+  try {
+    const { taskId } = req.params;
+
+    const task = await Task.findById(taskId)
+      .populate({
+        path: 'relatedTasks.taskId',
+        populate: [
+          { path: 'assigneeId', select: '-password' },
+          { path: 'createdBy', select: '-password' }
+        ]
+      })
+      .lean();
+
+    if (!task) return res.status(404).json({ message: 'Task not found' });
+
+    res.json(task.relatedTasks || []);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const addRelatedTask = async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { relatedTaskId, type } = req.body;
+
+    if (taskId === relatedTaskId) {
+      return res.status(400).json({ message: 'Cannot relate a task to itself' });
+    }
+
+    const [task, relatedTask] = await Promise.all([
+      Task.findById(taskId),
+      Task.findById(relatedTaskId)
+    ]);
+
+    if (!task || !relatedTask) {
+      return res.status(404).json({ message: 'Task not found' });
+    }
+
+    if (task.projectId.toString() !== relatedTask.projectId.toString()) {
+      return res.status(400).json({
+        message: 'Cannot relate tasks from different projects'
+      });
+    }
+
+    const alreadyLinked = task.relatedTasks?.some(
+      r => r.taskId.toString() === relatedTaskId
+    );
+    if (alreadyLinked) {
+      return res.status(400).json({ message: 'Tasks are already related' });
+    }
+
+    task.relatedTasks.push({ taskId: relatedTaskId, type });
+
+    const inverseType = {
+      blocks: 'blocked_by',
+      blocked_by: 'blocks',
+      relates_to: 'relates_to',
+      duplicates: 'duplicates'
+    }[type] || 'relates_to';
+
+    relatedTask.relatedTasks.push({ taskId: taskId, type: inverseType });
+
+    await Promise.all([task.save(), relatedTask.save()]);
+
+    await createAuditLogFromRequest(req, {
+      action: 'update',
+      entity: 'task',
+      entityId: task._id,
+      details: `${req.user?.fullName || 'User'} linked task ${task.title} → ${relatedTask.title} (${type})`
+    });
+
+    const updated = await Task.findById(taskId).populate({
+      path: 'relatedTasks.taskId',
+      populate: [
+        { path: 'assigneeId', select: '-password' },
+        { path: 'createdBy', select: '-password' }
+      ]
+    });
+
+    res.json(updated.relatedTasks);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+export const removeRelatedTask = async (req, res) => {
+  try {
+    const { taskId, relatedTaskId } = req.params;
+
+    const [task, relatedTask] = await Promise.all([
+      Task.findById(taskId),
+      Task.findById(relatedTaskId)
+    ]);
+
+    if (!task) return res.status(404).json({ message: 'Task not found' });
+
+    // Gỡ 2 chiều
+    task.relatedTasks = task.relatedTasks.filter(
+      r => r.taskId.toString() !== relatedTaskId
+    );
+    await task.save();
+
+    if (relatedTask) {
+      relatedTask.relatedTasks = relatedTask.relatedTasks.filter(
+        r => r.taskId.toString() !== taskId
+      );
+      await relatedTask.save();
+    }
+
+    res.json({ message: 'Relation removed' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
