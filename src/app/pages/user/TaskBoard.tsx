@@ -17,6 +17,8 @@ import {
   Pencil,
 } from "lucide-react";
 
+import RelatedTasks from "../../components/task/RelatedTasks";
+
 import {
   canCreateWorkUnit,
   canCreateTask,
@@ -30,6 +32,7 @@ import {
   canComment,
   canSaveTask,
 } from "./permissions";
+
 
 const ItemType = "TASK";
 
@@ -361,6 +364,7 @@ export default function TaskBoard() {
     addAttachment,
     removeAttachment,
     deleteWorkUnit,
+    getTasksByProject,
   } = useData();
 
   const [showCreateTask, setShowCreateTask] = useState(false);
@@ -1324,6 +1328,16 @@ export default function TaskBoard() {
                     </div>
                   )}
                 </div>
+
+                <RelatedTasks
+                  selectedTask={selectedTask}
+                  projectId={projectId}
+                  isProjectCompleted={isProjectCompleted}
+                  currentProjectRole={currentProjectRole}
+                  currentUserId={currentUserId}
+                  getTasksByProject={getTasksByProject}
+                  onRelatedTaskClick={handleSubTaskClick}
+                />
 
                 <div>
                   <h3 className="font-medium text-gray-900 mb-2">

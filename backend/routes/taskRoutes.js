@@ -15,6 +15,23 @@ router.get("/project/:projectId", taskController.getTasksByProject);
 router.get("/workunit/:workUnitId", taskController.getTasksByWorkUnit);
 router.get("/user/:userId", taskController.getTasksByUserId);
 router.get("/:taskId/subtasks", taskController.getSubTasks);
+router.get('/:taskId/related', taskController.getRelatedTasks);
+
+router.post(
+  '/:taskId/related',
+  authenticateToken,
+  attachTaskToRequest,
+  requireTaskUpdatePermission,
+  taskController.addRelatedTask
+);
+
+router.delete(
+  '/:taskId/related/:relatedTaskId',
+  authenticateToken,
+  attachTaskToRequest,
+  requireTaskUpdatePermission,
+  taskController.removeRelatedTask
+);
 router.get("/:id", taskController.getTaskById);
 
 router.post(
