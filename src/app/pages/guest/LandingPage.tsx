@@ -1,7 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router';
 import { CheckCircle, Users, BarChart3, Zap } from 'lucide-react';
-import { API_BASE_URL } from "../../config/baseApi";
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -16,7 +15,7 @@ export default function LandingPage() {
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <CheckCircle className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xl font-bold">Tech-Task friendly</span>
+              <span className="text-xl font-bold">Tech-Task Friendly</span>
             </div>
             
             <nav className="hidden md:flex items-center gap-8">
@@ -42,14 +41,13 @@ export default function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      <section className="py-20 px-4">
-        <div className="max-w-7xl mx-auto text-center">
+      <section className="py-20 px-4 text-center">
+        <div className="max-w-7xl mx-auto">
           <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-            Manage Projects Your Way
+            Project Management Made Simple
           </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-            Flexible project management supporting Agile, Kanban, and Waterfall methodologies. 
-            Choose the workflow that fits your team best.
+            Track backlog, sprints, tasks, and reports. Built for teams with roles like Admin, PM, Member, and Guest.
           </p>
           <Link to="/register">
             <button className="px-8 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-lg font-medium">
@@ -63,7 +61,7 @@ export default function LandingPage() {
       <section id="features" className="py-20 px-4 bg-white">
         <div className="max-w-7xl mx-auto">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
-            Everything You Need
+            Key Features
           </h2>
           
           <div className="grid md:grid-cols-3 gap-8">
@@ -71,9 +69,9 @@ export default function LandingPage() {
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
                 <Zap className="w-6 h-6 text-blue-600" />
               </div>
-              <h3 className="text-xl font-bold mb-2">Multiple Methodologies</h3>
+              <h3 className="text-xl font-bold mb-2">Agile Backlog</h3>
               <p className="text-gray-600">
-                Support for Agile/Scrum, Kanban, and Waterfall. Switch between methodologies as your project evolves.
+                Plan sprints, manage tasks, and adapt workflows with ease.
               </p>
             </div>
 
@@ -81,9 +79,9 @@ export default function LandingPage() {
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
                 <Users className="w-6 h-6 text-green-600" />
               </div>
-              <h3 className="text-xl font-bold mb-2">Team Collaboration</h3>
+              <h3 className="text-xl font-bold mb-2">Role Management</h3>
               <p className="text-gray-600">
-                Invite team members, assign tasks, track progress, and communicate seamlessly in one place.
+                Invite members, assign roles, and control permissions.
               </p>
             </div>
 
@@ -91,9 +89,9 @@ export default function LandingPage() {
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
                 <BarChart3 className="w-6 h-6 text-purple-600" />
               </div>
-              <h3 className="text-xl font-bold mb-2">Powerful Reports</h3>
+              <h3 className="text-xl font-bold mb-2">Reports & Dashboard</h3>
               <p className="text-gray-600">
-                Burndown charts, Gantt charts, velocity tracking, and more. Get insights into your team's performance.
+                Get clear insights with progress reports and system dashboards.
               </p>
             </div>
           </div>
@@ -101,33 +99,32 @@ export default function LandingPage() {
       </section>
 
       {/* About Section */}
-      <section id="about" className="py-20 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">About Tech Task</h2>
+      <section id="about" className="py-20 px-4 text-center">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-3xl md:text-4xl font-bold mb-6">About Tech-Task Friendly</h2>
           <p className="text-lg text-gray-600 mb-4">
-            Tech Task is a modern project management platform designed to adapt to your team's workflow. 
-            Whether you're running sprints, managing a continuous flow, or following a structured waterfall approach, 
-            we've got you covered.
+            A modern project management platform designed for small teams. 
+            Supports authentication, backlog, tasks, notifications, dashboards, and admin reports.
           </p>
           <p className="text-lg text-gray-600">
-            Built for teams of all sizes, from startups to enterprises.
+            Built to help teams deliver faster and smarter.
           </p>
         </div>
       </section>
 
       {/* Contact Section */}
-      <section id="contact" className="py-20 px-4 bg-white">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">Get in Touch</h2>
+      <section id="contact" className="py-20 px-4 bg-white text-center">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-3xl md:text-4xl font-bold mb-6">Contact Us</h2>
           <p className="text-lg text-gray-600 mb-8">
-            Have questions? We'd love to hear from you.
+            Questions or feedback? We’d love to hear from you.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <div className="text-gray-600">
-              <strong>Email:</strong> contact@Tech Task.demo
+              <strong>Email:</strong> contact@tech-task-friendly.demo
             </div>
             <div className="text-gray-600">
-              <strong>Phone:</strong> +1 (555) 123-4567
+              <strong>Phone:</strong> (+84) 123-456-789
             </div>
           </div>
         </div>
@@ -135,24 +132,22 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="border-t py-8 px-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
-                <CheckCircle className="w-4 h-4 text-white" />
-              </div>
-              <span className="font-bold">Tech Task</span>
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
+              <CheckCircle className="w-4 h-4 text-white" />
             </div>
-            
-            <div className="text-gray-600 text-sm">
-              © 2026 Tech Task. All rights reserved.
-            </div>
+            <span className="font-bold">Tech-Task Friendly</span>
+          </div>
+          
+          <div className="text-gray-600 text-sm">
+            © 2026 Tech-Task Friendly. All rights reserved.
+          </div>
 
-            <div className="flex gap-6">
-              <a href="#" className="text-gray-600 hover:text-gray-900 text-sm">Privacy</a>
-              <a href="#" className="text-gray-600 hover:text-gray-900 text-sm">Terms</a>
-              <a href="#contact" className="text-gray-600 hover:text-gray-900 text-sm">Contact</a>
-            </div>
+          <div className="flex gap-6">
+            <a href="#" className="text-gray-600 hover:text-gray-900 text-sm">Privacy</a>
+            <a href="#" className="text-gray-600 hover:text-gray-900 text-sm">Terms</a>
+            <a href="#contact" className="text-gray-600 hover:text-gray-900 text-sm">Contact</a>
           </div>
         </div>
       </footer>
