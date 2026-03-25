@@ -4,12 +4,10 @@ import { useAuth } from '../../contexts/AuthContext';
 import { CheckCircle, AlertCircle } from 'lucide-react';
 import { useEffect } from 'react';
 import { useData } from '../../contexts/DataContext';
+import { API_BASE_URL } from "../../config/baseApi";
 export default function LoginPage() {
   const navigate = useNavigate();
   const { login, user } = useAuth();
-
-  const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) || 'http://localhost:5000/api';
-  
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -25,7 +23,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/users/auth/login`, {
+      const response = await fetch(`${API_BASE_URL}/api/users/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),

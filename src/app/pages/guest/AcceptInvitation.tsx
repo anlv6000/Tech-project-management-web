@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router';
 import { CheckCircle, XCircle, Loader } from 'lucide-react';
+import { API_BASE_URL } from "../../config/baseApi";
 
 export default function AcceptInvitation() {
   const [searchParams] = useSearchParams();
@@ -19,7 +20,7 @@ export default function AcceptInvitation() {
     // Accept invitation
     const acceptInvitation = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/projects/accept-invitation', {
+        const response = await fetch(`${API_BASE_URL}/api/projects/accept-invitation`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

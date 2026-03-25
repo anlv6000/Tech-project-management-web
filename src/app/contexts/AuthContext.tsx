@@ -1,13 +1,22 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, UserRole } from '../types';
-
-const API_BASE_URL = 'http://localhost:5000/api';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
+import { User, UserRole } from "../types";
+import { API_BASE_URL } from "../config/baseApi";
 
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<boolean>;
-  register: (fullName: string, email: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  register: (
+    fullName: string,
+    email: string,
+    password: string,
+  ) => Promise<boolean>;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
   isAdmin: boolean;
   updateUser: (updates: Partial<User>) => Promise<boolean>;
@@ -19,7 +28,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
+    throw new Error("useAuth must be used within AuthProvider");
   }
   return context;
 };
@@ -34,12 +43,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Load user from sessionStorage on mount
   useEffect(() => {
-    const savedUser = sessionStorage.getItem('currentUser');
+    const savedUser = sessionStorage.getItem("currentUser");
     if (savedUser) {
       try {
         setUser(JSON.parse(savedUser));
       } catch (error) {
-        console.error('Failed to parse saved user:', error);
+        console.error("Failed to parse saved user:", error);
       }
     }
     setLoading(false);
@@ -47,10 +56,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/users/auth/login`, {
-        method: 'POST',
+      const response = await fetch(`${API_BASE_URL}/api/users/auth/login`, {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ email, password }),
       });
@@ -64,23 +73,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Convert MongoDB _id to id for consistency
         const userData = { ...data.user, id: data.user._id || data.user.id };
         setUser(userData as User);
-        sessionStorage.setItem('currentUser', JSON.stringify(userData));
-        sessionStorage.setItem('token', data.token);
+        sessionStorage.setItem("currentUser", JSON.stringify(userData));
+        sessionStorage.setItem("token", data.token);
         return true;
       }
       return false;
     } catch (error) {
-      console.error('Login error:', error);
+      console.error("Login error:", error);
       return false;
     }
   };
 
-  const register = async (fullName: string, email: string, password: string): Promise<boolean> => {
+  const register = async (
+    fullName: string,
+    email: string,
+    password: string,
+  ): Promise<boolean> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/users/auth/register`, {
-        method: 'POST',
+      const response = await fetch(`${API_BASE_URL}/api/users/auth/register`, {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ fullName, email, password }),
       });
@@ -93,20 +106,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (data.user) {
         const userData = { ...data.user, id: data.user._id || data.user.id };
         setUser(userData as User);
-        sessionStorage.setItem('currentUser', JSON.stringify(userData));
+        sessionStorage.setItem("currentUser", JSON.stringify(userData));
         return true;
       }
       return false;
     } catch (error) {
-      console.error('Register error:', error);
+      console.error("Register error:", error);
       return false;
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    sessionStorage.removeItem('currentUser');
-    sessionStorage.removeItem('token');
+  const logout = async () => {
+    try {
+      const token = sessionStorage.getItem("token");
+      if (token && user) {
+        await fetch(`${API_BASE_URL}/api/audit-logs`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            action: "logout",
+            entity: "auth",
+            entityId: user.id || user._id,
+            details: `${user.fullName} logged out`,
+          }),
+        }).catch(() => undefined);
+      }
+    } finally {
+      setUser(null);
+      sessionStorage.removeItem("currentUser");
+      sessionStorage.removeItem("token");
+    }
   };
 
   const updateUser = async (updates: Partial<User>): Promise<boolean> => {
@@ -115,18 +147,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       // ép luôn thành string từ _id
       const userId = user.id ? user.id.toString() : user._id?.toString();
-      const token = sessionStorage.getItem('token');
+      const token = sessionStorage.getItem("token");
 
       console.log("UpdateUser request →");
       console.log("userId:", userId);
       console.log("token:", token);
       console.log("updates:", updates);
 
-      const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
-        method: 'PUT',
+      const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(updates),
       });
@@ -152,14 +184,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // chuẩn hóa lại user object, chỉ giữ id dạng string
       const updatedUser = {
         ...updatedData,
-        id: updatedData._id?.toString() || updatedData.id
+        id: updatedData._id?.toString() || updatedData.id,
       };
 
       setUser(updatedUser as User);
-      sessionStorage.setItem('currentUser', JSON.stringify(updatedUser));
+      sessionStorage.setItem("currentUser", JSON.stringify(updatedUser));
       return true;
     } catch (error: any) {
-      console.error('Update user error:', error);
+      console.error("Update user error:", error);
       throw error;
     }
   };
@@ -171,7 +203,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     register,
     logout,
     isAuthenticated: !!user,
-    isAdmin: user?.role === 'admin',
+    isAdmin: user?.role === "admin",
     updateUser,
     loading,
   };
@@ -179,13 +211,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-
 export const registerUser = async (
   fullName: string,
   email: string,
-  password: string
+  password: string,
 ) => {
-  const res = await fetch(`${API_BASE_URL}/users/auth/register`, {
+  const res = await fetch(`${API_BASE_URL}/api/users/auth/register`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      fullName,
+      email,
+      password,
+    }),
+  });
+
+  return res.json();
+};
+
+export const createUser = async (
+  fullName: string,
+  email: string,
+  password: string,
+) => {
+  const res = await fetch(`${API_BASE_URL}/api/users/auth/create-user`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -201,7 +252,7 @@ export const registerUser = async (
 };
 
 export const verifyOtp = async (email: string, otp: string) => {
-  const res = await fetch(`${API_BASE_URL}/users/auth/verify-otp`, {
+  const res = await fetch(`${API_BASE_URL}/api/users/auth/verify-otp`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -216,7 +267,7 @@ export const verifyOtp = async (email: string, otp: string) => {
 };
 
 export const resendOtp = async (email: string) => {
-  const res = await fetch(`${API_BASE_URL}/users/auth/resend-otp`, {
+  const res = await fetch(`${API_BASE_URL}/api/users/auth/resend-otp`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

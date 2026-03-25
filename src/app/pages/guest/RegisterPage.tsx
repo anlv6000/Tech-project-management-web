@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuth, registerUser, verifyOtp, resendOtp } from "../../contexts/AuthContext";
-
+import { createUser } from '../../contexts/AuthContext';
+import { API_BASE_URL } from "../../config/baseApi";
 export default function RegisterPage() {
   const navigate = useNavigate();
   const { register } = useAuth();
@@ -81,7 +82,6 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!validate()) return;
 
     const res = await registerUser(
@@ -90,29 +90,44 @@ export default function RegisterPage() {
       formData.password
     );
 
+
     if (res.success) {
       setEmailForOtp(formData.email);
       setStep('otp');
       setCountdown(30);
       setCanResend(false);
+
+      // lưu tạm thông tin để tạo user sau khi verify
+      localStorage.setItem("pendingUser", JSON.stringify(formData));
     } else {
       setErrors({ email: res.message });
     }
   };
 
+
   const handleVerifyOtp = async () => {
     const res = await verifyOtp(emailForOtp, otp);
 
     if (res.success) {
-      setSuccess(true);
+      const pendingUser = JSON.parse(localStorage.getItem("pendingUser") || "{}");
+      const createRes = await createUser(
+        pendingUser.fullName,
+        pendingUser.email,
+        pendingUser.password
+      );
 
-      setTimeout(() => {
-        navigate("/login");
-      }, 1500);
+      if (createRes.success) {
+        localStorage.removeItem("pendingUser");
+        setSuccess(true);
+        setTimeout(() => navigate("/login"), 1500);
+      } else {
+        alert(createRes.message);
+      }
     } else {
       alert(res.message);
     }
   };
+
 
   const handleResendOtp = async () => {
     if (!canResend) return;
@@ -318,8 +333,8 @@ export default function RegisterPage() {
                   onClick={handleVerifyOtp}
                   disabled={otp.length !== 6}
                   className={`w-full py-3 rounded-lg text-white ${otp.length === 6
-                      ? "bg-blue-600 hover:bg-blue-700"
-                      : "bg-gray-400 cursor-not-allowed"
+                    ? "bg-blue-600 hover:bg-blue-700"
+                    : "bg-gray-400 cursor-not-allowed"
                     }`}
                 >
                   Verify OTP

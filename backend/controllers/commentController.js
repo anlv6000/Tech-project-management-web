@@ -1,12 +1,15 @@
-import Comment from '../models/Comment.js';
-import mongoose from 'mongoose';
+import Comment from "../models/Comment.js";
+import mongoose from "mongoose";
+import { createAuditLogFromRequest } from "../utils/auditLogger.js";
 
 export const getTaskComments = async (req, res) => {
   try {
     const { taskId } = req.params;
     const comments = await Comment.find({ taskId })
-      .populate('userId', '-password')
-      .sort('createdAt').lean();
+      .populate("userId", "-password")
+      .sort("createdAt")
+      .lean();
+
     res.json(comments);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -15,9 +18,13 @@ export const getTaskComments = async (req, res) => {
 
 export const getCommentById = async (req, res) => {
   try {
-    const comment = await Comment.findById(req.params.id)
-      .populate('userId', '-password');
-    if (!comment) return res.status(404).json({ message: 'Comment not found' });
+    const comment = await Comment.findById(req.params.id).populate(
+      "userId",
+      "-password",
+    );
+
+    if (!comment) return res.status(404).json({ message: "Comment not found" });
+
     res.json(comment);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -26,19 +33,29 @@ export const getCommentById = async (req, res) => {
 
 export const createComment = async (req, res) => {
   try {
-    const { taskId, userId, content, parentId } = req.body;
-    
+    const { taskId, content, parentId } = req.body;
+
     const comment = new Comment({
       _id: new mongoose.Types.ObjectId(),
       taskId: new mongoose.Types.ObjectId(taskId),
-      userId: new mongoose.Types.ObjectId(userId),
+      userId: new mongoose.Types.ObjectId(req.user._id),
       content,
-      parentId: parentId ? new mongoose.Types.ObjectId(parentId) : null
+      parentId: parentId ? new mongoose.Types.ObjectId(parentId) : null,
     });
 
     const saved = await comment.save();
-    const populated = await Comment.findById(saved._id).populate('userId', '-password');
-    
+    const populated = await Comment.findById(saved._id).populate(
+      "userId",
+      "-password",
+    );
+
+    await createAuditLogFromRequest(req, {
+      action: "create",
+      entity: "comment",
+      entityId: populated._id,
+      details: `${req.user?.fullName || "User"} added a comment`,
+    });
+
     res.status(201).json(populated);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -48,14 +65,22 @@ export const createComment = async (req, res) => {
 export const updateComment = async (req, res) => {
   try {
     const { content } = req.body;
-    
+
     const updated = await Comment.findByIdAndUpdate(
       req.params.id,
       { content },
-      { new: true }
-    ).populate('userId', '-password');
-    
-    if (!updated) return res.status(404).json({ message: 'Comment not found' });
+      { new: true },
+    ).populate("userId", "-password");
+
+    if (!updated) return res.status(404).json({ message: "Comment not found" });
+
+    await createAuditLogFromRequest(req, {
+      action: "update",
+      entity: "comment",
+      entityId: updated._id,
+      details: `${req.user?.fullName || "User"} updated a comment`,
+    });
+
     res.json(updated);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -65,8 +90,17 @@ export const updateComment = async (req, res) => {
 export const deleteComment = async (req, res) => {
   try {
     const comment = await Comment.findByIdAndDelete(req.params.id);
-    if (!comment) return res.status(404).json({ message: 'Comment not found' });
-    res.json({ message: 'Comment deleted' });
+
+    if (!comment) return res.status(404).json({ message: "Comment not found" });
+
+    await createAuditLogFromRequest(req, {
+      action: "delete",
+      entity: "comment",
+      entityId: comment._id,
+      details: `${req.user?.fullName || "User"} deleted a comment`,
+    });
+
+    res.json({ message: "Comment deleted" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router';
 import { useAuth } from '../../contexts/AuthContext';
+import { API_BASE_URL } from "../../config/baseApi";
 import {
   CheckCircle,
   LayoutDashboard,

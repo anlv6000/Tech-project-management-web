@@ -4,7 +4,7 @@ import nodemailer from "nodemailer";
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-
+import { createAuditLogFromRequest } from "../utils/auditLogger.js";
 
 export const getAllUsers = async (req, res) => {
   try {
@@ -30,7 +30,7 @@ export const createUser = async (req, res) => {
 
   try {
     const existingUser = await User.findOne({ email });
-    if (existingUser && existingUser.isActive) {
+    if (existingUser) {
       return res.status(400).json({ message: "Email already exists" });
     }
 
@@ -41,13 +41,14 @@ export const createUser = async (req, res) => {
       password,
       role: role || "user",
       avatar: avatar || null,
+      isActive: true,
     });
 
     const savedUser = await user.save();
     const userResponse = savedUser.toObject();
     delete userResponse.password;
 
-    res.status(201).json(userResponse);
+    res.status(201).json({ success: true, user: userResponse });
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -55,39 +56,56 @@ export const createUser = async (req, res) => {
 
 export const updateUser = async (req, res) => {
   try {
-    console.log("req.user:", req.user);
-    console.log("req.user._id:", req.user?._id?.toString());
-    console.log("req.params.id:", req.params.id);
+    const currentUserId = String(
+      req.user?.userId || req.user?._id || req.user?.id || "",
+    );
+    const targetUserId = String(req.params.id);
+    const isAdmin = req.user?.role === "admin";
+    const isSelf = currentUserId === targetUserId;
 
-    // chỉ cho phép chính chủ sửa hồ sơ
-    if (!req.user || req.user._id.toString() !== req.params.id) {
+    if (!isAdmin && !isSelf) {
       return res.status(403).json({ message: "Forbidden" });
     }
-
 
     const { fullName, avatar, isActive, email } = req.body;
 
     const updateData = {};
     if (fullName !== undefined) updateData.fullName = fullName;
     if (avatar !== undefined) updateData.avatar = avatar;
-    if (isActive !== undefined) updateData.isActive = isActive;
+
     if (email !== undefined) {
-      const existingUser = await User.findOne({ email, _id: { $ne: req.params.id } });
+      const existingUser = await User.findOne({
+        email,
+        _id: { $ne: req.params.id },
+      });
       if (existingUser) {
-        return res.status(409).json({ message: "Email đã tồn tại" });
+        return res.status(409).json({ message: "Email already exists" });
       }
       updateData.email = email;
+    }
+
+    if (isAdmin && isActive !== undefined) {
+      updateData.isActive = isActive;
     }
 
     const updatedUser = await User.findByIdAndUpdate(
       req.params.id,
       updateData,
-      { new: true, runValidators: true }
-    ).select("-password").lean();
+      { new: true, runValidators: true },
+    )
+      .select("-password")
+      .lean();
 
     if (!updatedUser) {
-      return res.status(404).json({ message: "User không tồn tại" });
+      return res.status(404).json({ message: "User not found" });
     }
+
+    await createAuditLogFromRequest(req, {
+      action: "update",
+      entity: "user",
+      entityId: updatedUser._id,
+      details: `${req.user?.fullName || "User"} updated user ${updatedUser.fullName}`,
+    });
 
     res.json(updatedUser);
   } catch (error) {
@@ -102,6 +120,13 @@ export const deleteUser = async (req, res) => {
   try {
     const user = await User.findByIdAndDelete(req.params.id);
     if (!user) return res.status(404).json({ message: "User not found" });
+    await createAuditLogFromRequest(req, {
+      action: "delete",
+      entity: "user",
+      entityId: user._id,
+      details: `${req.user?.fullName || "User"} deleted user ${user.fullName}`,
+    });
+
     res.json({ message: "User deleted" });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -137,6 +162,14 @@ export const loginUser = async (req, res) => {
     const userResponse = user.toObject();
     delete userResponse.password;
 
+    await createAuditLogFromRequest(req, {
+      userId: user._id,
+      action: "login",
+      entity: "auth",
+      entityId: user._id,
+      details: `${user.fullName} logged in`,
+    });
+
     res.json({ success: true, user: userResponse, token });
   } catch (error) {
     res.status(500).json({ message: "Không kết nối được với server" });
@@ -145,71 +178,44 @@ export const loginUser = async (req, res) => {
 
 export const registerUser = async (req, res) => {
   try {
-    const { email, fullName, password } = req.body;
+    const { email } = req.body;
 
     const existingUser = await User.findOne({ email });
-    if (existingUser && existingUser.isActive) {
+    if (existingUser) {
       return res.status(400).json({ message: "Email already exists" });
     }
 
     const existingOtp = await Otp.findOne({ email });
-
     if (existingOtp && existingOtp.resendAfter > Date.now()) {
       return res.status(429).json({
-        message: "Please wait 30 seconds before requesting another OTP"
+        message: "Please wait 30 seconds before requesting another OTP",
       });
     }
 
-    // tạo OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
     await Otp.deleteMany({ email });
-
     await Otp.create({
       email,
       otp,
       attempts: 0,
       resendAfter: new Date(Date.now() + 30 * 1000),
-      expiresAt: new Date(Date.now() + 5 * 60 * 1000)
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
     });
 
-    // tạo user nhưng chưa verify
-    const user = new User({
-      _id: new mongoose.Types.ObjectId(),
-      email,
-      fullName,
-      password,
-      role: "user",
-      isActive: false
-    });
-
-    const savedUser = await user.save();
-
-    // gửi email OTP
     const transporter = nodemailer.createTransport({
       service: "gmail",
-      auth: {
-        user: process.env.EMAIL,
-        pass: process.env.EMAIL_PASS
-      }
+      auth: { user: process.env.EMAIL, pass: process.env.EMAIL_PASS },
     });
 
     await transporter.sendMail({
       from: process.env.EMAIL,
       to: email,
       subject: "OTP Verification",
-      text: `Your OTP code is: ${otp}`
+      text: `Your OTP code is: ${otp}`,
     });
 
-    const userResponse = savedUser.toObject();
-    delete userResponse.password;
-
-    res.status(201).json({
-      success: true,
-      message: "User created. Please verify OTP sent to email.",
-      user: userResponse
-    });
-
+    res.json({ success: true, message: "OTP sent to email" });
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -362,6 +368,13 @@ export const changePassword = async (req, res) => {
     user.password = newPassword;
     await user.save();
 
+    await createAuditLogFromRequest(req, {
+      action: "update",
+      entity: "user",
+      entityId: user._id,
+      details: `${req.user?.fullName || "User"} changed password`,
+    });
+
     res.json({ message: "Password updated successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -379,7 +392,91 @@ export const resetPassword = async (req, res) => {
     user.password = newPassword; // middleware sẽ tự hash
     await user.save();
 
+    await createAuditLogFromRequest(req, {
+      action: "update",
+      entity: "user",
+      entityId: user._id,
+      details: `${req.user?.fullName || "Admin"} reset password for ${user.fullName}`,
+    });
+
     res.json({ message: "Password reset successfully by admin" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Gửi OTP cho forgot password
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: "Email không tồn tại" });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    await Otp.deleteMany({ email });
+    await Otp.create({
+      email,
+      otp,
+      attempts: 0,
+      resendAfter: new Date(Date.now() + 30 * 1000),
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+    });
+
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: { user: process.env.EMAIL, pass: process.env.EMAIL_PASS },
+    });
+
+    await transporter.sendMail({
+      from: process.env.EMAIL,
+      to: email,
+      subject: "Forgot Password OTP",
+      text: `Your OTP code is: ${otp}`,
+    });
+
+    res.json({ success: true, message: "OTP sent to email" });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// Verify OTP cho forgot password
+export const verifyResetOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    const record = await Otp.findOne({ email });
+
+    if (!record)
+      return res.status(400).json({ message: "OTP expired or not found" });
+    if (record.otp !== otp) {
+      record.attempts += 1;
+      await record.save();
+      return res.status(400).json({ message: "Incorrect OTP" });
+    }
+
+    await Otp.deleteOne({ email });
+    res.json({ success: true, message: "OTP verified" });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// Reset mật khẩu sau khi verify OTP
+export const forgotResetPassword = async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    user.password = newPassword; // middleware sẽ tự hash
+    await user.save();
+
+    res.json({ success: true, message: "Password reset successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { FolderKanban, ListTodo, Clock, TrendingUp, ArrowRight } from 'lucide-react';
 import { Task } from '../../types';
+import { API_BASE_URL } from "../../config/baseApi";
 export default function Dashboard() {
   const { user } = useAuth();
   const { getUserProjects, tasks, getTasksByProject, getUserNotifications } = useData();

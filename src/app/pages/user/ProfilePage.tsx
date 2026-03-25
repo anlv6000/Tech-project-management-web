@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { User, Lock, Mail, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
-
+import { User, Lock, Mail, AlertCircle, CheckCircle } from 'lucide-react';
+import { API_BASE_URL } from "../../config/baseApi";
 
 export default function ProfilePage() {
   const { user, updateUser } = useAuth();
@@ -19,44 +19,50 @@ export default function ProfilePage() {
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [avatarPreview, setAvatarPreview] = useState<string | null>(user?.avatar || null);
-  const [profileError, setProfileError] = useState<string | null>(null);
 
   if (!user) return null;
 
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setProfileError(null);
-    try {
-      await updateUser({
-        fullName: profileData.fullName,
-        email: profileData.email,
-      });
-      setProfileSuccess(true);
-      setTimeout(() => setProfileSuccess(false), 3000);
-    } catch (err: any) {
-      setProfileError(err.message);
+    updateUser({
+      fullName: profileData.fullName,
+      email: profileData.email,
+    });
+    setProfileSuccess(true);
+    setTimeout(() => setProfileSuccess(false), 3000);
+  };
+
+const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const token = sessionStorage.getItem("token");
+
+  const formData = new FormData();
+  formData.append("avatar", file);
+
+  try {
+    const res = await fetch(
+      `${API_BASE_URL}/api/users/${user.id}/avatar`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      }
+    );
+
+    const data = await res.json();
+
+    if (res.ok) {
+      setAvatarPreview(`${API_BASE_URL}${data.avatar}`);
+      updateUser({ avatar: data.avatar });
     }
-  };
-
-
-
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-
-    reader.onloadend = () => {
-      const base64 = reader.result as string;
-      setAvatarPreview(base64);
-
-      updateUser({
-        avatar: base64
-      });
-    };
-
-    reader.readAsDataURL(file);
-  };
+  } catch (error) {
+    console.error(error);
+  }
+};
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,7 +81,7 @@ export default function ProfilePage() {
     }
 
     try {
-      const res = await fetch(`http://localhost:5000/api/users/${user.id}/change-password`, {
+      const res = await fetch(`${API_BASE_URL}/api/users/${user.id}/change-password`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -155,13 +161,6 @@ export default function ProfilePage() {
                   </div>
                 )}
 
-                {profileError && (
-                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
-                    <XCircle className="w-5 h-5 text-red-600 mt-0.5" />
-                    <p className="text-red-800">{profileError}</p>
-                  </div>
-                )}
-
                 {/* FULLNAME */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -191,8 +190,6 @@ export default function ProfilePage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-
-
                 <button
                   type="submit"
                   className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -206,11 +203,8 @@ export default function ProfilePage() {
               {/* RIGHT - AVATAR */}
               <div className="flex flex-1 flex-col items-center justify-center gap-4">
                 <img
-                  src={
-                    avatarPreview ||
-                    `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullName)}`
-                  }
-                  alt="avatar"
+                  src={`${API_BASE_URL}${user.avatar}`}
+                   alt={user.fullName}
                   className="w-32 h-32 rounded-full object-cover border"
                 />
 

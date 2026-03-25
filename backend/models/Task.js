@@ -27,7 +27,17 @@ const taskSchema = new mongoose.Schema({
     default: 'parent'
   },
   createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
+  updatedAt: { type: Date, default: Date.now },
+  relatedTasks: [
+  {
+    taskId: { type: mongoose.Schema.Types.ObjectId, ref: 'Task', required: true },
+    type: {
+      type: String,
+      enum: ['blocks', 'blocked_by', 'relates_to', 'duplicates'],
+      default: 'relates_to'
+    }
+  }
+]
 });
 
 taskSchema.set('toJSON', {
