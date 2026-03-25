@@ -32,11 +32,19 @@ export default function ProjectList() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
     null,
   );
+  const getTodayDate = () => {
+    const today = new Date();
+    const offset = today.getTimezoneOffset();
+    const localDate = new Date(today.getTime() - offset * 60 * 1000);
+    return localDate.toISOString().split("T")[0];
+  };
+
+  const todayDate = getTodayDate();
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     methodology: "agile" as Methodology,
-    startDate: "",
+    startDate: todayDate,
     endDate: "",
   });
   const [inviteData, setInviteData] = useState({
@@ -53,7 +61,7 @@ export default function ProjectList() {
     <option value="pm">Project Manager</option>
     <option value="member">Member</option>
     <option value="viewer">Viewer</option>
-  </select>
+  </select>;
 
   const [userSuggestions, setUserSuggestions] = useState<any[]>([]);
   const [inviteLoading, setInviteLoading] = useState(false);
@@ -83,13 +91,36 @@ export default function ProjectList() {
     setCreateError("");
     setCreateSuccess(false);
 
+    const todayDate = getTodayDate();
+
     // Validation
     if (!formData.name.trim()) {
       setCreateError("Project name is required");
       return;
     }
+
     if (!formData.description.trim()) {
       setCreateError("Project description is required");
+      return;
+    }
+
+    if (formData.startDate !== todayDate) {
+      setCreateError("Start date must be today");
+      return;
+    }
+
+    if (!formData.endDate) {
+      setCreateError("End date is required");
+      return;
+    }
+
+    if (formData.endDate < todayDate) {
+      setCreateError("End date cannot be in the past");
+      return;
+    }
+
+    if (formData.endDate < formData.startDate) {
+      setCreateError("End date cannot be earlier than start date");
       return;
     }
 
@@ -124,7 +155,7 @@ export default function ProjectList() {
           name: "",
           description: "",
           methodology: "agile",
-          startDate: "",
+          startDate: getTodayDate(),
           endDate: "",
         });
         setCreateSuccess(false);
@@ -152,9 +183,7 @@ export default function ProjectList() {
     try {
       const isEmail = input.includes("@");
       const query = isEmail ? `email=${input}` : `fullName=${input}`;
-      const response = await fetch(
-        `${API_BASE_URL}/api/users/search?${query}`,
-      );
+      const response = await fetch(`${API_BASE_URL}/api/users/search?${query}`);
 
       if (response.ok) {
         const users = await response.json();
@@ -176,10 +205,10 @@ export default function ProjectList() {
         typeof userOrEmail === "string"
           ? { email: userOrEmail, role: inviteData.role }
           : {
-            fullName: userOrEmail.fullName || userOrEmail.name,
-            email: userOrEmail.email,
-            role: inviteData.role,
-          };
+              fullName: userOrEmail.fullName || userOrEmail.name,
+              email: userOrEmail.email,
+              role: inviteData.role,
+            };
 
       const response = await fetch(
         `${API_BASE_URL}/api/projects/${selectedProjectId}/invite`,
@@ -406,10 +435,8 @@ export default function ProjectList() {
                   <input
                     type="date"
                     value={formData.startDate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, startDate: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed"
                     required
                   />
                 </div>
@@ -421,6 +448,7 @@ export default function ProjectList() {
                   <input
                     type="date"
                     value={formData.endDate}
+                    min={todayDate}
                     onChange={(e) =>
                       setFormData({ ...formData, endDate: e.target.value })
                     }
@@ -433,7 +461,13 @@ export default function ProjectList() {
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
-                  onClick={() => setShowCreateModal(false)}
+                  onClick={() => {
+                    setFormData((prev) => ({
+                      ...prev,
+                      startDate: getTodayDate(),
+                    }));
+                    setShowCreateModal(true);
+                  }}
                   disabled={isCreatingProject}
                   className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
