@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuth, registerUser, verifyOtp, resendOtp } from "../../contexts/AuthContext";
-import { createUser } from '../../contexts/AuthContext';
-import { API_BASE_URL } from "../../config/baseApi";
 export default function RegisterPage() {
   const navigate = useNavigate();
   const { register } = useAuth();
@@ -96,9 +94,6 @@ export default function RegisterPage() {
       setStep('otp');
       setCountdown(30);
       setCanResend(false);
-
-      // lưu tạm thông tin để tạo user sau khi verify
-      localStorage.setItem("pendingUser", JSON.stringify(formData));
     } else {
       setErrors({ email: res.message });
     }
@@ -109,20 +104,8 @@ export default function RegisterPage() {
     const res = await verifyOtp(emailForOtp, otp);
 
     if (res.success) {
-      const pendingUser = JSON.parse(localStorage.getItem("pendingUser") || "{}");
-      const createRes = await createUser(
-        pendingUser.fullName,
-        pendingUser.email,
-        pendingUser.password
-      );
-
-      if (createRes.success) {
-        localStorage.removeItem("pendingUser");
-        setSuccess(true);
-        setTimeout(() => navigate("/login"), 1500);
-      } else {
-        alert(createRes.message);
-      }
+      setSuccess(true);
+      setTimeout(() => navigate("/login"), 1500);
     } else {
       alert(res.message);
     }

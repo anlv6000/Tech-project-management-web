@@ -114,6 +114,8 @@ export const updateUser = async (req, res) => {
   }
 };
 
+
+
 export const deleteUser = async (req, res) => {
   try {
     const user = await User.findByIdAndDelete(req.params.id);
@@ -176,11 +178,52 @@ export const loginUser = async (req, res) => {
 
 export const registerUser = async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, fullName, password } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ message: "Email already exists" });
+      if (existingUser.isActive) {
+        return res.status(400).json({ message: "Email already exists" });
+      } else {
+        // User exists but not active, resend OTP
+        const existingOtp = await Otp.findOne({ email });
+        if (existingOtp && existingOtp.resendAfter > Date.now()) {
+          return res.status(429).json({
+            message: "Please wait 30 seconds before requesting another OTP",
+          });
+        }
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+        await Otp.deleteMany({ email });
+        await Otp.create({
+          email,
+          otp,
+          attempts: 0,
+          resendAfter: new Date(Date.now() + 30 * 1000),
+          expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+        });
+
+        // Update user expiresAt
+        await User.updateOne(
+          { email },
+          { expiresAt: new Date(Date.now() + 15 * 60 * 1000) }
+        );
+
+        const transporter = nodemailer.createTransport({
+          service: "gmail",
+          auth: { user: process.env.EMAIL, pass: process.env.EMAIL_PASS },
+        });
+
+        await transporter.sendMail({
+          from: process.env.EMAIL,
+          to: email,
+          subject: "OTP Verification",
+          text: `Your OTP code is: ${otp}`,
+        });
+
+        return res.json({ success: true, message: "OTP resent to email" });
+      }
     }
 
     const existingOtp = await Otp.findOne({ email });
@@ -189,6 +232,23 @@ export const registerUser = async (req, res) => {
         message: "Please wait 30 seconds before requesting another OTP",
       });
     }
+
+    // Hash password
+    // const hashedPassword = await bcrypt.hash(password, 10); // Removed, model handles hashing
+
+    // Create user with isActive = false and expiresAt = 15 minutes
+    const user = new User({
+      _id: new mongoose.Types.ObjectId(),
+      email,
+      fullName,
+      password, // Model will hash it
+      role: "user",
+      avatar: null,
+      isActive: false,
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
+    });
+
+    await user.save();
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -219,21 +279,63 @@ export const registerUser = async (req, res) => {
   }
 };
 
+
 export const verifyOtp = async (req, res) => {
   try {
+
     const { email, otp } = req.body;
+
     const record = await Otp.findOne({ email });
 
-    if (!record)
-      return res.status(400).json({ message: "OTP expired or not found" });
-    if (record.otp !== otp) {
-      record.attempts += 1;
-      await record.save();
-      return res.status(400).json({ message: "Incorrect OTP" });
+    if (!record) {
+      return res.status(400).json({
+        message: "OTP expired or not found"
+      });
     }
 
+    if (record.attempts >= 5) {
+      await Otp.deleteOne({ email });
+
+      return res.status(403).json({
+        message: "Too many incorrect attempts"
+      });
+    }
+
+    if (record.otp !== otp) {
+
+      record.attempts += 1;
+      await record.save();
+
+      return res.status(400).json({
+        message: `Incorrect OTP (${record.attempts}/5)`
+      });
+    }
+
+    // OTP đúng → kích hoạt user
+    await User.updateOne(
+      { email },
+      { isActive: true, expiresAt: null }
+    );
+
+    // Get the activated user
+    const activatedUser = await User.findOne({ email }).select("-password");
+
+    // Generate token
+    const token = jwt.sign(
+      { userId: activatedUser._id, email: activatedUser.email, role: activatedUser.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
     await Otp.deleteOne({ email });
-    res.json({ success: true, message: "OTP verified" });
+
+    res.json({
+      success: true,
+      message: "Email verified successfully",
+      user: activatedUser,
+      token
+    });
+
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -241,19 +343,20 @@ export const verifyOtp = async (req, res) => {
 
 export const resendOtp = async (req, res) => {
   try {
+
     const { email } = req.body;
 
     const record = await Otp.findOne({ email });
 
     if (!record) {
       return res.status(404).json({
-        message: "OTP not found. Please register again.",
+        message: "OTP not found. Please register again."
       });
     }
 
     if (record.resendAfter > Date.now()) {
       return res.status(429).json({
-        message: "Please wait 30 seconds before requesting another OTP",
+        message: "Please wait 30 seconds before requesting another OTP"
       });
     }
 
@@ -266,32 +369,34 @@ export const resendOtp = async (req, res) => {
       otp,
       attempts: 0,
       resendAfter: new Date(Date.now() + 30 * 1000),
-      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000)
     });
 
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
         user: process.env.EMAIL,
-        pass: process.env.EMAIL_PASS,
-      },
+        pass: process.env.EMAIL_PASS
+      }
     });
 
     await transporter.sendMail({
       from: process.env.EMAIL,
       to: email,
       subject: "Resend OTP Verification",
-      text: `Your new OTP code is: ${otp}`,
+      text: `Your new OTP code is: ${otp}`
     });
 
     res.json({
       success: true,
-      message: "OTP resent successfully",
+      message: "OTP resent successfully"
     });
+
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 };
+
 
 export const searchUsers = async (req, res) => {
   try {

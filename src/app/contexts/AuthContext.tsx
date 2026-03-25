@@ -16,6 +16,7 @@ interface AuthContextType {
     email: string,
     password: string,
   ) => Promise<boolean>;
+  verifyOtp: (email: string, otp: string) => Promise<{ success: boolean; user?: User; token?: string }>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
   isAdmin: boolean;
@@ -103,16 +104,43 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       const data = await response.json();
-      if (data.user) {
-        const userData = { ...data.user, id: data.user._id || data.user.id };
-        setUser(userData as User);
-        sessionStorage.setItem("currentUser", JSON.stringify(userData));
+      if (data.success) {
+        // User created but not active, proceed to OTP verification
         return true;
       }
       return false;
     } catch (error) {
       console.error("Register error:", error);
       return false;
+    }
+  };
+
+  const verifyOtp = async (email: string, otp: string): Promise<{ success: boolean; user?: User; token?: string }> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/users/auth/verify-otp`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, otp }),
+      });
+
+      if (!response.ok) {
+        return { success: false };
+      }
+
+      const data = await response.json();
+      if (data.success && data.user && data.token) {
+        const userData = { ...data.user, id: data.user._id || data.user.id };
+        setUser(userData as User);
+        sessionStorage.setItem("currentUser", JSON.stringify(userData));
+        sessionStorage.setItem("token", data.token);
+        return { success: true, user: userData as User, token: data.token };
+      }
+      return { success: false };
+    } catch (error) {
+      console.error("Verify OTP error:", error);
+      return { success: false };
     }
   };
 
@@ -196,10 +224,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+
   const value: AuthContextType = {
     user,
     login,
     register,
+    verifyOtp,
     logout,
     isAuthenticated: !!user,
     isAdmin: user?.role === "admin",

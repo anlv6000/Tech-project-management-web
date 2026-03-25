@@ -53,4 +53,20 @@ router.delete(
   deleteAttachment,
 );
 
+// 🔥 Attachments theo project
+router.get('/project/:projectId', async (req, res) => {
+  try {
+    const projectId = req.params.projectId;
+    const tasks = await Task.find({ projectId: new mongoose.Types.ObjectId(projectId) });
+    const taskIds = tasks.map(t => t._id);
+    const attachments = await Attachment.find({ taskId: { $in: taskIds } })
+      .populate('uploadedBy', '-password')
+      .sort('-uploadedAt')
+      .lean();
+    res.json(attachments);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 export default router;

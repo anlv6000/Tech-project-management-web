@@ -14,7 +14,6 @@ export const getTasksByProject = async (req, res) => {
       .populate("createdBy", "-password")
       .sort("-createdAt")
       .lean();
-
     res.json(tasks);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -29,7 +28,6 @@ export const getTasksByWorkUnit = async (req, res) => {
       .populate("createdBy", "-password")
       .sort("order")
       .lean();
-
     res.json(tasks);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -224,7 +222,6 @@ export const getSubTasks = async (req, res) => {
       .populate("createdBy", "-password")
       .sort("order")
       .lean();
-
     res.json(subTasks);
   } catch (error) {
     res.status(500).json({ message: error.message });

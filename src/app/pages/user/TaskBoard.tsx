@@ -408,7 +408,7 @@ export default function TaskBoard() {
     if (projectId && projectId !== "undefined") {
       loadProjectData(projectId);
     }
-  }, [projectId, loadProjectData]);
+  }, [projectId]);
 
   const project = getProject(projectId);
   const isProjectCompleted = project?.isCompleted || false;
@@ -603,6 +603,7 @@ export default function TaskBoard() {
   };
 
   const handleAddAttachment = async (file: File) => {
+    console.log("handleAddAttachment called with:", file.name);
     if (!selectedTask || !user) return;
 
     if (!currentProjectRole || !canUploadAttachment(currentProjectRole)) {
@@ -699,6 +700,7 @@ export default function TaskBoard() {
       order: tasksInUnit.length,
       type: "parent",
     });
+
 
     setShowCreateTask(false);
     setNewTaskTitle("");
@@ -941,6 +943,36 @@ export default function TaskBoard() {
                       className="w-full px-3 py-2 border rounded mb-4"
                     />
 
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => setShowSprintModal(false)}
+                        className="px-4 py-2 bg-gray-300 rounded"
+                      >
+                        Hủy
+                      </button>
+                      <button
+                        onClick={handleCreateSprint}
+                        className="px-4 py-2 bg-blue-600 text-white rounded"
+                      >
+                        Tạo Sprint
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {showSprintModal && (
+                <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
+                  <div className="bg-white p-6 rounded-lg shadow-lg w-[400px] bg-opacity-90">
+                    <h2 className="text-lg font-semibold mb-4">
+                      Tạo Sprint mới
+                    </h2>
+                    <input
+                      type="text"
+                      value={sprintName}
+                      onChange={(e) => setSprintName(e.target.value)}
+                      placeholder="Nhập tên sprint"
+                      className="w-full px-3 py-2 border rounded mb-4"
+                    />
                     <div className="flex justify-end gap-2">
                       <button
                         onClick={() => setShowSprintModal(false)}

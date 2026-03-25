@@ -22,7 +22,7 @@ export default function ProfilePage() {
 
   if (!user) return null;
 
-  const handleProfileSubmit = (e: React.FormEvent) => {
+  const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     updateUser({
       fullName: profileData.fullName,

@@ -496,6 +496,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         });
       }
 
+      // WorkUnits
       if (workUnitsRes.ok) {
         const workUnitsData = await workUnitsRes.json();
         setWorkUnits((prev: any[]) => {
@@ -711,7 +712,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       .filter(
         (t) =>
           String(t.workUnitId || "").trim() === normalizedWorkUnitId &&
-          t.type !== "subtask", // 👈 loại bỏ subtasks khỏi column
+          t.type !== "subtask", 
       )
       .sort((a, b) => a.order - b.order);
   };
@@ -767,9 +768,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
   const getTaskAttachments = (taskId: string) => {
     const normalizedTaskId = String(taskId).trim();
-    return attachments.filter(
-      (a) => String(a.taskId || "").trim() === normalizedTaskId,
-    );
+    return attachments.filter(a => String(a.taskId || '').trim() === normalizedTaskId);
   };
 
   // Attachment methods

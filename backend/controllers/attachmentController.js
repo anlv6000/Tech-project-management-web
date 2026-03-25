@@ -109,6 +109,7 @@ export const createAttachment = async (req, res) => {
   });
 };
 
+
 export const deleteAttachment = async (req, res) => {
   try {
     const attachment = await Attachment.findByIdAndDelete(req.params.id);
