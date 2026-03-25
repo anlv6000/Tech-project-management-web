@@ -45,47 +45,47 @@ const isSystemAdmin = (req) => req.user?.role === "admin";
 
 export const requireProjectRole =
   (allowedRoles = [], projectIdResolver) =>
-  async (req, res, next) => {
-    try {
-      if (isSystemAdmin(req)) {
-        return next();
+    async (req, res, next) => {
+      try {
+        if (isSystemAdmin(req)) {
+          return next();
+        }
+
+        const resolvedProjectId = projectIdResolver
+          ? await projectIdResolver(req)
+          : req.params.projectId || req.params.id || req.body.projectId;
+
+        if (!resolvedProjectId) {
+          return res.status(400).json({ message: "Project id is required" });
+        }
+
+        const membership = await getProjectMembership(
+          req.user?._id || req.user?.id,
+          resolvedProjectId,
+        );
+
+        if (!membership) {
+          return res
+            .status(403)
+            .json({ message: "You are not a member of this project" });
+        }
+
+        if (!allowedRoles.includes(membership.role)) {
+          return res
+            .status(403)
+            .json({ message: "You do not have permission for this action" });
+        }
+
+        req.projectMembership = membership;
+        req.projectRole = membership.role;
+        req.projectId = getIdString(resolvedProjectId);
+
+        next();
+      } catch (error) {
+        console.error("requireProjectRole error:", error);
+        res.status(500).json({ message: error.message });
       }
-
-      const resolvedProjectId = projectIdResolver
-        ? await projectIdResolver(req)
-        : req.params.projectId || req.params.id || req.body.projectId;
-
-      if (!resolvedProjectId) {
-        return res.status(400).json({ message: "Project id is required" });
-      }
-
-      const membership = await getProjectMembership(
-        req.user?._id || req.user?.id,
-        resolvedProjectId,
-      );
-
-      if (!membership) {
-        return res
-          .status(403)
-          .json({ message: "You are not a member of this project" });
-      }
-
-      if (!allowedRoles.includes(membership.role)) {
-        return res
-          .status(403)
-          .json({ message: "You do not have permission for this action" });
-      }
-
-      req.projectMembership = membership;
-      req.projectRole = membership.role;
-      req.projectId = getIdString(resolvedProjectId);
-
-      next();
-    } catch (error) {
-      console.error("requireProjectRole error:", error);
-      res.status(500).json({ message: error.message });
-    }
-  };
+    };
 
 export const attachTaskToRequest = async (req, res, next) => {
   try {
@@ -364,6 +364,10 @@ export const attachAttachmentToRequest = async (req, res, next) => {
 
 export const requireAttachmentCreatePermission = async (req, res, next) => {
   try {
+    console.log("requireAttachmentCreatePermission triggered");
+    console.log("req.body:", req.body);
+    console.log("taskId:", req.body.taskId);
+
     if (isSystemAdmin(req)) return next();
 
     const taskId = req.body.taskId;

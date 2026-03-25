@@ -163,11 +163,34 @@ export const updateTask = async (req, res) => {
   }
 };
 
+// Hàm hỗ trợ: xóa task và toàn bộ subtask con
+async function deleteTaskWithChildren(taskId) {
+  const task = await Task.findById(taskId);
+  if (!task) return;
+
+  // Xóa tất cả subtask của task này (đệ quy)
+  const subTasks = await Task.find({ parentId: task._id });
+  for (const sub of subTasks) {
+    await deleteTaskWithChildren(sub._id);
+  }
+
+  // Loại bỏ task khỏi relatedTasks của các task khác
+  await Task.updateMany(
+    { "relatedTasks.taskId": task._id },
+    { $pull: { relatedTasks: { taskId: task._id } } }
+  );
+
+  // Xóa chính task
+  await task.deleteOne();
+}
+export { deleteTaskWithChildren };
 export const deleteTask = async (req, res) => {
   try {
-    const task = await Task.findByIdAndDelete(req.params.id);
-
+    const taskId = req.params.id;
+    const task = await Task.findById(taskId);
     if (!task) return res.status(404).json({ message: "Task not found" });
+
+    await deleteTaskWithChildren(taskId);
 
     await createAuditLogFromRequest(req, {
       action: "delete",
@@ -176,11 +199,13 @@ export const deleteTask = async (req, res) => {
       details: `${req.user?.fullName || "User"} deleted task ${task.title}`,
     });
 
-    res.json({ message: "Task deleted" });
+    res.json({ message: "Task and all subtasks deleted" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
+
 
 export const getAllTasks = async (req, res) => {
   try {

@@ -1,7 +1,8 @@
 import WorkUnit from "../models/WorkUnit.js";
 import mongoose from "mongoose";
 import { createAuditLogFromRequest } from "../utils/auditLogger.js";
-
+import Task from "../models/Task.js";
+import { deleteTaskWithChildren } from "./taskController.js";
 export const getProjectWorkUnits = async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -133,21 +134,30 @@ export const updateWorkUnit = async (req, res) => {
 
 export const deleteWorkUnit = async (req, res) => {
   try {
-    const workUnit = await WorkUnit.findByIdAndDelete(req.params.id);
-
+    const workUnit = await WorkUnit.findById(req.params.id);
     if (!workUnit) {
       return res.status(404).json({ message: "WorkUnit not found" });
     }
+
+    // Lấy tất cả task thuộc workUnit
+    const tasks = await Task.find({ workUnitId: workUnit._id });
+    for (const task of tasks) {
+      await deleteTaskWithChildren(task._id); // xóa task + subtasks + related
+    }
+
+    // Xóa workUnit
+    await workUnit.deleteOne();
 
     await createAuditLogFromRequest(req, {
       action: "delete",
       entity: "workunit",
       entityId: workUnit._id,
-      details: `${req.user?.fullName || "User"} deleted work unit ${workUnit.name}`,
+      details: `${req.user?.fullName || "User"} deleted work unit ${workUnit.name} and all related tasks`,
     });
 
-    res.json({ message: "WorkUnit deleted" });
+    res.json({ message: "WorkUnit and all related tasks deleted" });
   } catch (error) {
+    console.error("deleteWorkUnit error:", error);
     res.status(500).json({ message: error.message });
   }
 };

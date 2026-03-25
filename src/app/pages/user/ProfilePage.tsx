@@ -32,37 +32,37 @@ export default function ProfilePage() {
     setTimeout(() => setProfileSuccess(false), 3000);
   };
 
-const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  const token = sessionStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
 
-  const formData = new FormData();
-  formData.append("avatar", file);
+    const formData = new FormData();
+    formData.append("avatar", file);
 
-  try {
-    const res = await fetch(
-      `${API_BASE_URL}/api/users/${user.id}/avatar`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/api/users/${user.id}/avatar`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        }
+      );
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setAvatarPreview(`${API_BASE_URL}${data.avatar}`);
+        updateUser({ avatar: data.avatar });
       }
-    );
-
-    const data = await res.json();
-
-    if (res.ok) {
-      setAvatarPreview(`${API_BASE_URL}${data.avatar}`);
-      updateUser({ avatar: data.avatar });
+    } catch (error) {
+      console.error(error);
     }
-  } catch (error) {
-    console.error(error);
-  }
-};
+  };
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,13 +70,21 @@ const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
 
     const token = sessionStorage.getItem("token");
 
-    if (passwordData.newPassword.length < 6) {
-      setPasswordError('New password must be at least 6 characters');
+    // validate giống register
+    if (!passwordData.newPassword || !passwordData.confirmPassword) {
+      setPasswordError('All fields are required');
       return;
     }
-
+    if (passwordData.newPassword.length < 6) {
+      setPasswordError('*Mật khẩu cần ít nhất 6 ký tự');
+      return;
+    }
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(passwordData.newPassword)) {
+      setPasswordError('*Mật khẩu cần chứa chữ hoa, chữ thường và số');
+      return;
+    }
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setPasswordError('New passwords do not match');
+      setPasswordError('*Mật khẩu xác nhận không khớp');
       return;
     }
 
@@ -187,7 +195,8 @@ const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
                     onChange={(e) =>
                       setProfileData({ ...profileData, email: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
                   />
                 </div>
                 <button
@@ -204,7 +213,7 @@ const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
               <div className="flex flex-1 flex-col items-center justify-center gap-4">
                 <img
                   src={`${API_BASE_URL}${user.avatar}`}
-                   alt={user.fullName}
+                  alt={user.fullName}
                   className="w-32 h-32 rounded-full object-cover border"
                 />
 

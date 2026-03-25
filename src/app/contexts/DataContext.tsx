@@ -134,6 +134,10 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
   };
+  const getUploadHeaders = (): HeadersInit => {
+    const token = sessionStorage.getItem("token");
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -695,11 +699,12 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/tasks/${id}`, {
         method: "DELETE",
-        headers: getAuthHeaders(false),
+        headers: getAuthHeaders(false), // phải có Authorization Bearer token
       });
 
       if (!response.ok) throw new Error("Failed to delete task");
 
+      // Cập nhật state, loại bỏ task vừa xóa
       setTasks((prev) => prev.filter((t) => t.id !== id && t._id !== id));
     } catch (error) {
       console.error("Delete task error:", error);
@@ -712,7 +717,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       .filter(
         (t) =>
           String(t.workUnitId || "").trim() === normalizedWorkUnitId &&
-          t.type !== "subtask", 
+          t.type !== "subtask",
       )
       .sort((a, b) => a.order - b.order);
   };
@@ -774,6 +779,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   // Attachment methods
   const addAttachment = async (taskId: string, file: File) => {
     try {
+
       const formData = new FormData();
       formData.append("file", file);
       formData.append("taskId", String(taskId));
@@ -781,7 +787,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
       const response = await fetch(`${API_BASE_URL}/api/attachments`, {
         method: "POST",
-        headers: getAuthHeaders(false),
+        headers: getUploadHeaders(), // chỉ Authorization, KHÔNG Content-Type
         body: formData,
       });
 
@@ -797,6 +803,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       console.error("Add attachment error:", error);
     }
   };
+
 
   const removeAttachment = async (id: string) => {
     try {

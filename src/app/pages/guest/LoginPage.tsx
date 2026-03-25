@@ -46,13 +46,40 @@ export default function LoginPage() {
       if (!success) {
         setError("Đăng nhập thất bại");
         setIsLoading(false);
+        return;
       }
+
+      // kiểm tra token invitation
+      const invitationToken = localStorage.getItem("invitationToken");
+      if (invitationToken) {
+        try {
+          const acceptRes = await fetch(`${API_BASE_URL}/api/projects/accept-invitation`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+            },
+            body: JSON.stringify({ token: invitationToken }),
+          });
+          const acceptData = await acceptRes.json();
+          if (acceptRes.ok) {
+            console.log("Invitation accepted:", acceptData);
+          } else {
+            console.error("Invitation accept failed:", acceptData.message);
+          }
+        } catch (err) {
+          console.error("Error accepting invitation:", err);
+        } finally {
+          localStorage.removeItem("invitationToken");
+        }
+      }
+
+      setIsLoading(false);
     } catch (err) {
       setError("Không kết nối được với server");
       setIsLoading(false);
     }
   };
-
 
   // Khi user thay đổi sau login, điều hướng theo role
   useEffect(() => {

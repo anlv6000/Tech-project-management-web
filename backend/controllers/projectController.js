@@ -129,7 +129,11 @@ export const deleteProject = async (req, res) => {
     const project = await Project.findByIdAndDelete(req.params.id);
     if (!project) return res.status(404).json({ message: "Project not found" });
 
+    // Xóa tất cả UserProject liên quan
     await UserProject.deleteMany({ projectId: req.params.id });
+
+    // Xóa tất cả Task liên quan
+    await Task.deleteMany({ projectId: req.params.id });
 
     await createAuditLogFromRequest(req, {
       action: "delete",
@@ -138,11 +142,12 @@ export const deleteProject = async (req, res) => {
       details: `${req.user?.fullName || "User"} deleted project ${project.name}`,
     });
 
-    res.json({ message: "Project deleted" });
+    res.json({ message: "Project and related data deleted" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
 
 export const inviteUserToProject = async (req, res) => {
   try {

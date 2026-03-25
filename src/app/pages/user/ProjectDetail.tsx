@@ -184,11 +184,11 @@ export default function ProjectDetail() {
         const result = await response.json();
         const filtered = Array.isArray(result)
           ? result.filter(
-              (u: any) =>
-                !members.some(
-                  (m) => normalizeId(m.userId) === normalizeId(u._id || u.id),
-                ),
-            )
+            (u: any) =>
+              !members.some(
+                (m) => normalizeId(m.userId) === normalizeId(u._id || u.id),
+              ),
+          )
           : [];
 
         setUserSuggestions(filtered);
@@ -215,14 +215,14 @@ export default function ProjectDetail() {
       const invitePayload =
         typeof userOrEmail === "string"
           ? {
-              email: userOrEmail,
-              role: inviteData.role,
-            }
+            email: userOrEmail,
+            role: inviteData.role,
+          }
           : {
-              fullName: userOrEmail.fullName || userOrEmail.name,
-              email: userOrEmail.email,
-              role: inviteData.role,
-            };
+            fullName: userOrEmail.fullName || userOrEmail.name,
+            email: userOrEmail.email,
+            role: inviteData.role,
+          };
 
       const response = await fetch(
         `${API_BASE_URL}/api/projects/${projectId}/invite`,
@@ -362,8 +362,7 @@ export default function ProjectDetail() {
 
     if (tasks.some((task: any) => task.status !== "done")) {
       alert(
-        `Cannot complete project. ${
-          tasks.filter((task: any) => task.status !== "done").length
+        `Cannot complete project. ${tasks.filter((task: any) => task.status !== "done").length
         } tasks are not completed.`,
       );
       return;
@@ -461,7 +460,7 @@ export default function ProjectDetail() {
     tasks: tasks.filter(
       (t: any) =>
         String(t.workUnitId || "").trim() ===
-          String(wu.id || wu._id || "").trim() && t.type !== "subtask",
+        String(wu.id || wu._id || "").trim() && t.type !== "subtask",
     ).length,
   }));
 
@@ -587,11 +586,10 @@ export default function ProjectDetail() {
                   onClick={() =>
                     setActiveTab(tab.id as "overview" | "members" | "reports")
                   }
-                  className={`flex items-center gap-2 px-4 py-4 border-b-2 transition-colors ${
-                    activeTab === tab.id
+                  className={`flex items-center gap-2 px-4 py-4 border-b-2 transition-colors ${activeTab === tab.id
                       ? "border-blue-600 text-blue-600"
                       : "border-transparent text-gray-600 hover:text-gray-900"
-                  }`}
+                    }`}
                 >
                   <Icon className="w-5 h-5" />
                   {tab.label}
@@ -778,7 +776,7 @@ export default function ProjectDetail() {
                   {members.map((member) => {
                     const memberUserId = normalizeId(member.userId);
                     const populatedUser =
-                      typeof member.userId === "object" ? member.userId : null;
+                      typeof member.userId === "object" ? (member.userId as any) : null;
 
                     const memberUser = allUsers.find(
                       (u: any) => normalizeId(u.id || u._id) === memberUserId,
@@ -935,16 +933,16 @@ export default function ProjectDetail() {
               </button>
             </div>
 
-              <div className="p-6 space-y-4">
-                {inviteError && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex gap-3">
-                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                    <div className="flex-1">
-                      <h3 className="font-medium text-red-900">Error</h3>
-                      <p className="text-sm text-red-700 mt-1">{inviteError}</p>
-                    </div>
+            <div className="p-6 space-y-4">
+              {inviteError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h3 className="font-medium text-red-900">Error</h3>
+                    <p className="text-sm text-red-700 mt-1">{inviteError}</p>
                   </div>
-                )}
+                </div>
+              )}
 
               {inviteSuccess && (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex gap-3">
@@ -958,19 +956,19 @@ export default function ProjectDetail() {
                 </div>
               )}
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Search by Email or Name
-                  </label>
-                  <input
-                    type="text"
-                    value={inviteData.searchInput}
-                    onChange={(e) => handleSearchUser(e.target.value)}
-                    disabled={inviteLoading}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                    placeholder="john@example.com hoặc John Doe"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Search by Email or Name
+                </label>
+                <input
+                  type="text"
+                  value={inviteData.searchInput}
+                  onChange={(e) => handleSearchUser(e.target.value)}
+                  disabled={inviteLoading}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                  placeholder="john@example.com hoặc John Doe"
+                />
+              </div>
 
               {userSuggestions.length > 0 && (
                 <div className="border rounded-lg overflow-hidden bg-gray-50 max-h-48 overflow-y-auto">
@@ -1042,11 +1040,10 @@ export default function ProjectDetail() {
             <button
               onClick={handleCompleteProject}
               disabled={isCompleting || project.isCompleted}
-              className={`px-4 py-2 rounded-lg ${
-                project.isCompleted
+              className={`px-4 py-2 rounded-lg ${project.isCompleted
                   ? "bg-gray-400 cursor-not-allowed"
                   : "bg-green-600 hover:bg-green-700"
-              } text-white`}
+                } text-white`}
             >
               {isCompleting
                 ? "Completing..."

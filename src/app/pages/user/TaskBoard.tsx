@@ -15,6 +15,7 @@ import {
   Paperclip,
   Clock,
   Pencil,
+  Trash2,
 } from "lucide-react";
 
 import RelatedTasks from "../../components/task/RelatedTasks";
@@ -68,6 +69,7 @@ function TaskCard({
   currentProjectRole,
   currentUserId,
 }: TaskCardProps) {
+  const { deleteTask } = useData();
   const canEditThisTask =
     !!currentProjectRole &&
     canEditTask(task, currentProjectRole, currentUserId);
@@ -150,17 +152,33 @@ function TaskCard({
       >
         <div className="flex justify-between items-start">
           <h3 className="font-medium text-gray-900 mb-2">{task.title}</h3>
-
           {canEditThisTask && !isProjectCompleted && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowEditModal(true);
-              }}
-              className="text-gray-600 hover:text-gray-800"
-            >
-              <Pencil className="w-4 h-4" />
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowEditModal(true);
+                }}
+                className="text-gray-600 hover:text-gray-800"
+              >
+                <Pencil className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const id = task.id ?? task._id;
+                  if (!id) return;
+
+                  if (window.confirm(`Are you sure you want to delete task "${task.title}"?`)) {
+                    deleteTask(id);
+                  }
+                }}
+                className="text-red-600 hover:text-red-800"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
           )}
         </div>
 
@@ -199,6 +217,7 @@ function TaskCard({
             {new Date(task.deadline).toLocaleDateString()}
           </div>
         )}
+
       </div>
 
       {showEditModal && (
@@ -322,8 +341,8 @@ function Column({
       <div
         ref={drop as any}
         className={`flex-1 space-y-3 min-h-[200px] p-2 rounded-lg transition-colors ${isOver
-            ? "bg-blue-50 border-2 border-dashed border-blue-300"
-            : "bg-transparent"
+          ? "bg-blue-50 border-2 border-dashed border-blue-300"
+          : "bg-transparent"
           }`}
       >
         {tasks.map((task) => (
@@ -435,12 +454,6 @@ export default function TaskBoard() {
 
   const selectedTaskId = selectedTask?.id || selectedTask?._id || "";
 
-  const handleTaskClick = async (task: Task) => {
-    setTaskStack([task]);
-    setTaskChanges({});
-    await loadSubTasks(task);
-  };
-
   const loadSubTasks = async (task: Task) => {
     const taskId = task.id || task._id || "";
     try {
@@ -453,6 +466,14 @@ export default function TaskBoard() {
       setSubTasks([]);
     }
   };
+
+  const handleTaskClick = async (task: Task) => {
+    setTaskStack([task]);
+    setTaskChanges({});
+    await loadSubTasks(task);
+  };
+
+
 
   const handleSubTaskClick = async (subTask: Task) => {
     setTaskStack((prev) => [...prev, subTask]);
@@ -603,7 +624,6 @@ export default function TaskBoard() {
   };
 
   const handleAddAttachment = async (file: File) => {
-    console.log("handleAddAttachment called with:", file.name);
     if (!selectedTask || !user) return;
 
     if (!currentProjectRole || !canUploadAttachment(currentProjectRole)) {
@@ -924,7 +944,7 @@ export default function TaskBoard() {
                     onClick={handleOpenSprintModal}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                   >
-                    ➕ New Sprint
+                    + New Sprint
                   </button>
                 )}
 
@@ -934,43 +954,11 @@ export default function TaskBoard() {
                     <h2 className="text-lg font-semibold mb-4">
                       Tạo Sprint mới
                     </h2>
-
                     <input
                       type="text"
                       value={sprintName}
                       onChange={(e) => setSprintName(e.target.value)}
-                      placeholder="Nhập tên sprint"
-                      className="w-full px-3 py-2 border rounded mb-4"
-                    />
-
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => setShowSprintModal(false)}
-                        className="px-4 py-2 bg-gray-300 rounded"
-                      >
-                        Hủy
-                      </button>
-                      <button
-                        onClick={handleCreateSprint}
-                        className="px-4 py-2 bg-blue-600 text-white rounded"
-                      >
-                        Tạo Sprint
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {showSprintModal && (
-                <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-                  <div className="bg-white p-6 rounded-lg shadow-lg w-[400px] bg-opacity-90">
-                    <h2 className="text-lg font-semibold mb-4">
-                      Tạo Sprint mới
-                    </h2>
-                    <input
-                      type="text"
-                      value={sprintName}
-                      onChange={(e) => setSprintName(e.target.value)}
-                      placeholder="Nhập tên sprint"
+                      placeholder="Nhập tên sprint (VD: 1, 2, 3...)"
                       className="w-full px-3 py-2 border rounded mb-4"
                     />
                     <div className="flex justify-end gap-2">
@@ -1141,14 +1129,14 @@ export default function TaskBoard() {
                         handleTaskChange("status", e.target.value)
                       }
                       className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${isProjectCompleted ||
-                          !currentProjectRole ||
-                          !canUpdateStatus(
-                            selectedTask,
-                            currentProjectRole,
-                            currentUserId,
-                          )
-                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                          : "focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        !currentProjectRole ||
+                        !canUpdateStatus(
+                          selectedTask,
+                          currentProjectRole,
+                          currentUserId,
+                        )
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                        : "focus:outline-none focus:ring-2 focus:ring-blue-500"
                         }`}
                     >
                       <option value="todo">To Do</option>
@@ -1181,10 +1169,10 @@ export default function TaskBoard() {
                         )
                       }
                       className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${isProjectCompleted ||
-                          !currentProjectRole ||
-                          !canAssignTask(currentProjectRole)
-                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                          : "focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        !currentProjectRole ||
+                        !canAssignTask(currentProjectRole)
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                        : "focus:outline-none focus:ring-2 focus:ring-blue-500"
                         }`}
                     >
                       <option value="">Unassigned</option>
@@ -1233,8 +1221,8 @@ export default function TaskBoard() {
                             disabled={isProjectCompleted}
                             onClick={handleLogTime}
                             className={`px-4 py-2 rounded-lg ${isProjectCompleted
-                                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                                : "bg-blue-600 text-white hover:bg-blue-700"
+                              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                              : "bg-blue-600 text-white hover:bg-blue-700"
                               }`}
                           >
                             Log Time
@@ -1316,8 +1304,8 @@ export default function TaskBoard() {
                           <span
                             onClick={() => handleSubTaskClick(subTask)}
                             className={`flex-1 text-sm cursor-pointer hover:text-blue-600 hover:underline ${subTask.status === "done"
-                                ? "line-through text-gray-400"
-                                : "text-gray-700"
+                              ? "line-through text-gray-400"
+                              : "text-gray-700"
                               }`}
                           >
                             {subTask.title}
@@ -1325,10 +1313,10 @@ export default function TaskBoard() {
 
                           <span
                             className={`text-xs px-2 py-0.5 rounded-full ${subTask.status === "done"
-                                ? "bg-green-100 text-green-700"
-                                : subTask.status === "in-progress"
-                                  ? "bg-yellow-100 text-yellow-700"
-                                  : "bg-gray-100 text-gray-600"
+                              ? "bg-green-100 text-green-700"
+                              : subTask.status === "in-progress"
+                                ? "bg-yellow-100 text-yellow-700"
+                                : "bg-gray-100 text-gray-600"
                               }`}
                           >
                             {subTask.status}
@@ -1391,10 +1379,7 @@ export default function TaskBoard() {
 
                   <div className="flex flex-wrap gap-3 mb-4">
                     {updatedAttachments.map((att) => {
-                      const isImage = att.fileUrl.match(
-                        /\.(jpg|jpeg|png|gif)$/i,
-                      );
-
+                      const isImage = att.fileUrl.match(/\.(jpg|jpeg|png|gif)$/i);
                       return (
                         <div key={att._id} className="relative">
                           {isImage ? (
@@ -1419,11 +1404,12 @@ export default function TaskBoard() {
                     canUploadAttachment(currentProjectRole) && (
                       <div className="mt-4">
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Add Attachment (only images)
+                          Add Attachment (only images and PDFs <span className="text-xs text-gray-500">(max 10MB)</span>)
                         </label>
                         <input
                           disabled={isProjectCompleted}
                           type="file"
+                          accept="image/jpeg,image/png,application/pdf"
                           onChange={(e) => {
                             if (e.target.files && e.target.files[0]) {
                               handleAddAttachment(e.target.files[0]);
@@ -1539,8 +1525,8 @@ export default function TaskBoard() {
                         disabled={isProjectCompleted}
                         onClick={handleAddComment}
                         className={`px-4 py-2 rounded-lg ${isProjectCompleted
-                            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                            : "bg-blue-600 text-white hover:bg-blue-700"
+                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                          : "bg-blue-600 text-white hover:bg-blue-700"
                           }`}
                       >
                         Comment
@@ -1562,13 +1548,13 @@ export default function TaskBoard() {
                     )
                   }
                   className={`px-6 py-2 rounded-lg font-medium ${!currentProjectRole ||
-                      !canSaveTask(
-                        selectedTask,
-                        currentProjectRole,
-                        currentUserId,
-                      )
-                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                      : "bg-blue-600 text-white hover:bg-blue-700"
+                    !canSaveTask(
+                      selectedTask,
+                      currentProjectRole,
+                      currentUserId,
+                    )
+                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    : "bg-blue-600 text-white hover:bg-blue-700"
                     }`}
                 >
                   Done

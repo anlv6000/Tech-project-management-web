@@ -1,49 +1,55 @@
-import React, { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router';
-import { CheckCircle, XCircle, Loader } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { useSearchParams, useNavigate } from "react-router";
+import { CheckCircle, XCircle, Loader } from "lucide-react";
 import { API_BASE_URL } from "../../config/baseApi";
 
 export default function AcceptInvitation() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
-  const [message, setMessage] = useState('');
+  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
-    const token = searchParams.get('token');
+    const token = searchParams.get("token");
     if (!token) {
-      setStatus('error');
-      setMessage('Invalid invitation link');
+      setStatus("error");
+      setMessage("Invalid invitation link");
       return;
     }
 
-    // Accept invitation
+    const authToken = sessionStorage.getItem("token");
+    if (!authToken) {
+      // chưa login → lưu token và chuyển sang login
+      localStorage.setItem("invitationToken", token);
+      setStatus("error");
+      setMessage("You need to login or register to accept this invitation.");
+      return;
+    }
+
+    // đã login → gọi API accept
     const acceptInvitation = async () => {
       try {
         const response = await fetch(`${API_BASE_URL}/api/projects/accept-invitation`, {
-          method: 'POST',
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authToken}`,
           },
           body: JSON.stringify({ token }),
         });
 
         const data = await response.json();
-
         if (response.ok) {
-          setStatus('success');
+          setStatus("success");
           setMessage(data.message);
-          // Redirect to projects page after 3 seconds
-          setTimeout(() => {
-            navigate('/app/projects');
-          }, 3000);
+          setTimeout(() => navigate("/app/projects"), 3000);
         } else {
-          setStatus('error');
+          setStatus("error");
           setMessage(data.message);
         }
-      } catch (error) {
-        setStatus('error');
-        setMessage('Failed to accept invitation. Please try again.');
+      } catch {
+        setStatus("error");
+        setMessage("Failed to accept invitation. Please try again.");
       }
     };
 
@@ -53,7 +59,7 @@ export default function AcceptInvitation() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
-        {status === 'loading' && (
+        {status === "loading" && (
           <>
             <Loader className="w-16 h-16 text-blue-600 mx-auto mb-4 animate-spin" />
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Accepting Invitation</h1>
@@ -61,7 +67,7 @@ export default function AcceptInvitation() {
           </>
         )}
 
-        {status === 'success' && (
+        {status === "success" && (
           <>
             <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome!</h1>
@@ -70,13 +76,13 @@ export default function AcceptInvitation() {
           </>
         )}
 
-        {status === 'error' && (
+        {status === "error" && (
           <>
             <XCircle className="w-16 h-16 text-red-600 mx-auto mb-4" />
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Invitation Error</h1>
             <p className="text-gray-600 mb-4">{message}</p>
             <button
-              onClick={() => navigate('/login')}
+              onClick={() => navigate("/login")}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
               Go to Login

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuth, registerUser, verifyOtp, resendOtp } from "../../contexts/AuthContext";
+import { API_BASE_URL } from "../../config/baseApi";
 export default function RegisterPage() {
   const navigate = useNavigate();
   const { register } = useAuth();
@@ -100,16 +101,55 @@ export default function RegisterPage() {
   };
 
 
-  const handleVerifyOtp = async () => {
-    const res = await verifyOtp(emailForOtp, otp);
+ const handleVerifyOtp = async () => {
+  const res = await verifyOtp(emailForOtp, otp);
 
-    if (res.success) {
-      setSuccess(true);
-      setTimeout(() => navigate("/login"), 1500);
-    } else {
-      alert(res.message);
+  if (res.success) {
+    setSuccess(true);
+
+    // sau khi verify OTP thành công, login user
+    const loginRes = await fetch(`${API_BASE_URL}/api/users/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: emailForOtp, password: formData.password }),
+    });
+    const loginData = await loginRes.json();
+
+    if (loginRes.ok) {
+      sessionStorage.setItem("token", loginData.token);
+
+      // kiểm tra token invitation
+      const invitationToken = localStorage.getItem("invitationToken");
+      if (invitationToken) {
+        try {
+          const acceptRes = await fetch(`${API_BASE_URL}/api/projects/accept-invitation`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${loginData.token}`,
+            },
+            body: JSON.stringify({ token: invitationToken }),
+          });
+          const acceptData = await acceptRes.json();
+          if (acceptRes.ok) {
+            console.log("Invitation accepted:", acceptData);
+          } else {
+            console.error("Invitation accept failed:", acceptData.message);
+          }
+        } catch (err) {
+          console.error("Error accepting invitation:", err);
+        } finally {
+          localStorage.removeItem("invitationToken");
+        }
+      }
     }
-  };
+
+    setTimeout(() => navigate("/login"), 1500);
+  } else {
+    alert(res.message);
+  }
+};
+
 
 
   const handleResendOtp = async () => {

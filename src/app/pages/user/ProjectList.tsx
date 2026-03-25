@@ -103,6 +103,11 @@ export default function ProjectList() {
       setCreateError("Project description is required");
       return;
     }
+    
+    if (formData.description.length > 200) {
+      setCreateError("Description is too long (max 200 characters)");
+      return;
+    }
 
     if (formData.startDate !== todayDate) {
       setCreateError("Start date must be today");
@@ -205,10 +210,10 @@ export default function ProjectList() {
         typeof userOrEmail === "string"
           ? { email: userOrEmail, role: inviteData.role }
           : {
-              fullName: userOrEmail.fullName || userOrEmail.name,
-              email: userOrEmail.email,
-              role: inviteData.role,
-            };
+            fullName: userOrEmail.fullName || userOrEmail.name,
+            email: userOrEmail.email,
+            role: inviteData.role,
+          };
 
       const response = await fetch(
         `${API_BASE_URL}/api/projects/${selectedProjectId}/invite`,

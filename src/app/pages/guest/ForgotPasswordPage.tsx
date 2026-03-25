@@ -64,7 +64,6 @@ export default function ForgotPasswordPage() {
     }
   };
 
-  // Reset mật khẩu sau khi verify OTP
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -73,12 +72,17 @@ export default function ForgotPasswordPage() {
       setError('All fields are required');
       return;
     }
+
     if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError('*Mật khẩu cần ít nhất 6 ký tự');
+      return;
+    }
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(newPassword)) {
+      setError('*Mật khẩu cần chứa chữ hoa, chữ thường và số');
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError('Passwords do not match');
+      setError('*Mật khẩu xác nhận không khớp');
       return;
     }
 
@@ -98,6 +102,7 @@ export default function ForgotPasswordPage() {
       setError("Server error while resetting password");
     }
   };
+
 
 
   return (
