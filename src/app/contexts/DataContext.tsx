@@ -712,7 +712,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       .filter(
         (t) =>
           String(t.workUnitId || "").trim() === normalizedWorkUnitId &&
-          t.type !== "subtask", // 👈 loại bỏ subtasks khỏi column
+          t.type !== "subtask", 
       )
       .sort((a, b) => a.order - b.order);
   };

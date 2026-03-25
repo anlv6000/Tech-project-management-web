@@ -1,16 +1,10 @@
-export type UserRole = "user" | "admin";
-export type ProjectRole = "projectAdmin" | "pm" | "member" | "viewer";
-export type Methodology = "agile" | "kanban" | "waterfall";
-export type TaskStatus = "todo" | "in-progress" | "done" | "backlog";
-export type WorkUnitType = "sprint" | "column" | "phase";
-export type TaskType =
-  | "parent"
-  | "subtask"
-  | "epic"
-  | "milestone"
-  | "feature"
-  | "bug"
-  | "improvement";
+// Database types matching the 7 tables
+
+export type UserRole = 'user' | 'admin';
+export type ProjectRole = 'owner' | 'member' | 'viewer' | 'Admin' | 'Manager' | 'Member' | 'Viewer';
+export type Methodology = 'agile' | 'kanban' | 'waterfall';
+export type TaskStatus = 'todo' | 'in-progress' | 'done' | 'backlog';
+export type WorkUnitType = 'sprint' | 'column' | 'phase';
 
 export interface User {
   id?: string;
@@ -23,30 +17,7 @@ export interface User {
   createdAt: string;
   isActive: boolean;
   updatedAt?: string;
-}
-
-export interface UserRef {
-  id?: string;
-  _id?: string;
-  fullName?: string;
-  email?: string;
-  role?: UserRole;
-  avatar?: string;
-}
-
-export interface ProjectRef {
-  id?: string;
-  _id?: string;
-  name?: string;
-  description?: string;
-  methodology?: Methodology;
-  startDate?: string;
-  endDate?: string;
-  createdBy?: string | UserRef;
-  createdAt?: string;
-  isArchived?: boolean;
-  isCompleted?: boolean;
-  updatedAt?: string;
+  expiresAt?: string;
 }
 
 export interface Project {
@@ -57,7 +28,7 @@ export interface Project {
   methodology: Methodology;
   startDate: string;
   endDate: string;
-  createdBy: string | UserRef;
+  createdBy: string;
   createdAt: string;
   isArchived: boolean;
   isCompleted: boolean;
@@ -67,8 +38,8 @@ export interface Project {
 export interface UserProject {
   id?: string;
   _id?: string;
-  userId: string | UserRef;
-  projectId: string | ProjectRef;
+  userId: string;
+  projectId: string;
   role: ProjectRole;
   joinedAt: string;
 }
@@ -85,12 +56,7 @@ export interface WorkUnit {
   goal?: string;
   createdAt?: string;
   updatedAt?: string;
-  status?: string;
-}
-
-export interface UserRef {
-  _id: string;
-  fullName?: string;
+  status?: string; // Added optional status property
 }
 
 export interface Task {
@@ -100,26 +66,30 @@ export interface Task {
   workUnitId: string;
   title: string;
   description: string;
-  assigneeId?: string | UserRef;
+  assigneeId?: string;
   status: TaskStatus;
   deadline?: string;
-  createdBy: string | UserRef;
+  createdBy: string;
   createdAt: string;
   updatedAt: string;
   order: number;
-  timeSpent?: number;
-  parentId?: string;
-  type: TaskType;
+  timeSpent?: number; // in hours
+  parentId?: string; // for subtasks
+  type?: string; // 'parent', 'subtask', 'epic', 'milestone', 'feature', 'bug', 'improvement'
+  relatedTasks?: {
+    taskId: string;
+    type: string; // 'blocks', 'blocked_by', 'relates_to', 'duplicates'
+  }[];
 }
 
 export interface Comment {
   id?: string;
   _id?: string;
   taskId: string;
-  userId: string | UserRef;
+  userId: string;
   content: string;
   createdAt: string;
-  parentId?: string;
+  parentId?: string; // for replies
   updatedAt?: string;
 }
 
@@ -130,7 +100,7 @@ export interface Attachment {
   fileName: string;
   fileUrl: string;
   fileSize: number;
-  uploadedBy: string | UserRef;
+  uploadedBy: string;
   uploadedAt: string;
 }
 
@@ -140,25 +110,19 @@ export interface Notification {
   userId: string;
   title: string;
   message: string;
-  type: 'task' | 'comment' | 'project' | 'system' | 'invitation' | 'mention';
+  type: 'task' | 'comment' | 'project' | 'system';
   isRead: boolean;
   createdAt: string;
   link?: string;
-  relatedEntityId?: string;
-  relatedEntityType?: 'task' | 'project' | 'comment' | 'user';
-  actionLink?: string;
-  data?: Record<string, any>;
 }
 
 export interface AuditLog {
   id?: string;
   _id?: string;
-  userId: string | UserRef;
+  userId: string;
   action: string;
   entity: string;
   entityId: string;
   details: string;
-  timestamp?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  timestamp: string;
 }

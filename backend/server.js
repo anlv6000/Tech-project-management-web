@@ -11,6 +11,7 @@ import commentRoutes from "./routes/commentRoutes.js";
 import attachmentRoutes from "./routes/attachmentRoutes.js";
 import auditLogRoutes from "./routes/auditLogRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
+import User from "./models/User.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
@@ -30,10 +31,29 @@ app.use(express.json());
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
+// Function to delete expired unverified users
+const deleteExpiredUsers = async () => {
+  try {
+    const result = await User.deleteMany({
+      isActive: false,
+      expiresAt: { $lt: new Date() }
+    });
+    if (result.deletedCount > 0) {
+      console.log(`Deleted ${result.deletedCount} expired unverified users`);
+    }
+  } catch (error) {
+    console.error("Error deleting expired users:", error);
+  }
+};
+
 // MongoDB Connection
 mongoose
   .connect(MONGODB_URI)
-  .then(() => console.log("MongoDB connected successfully"))
+  .then(() => {
+    console.log("MongoDB connected successfully");
+    // Run cleanup every minute
+    setInterval(deleteExpiredUsers, 60 * 1000);
+  })
   .catch((err) => console.log("MongoDB connection error:", err));
 
 // Routes
