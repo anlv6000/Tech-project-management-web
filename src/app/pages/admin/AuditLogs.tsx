@@ -28,13 +28,16 @@ export default function AuditLogs() {
       const matchesSearch =
         log.details.toLowerCase().includes(searchQuery.toLowerCase()) ||
         log.action.toLowerCase().includes(searchQuery.toLowerCase());
+
       const matchesFilter =
         filterAction === "all" || log.action === filterAction;
+
       return matchesSearch && matchesFilter;
     })
     .sort(
       (a, b) =>
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+        new Date(b.logTime || "").getTime() -
+        new Date(a.logTime || "").getTime(),
     );
 
   const actions = ["all", ...new Set(normalizedLogs.map((log) => log.action))];
