@@ -58,7 +58,7 @@ export default function ProjectList() {
     onChange={(e) => setInviteData({ ...inviteData, role: e.target.value })}
   >
     <option value="projectAdmin">Project Admin</option>
-    <option value="pm">Project Manager</option>
+    <option value="projectManager">Project Manager</option>
     <option value="member">Member</option>
     <option value="viewer">Viewer</option>
   </select>;
@@ -103,7 +103,7 @@ export default function ProjectList() {
       setCreateError("Project description is required");
       return;
     }
-    
+
     if (formData.description.length > 200) {
       setCreateError("Description is too long (max 200 characters)");
       return;
@@ -210,10 +210,10 @@ export default function ProjectList() {
         typeof userOrEmail === "string"
           ? { email: userOrEmail, role: inviteData.role }
           : {
-            fullName: userOrEmail.fullName || userOrEmail.name,
-            email: userOrEmail.email,
-            role: inviteData.role,
-          };
+              fullName: userOrEmail.fullName || userOrEmail.name,
+              email: userOrEmail.email,
+              role: inviteData.role,
+            };
 
       const response = await fetch(
         `${API_BASE_URL}/api/projects/${selectedProjectId}/invite`,

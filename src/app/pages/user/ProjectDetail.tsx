@@ -71,7 +71,9 @@ export default function ProjectDetail() {
   const [memberActionLoading, setMemberActionLoading] = useState("");
   const [memberActionError, setMemberActionError] = useState("");
   const [memberEditMode, setMemberEditMode] = useState(false);
-  const [editedRoles, setEditedRoles] = useState<Record<string, string>>({});
+  const [editedRoles, setEditedRoles] = useState<Record<string, ProjectRole>>(
+    {},
+  );
 
   const [updatedProject, setUpdatedProject] = useState({
     name: "",
@@ -87,24 +89,46 @@ export default function ProjectDetail() {
     return String(value);
   };
 
-  const normalizeRole = (role: unknown): string => {
-    if (!role) return "member";
-    if (role === "Admin") return "projectAdmin";
-    if (role === "PM") return "pm";
-    if (role === "Lead") return "pm";
-    if (role === "Manager") return "pm";
-    if (role === "Member") return "member";
-    if (role === "Viewer") return "viewer";
-    return String(role);
+  const normalizeRole = (role: unknown): ProjectRole | null => {
+    if (!role) return null;
+
+    const value = String(role).trim();
+
+    if (value === "projectAdmin" || value === "Project Admin") {
+      return "projectAdmin";
+    }
+
+    if (
+      value === "projectManager" ||
+      value === "Project Manager" ||
+      value === "pm" ||
+      value === "PM" ||
+      value === "Lead" ||
+      value === "Manager"
+    ) {
+      return "projectManager";
+    }
+
+    if (value === "member" || value === "Member") {
+      return "member";
+    }
+
+    if (value === "viewer" || value === "Viewer") {
+      return "viewer";
+    }
+
+    return null;
   };
 
-  const formatRoleLabel = (role: string) => {
+  const formatRoleLabel = (role: unknown) => {
     const normalized = normalizeRole(role);
+
     if (normalized === "projectAdmin") return "Project Admin";
-    if (normalized === "pm") return "Project Manager";
+    if (normalized === "projectManager") return "Project Manager";
     if (normalized === "member") return "Member";
     if (normalized === "viewer") return "Viewer";
-    return normalized;
+
+    return "Unknown Role";
   };
 
   if (!projectId) return null;
@@ -135,9 +159,7 @@ export default function ProjectDetail() {
     return memberUserId === currentUserId;
   });
 
-  const currentProjectRole = normalizeRole(currentMember?.role) as
-    | ProjectRole
-    | undefined;
+  const currentProjectRole = normalizeRole(currentMember?.role);
 
   const token = sessionStorage.getItem("token");
   const authJsonHeaders = {
@@ -184,11 +206,11 @@ export default function ProjectDetail() {
         const result = await response.json();
         const filtered = Array.isArray(result)
           ? result.filter(
-            (u: any) =>
-              !members.some(
-                (m) => normalizeId(m.userId) === normalizeId(u._id || u.id),
-              ),
-          )
+              (u: any) =>
+                !members.some(
+                  (m) => normalizeId(m.userId) === normalizeId(u._id || u.id),
+                ),
+            )
           : [];
 
         setUserSuggestions(filtered);
@@ -215,14 +237,14 @@ export default function ProjectDetail() {
       const invitePayload =
         typeof userOrEmail === "string"
           ? {
-            email: userOrEmail,
-            role: inviteData.role,
-          }
+              email: userOrEmail,
+              role: inviteData.role,
+            }
           : {
-            fullName: userOrEmail.fullName || userOrEmail.name,
-            email: userOrEmail.email,
-            role: inviteData.role,
-          };
+              fullName: userOrEmail.fullName || userOrEmail.name,
+              email: userOrEmail.email,
+              role: inviteData.role,
+            };
 
       const response = await fetch(
         `${API_BASE_URL}/api/projects/${projectId}/invite`,
@@ -257,22 +279,34 @@ export default function ProjectDetail() {
   };
 
   const handleStartEditMembers = () => {
-    const initialRoles: Record<string, string> = {};
+    const initialRoles: Record<string, ProjectRole> = {};
+
     members.forEach((member) => {
       const memberUserId = normalizeId(member.userId);
-      initialRoles[memberUserId] = normalizeRole(member.role);
+      const normalizedRole = normalizeRole(member.role);
+
+      if (memberUserId && normalizedRole) {
+        initialRoles[memberUserId] = normalizedRole;
+      }
     });
+
     setEditedRoles(initialRoles);
     setMemberActionError("");
     setMemberEditMode(true);
   };
 
   const handleCancelEditMembers = () => {
-    const initialRoles: Record<string, string> = {};
+    const initialRoles: Record<string, ProjectRole> = {};
+
     members.forEach((member) => {
       const memberUserId = normalizeId(member.userId);
-      initialRoles[memberUserId] = normalizeRole(member.role);
+      const normalizedRole = normalizeRole(member.role);
+
+      if (memberUserId && normalizedRole) {
+        initialRoles[memberUserId] = normalizedRole;
+      }
     });
+
     setEditedRoles(initialRoles);
     setMemberActionError("");
     setMemberEditMode(false);
@@ -295,10 +329,12 @@ export default function ProjectDetail() {
         const isCurrentUser = memberUserId === currentUserId;
         if (isCurrentUser) return false;
 
-        const originalRole = normalizeRole(member.role).trim();
-        const editedRole = normalizeRole(editedRoles[memberUserId]).trim();
+        const originalRole = normalizeRole(member.role);
+        const editedRole = normalizeRole(editedRoles[memberUserId]);
 
-        return editedRole !== "" && editedRole !== originalRole;
+        if (!originalRole || !editedRole) return false;
+
+        return editedRole !== originalRole;
       });
 
       if (changedMembers.length === 0) {
@@ -308,38 +344,34 @@ export default function ProjectDetail() {
         return;
       }
 
-      const requests = changedMembers.map(async (member) => {
-        const memberUserId = normalizeId(member.userId);
-        const newRole = normalizeRole(editedRoles[memberUserId]).trim();
+      await Promise.all(
+        changedMembers.map(async (member) => {
+          const memberUserId = normalizeId(member.userId);
+          const newRole = normalizeRole(editedRoles[memberUserId]);
 
-        const response = await fetch(
-          `${API_BASE_URL}/api/user-projects/${memberUserId}/${projectId}`,
-          {
-            method: "PUT",
-            headers: authJsonHeaders,
-            body: JSON.stringify({ role: newRole }),
-          },
-        );
+          if (!newRole) {
+            throw new Error(`Invalid role for user ${memberUserId}`);
+          }
 
-        const rawText = await response.text();
-
-        let result: any = {};
-        try {
-          result = rawText ? JSON.parse(rawText) : {};
-        } catch {
-          result = { message: rawText || "Invalid server response" };
-        }
-
-        if (!response.ok) {
-          throw new Error(
-            result.message || `Failed to update role for ${memberUserId}`,
+          const response = await fetch(
+            `${API_BASE_URL}/api/user-projects/${memberUserId}/${projectId}`,
+            {
+              method: "PUT",
+              headers: authJsonHeaders,
+              body: JSON.stringify({ role: newRole }),
+            },
           );
-        }
 
-        return result;
-      });
+          const result = await response.json().catch(() => ({}));
 
-      await Promise.all(requests);
+          if (!response.ok) {
+            throw new Error(
+              result.message || `Failed to update role for ${memberUserId}`,
+            );
+          }
+        }),
+      );
+
       await loadProjectData(projectId);
       setMemberEditMode(false);
       setMemberActionLoading("");
@@ -362,7 +394,8 @@ export default function ProjectDetail() {
 
     if (tasks.some((task: any) => task.status !== "done")) {
       alert(
-        `Cannot complete project. ${tasks.filter((task: any) => task.status !== "done").length
+        `Cannot complete project. ${
+          tasks.filter((task: any) => task.status !== "done").length
         } tasks are not completed.`,
       );
       return;
@@ -401,7 +434,7 @@ export default function ProjectDetail() {
       console.error("Complete project error:", error);
       setCompletionError("An error occurred while completing the project.");
     } finally {
-      setUpdateLoading(false);
+      setIsCompleting(false);
     }
   };
 
@@ -460,10 +493,9 @@ export default function ProjectDetail() {
     tasks: tasks.filter(
       (t: any) =>
         String(t.workUnitId || "").trim() ===
-        String(wu.id || wu._id || "").trim() && t.type !== "subtask",
+          String(wu.id || wu._id || "").trim() && t.type !== "subtask",
     ).length,
   }));
-
 
   return (
     <div className="h-full flex flex-col">
@@ -560,7 +592,6 @@ export default function ProjectDetail() {
               )}
             </div>
 
-
             <Link to={`/app/projects/${projectId}/board`}>
               <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                 <Kanban className="w-5 h-5" />
@@ -586,10 +617,11 @@ export default function ProjectDetail() {
                   onClick={() =>
                     setActiveTab(tab.id as "overview" | "members" | "reports")
                   }
-                  className={`flex items-center gap-2 px-4 py-4 border-b-2 transition-colors ${activeTab === tab.id
+                  className={`flex items-center gap-2 px-4 py-4 border-b-2 transition-colors ${
+                    activeTab === tab.id
                       ? "border-blue-600 text-blue-600"
                       : "border-transparent text-gray-600 hover:text-gray-900"
-                    }`}
+                  }`}
                 >
                   <Icon className="w-5 h-5" />
                   {tab.label}
@@ -776,7 +808,9 @@ export default function ProjectDetail() {
                   {members.map((member) => {
                     const memberUserId = normalizeId(member.userId);
                     const populatedUser =
-                      typeof member.userId === "object" ? (member.userId as any) : null;
+                      typeof member.userId === "object"
+                        ? (member.userId as any)
+                        : null;
 
                     const memberUser = allUsers.find(
                       (u: any) => normalizeId(u.id || u._id) === memberUserId,
@@ -827,11 +861,15 @@ export default function ProjectDetail() {
                         ) : (
                           <select
                             value={
-                              editedRoles[memberUserId] ?? normalizedMemberRole
+                              editedRoles[memberUserId] ??
+                              normalizedMemberRole ??
+                              "member"
                             }
                             disabled={memberActionLoading === "saving"}
                             onChange={(e) => {
                               const nextRole = normalizeRole(e.target.value);
+                              if (!nextRole) return;
+
                               setEditedRoles((prev) => ({
                                 ...prev,
                                 [memberUserId]: nextRole,
@@ -839,7 +877,9 @@ export default function ProjectDetail() {
                             }}
                             className="px-3 py-1 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                           >
-                            <option value="pm">Project Manager</option>
+                            <option value="projectManager">
+                              Project Manager
+                            </option>
                             <option value="member">Member</option>
                             <option value="viewer">Viewer</option>
                           </select>
@@ -1025,7 +1065,7 @@ export default function ProjectDetail() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                 >
                   <option value="member">Member</option>
-                  <option value="pm">Project Manager</option>
+                  <option value="projectManager">Project Manager</option>
                   <option value="viewer">Viewer</option>
                 </select>
               </div>
@@ -1040,10 +1080,11 @@ export default function ProjectDetail() {
             <button
               onClick={handleCompleteProject}
               disabled={isCompleting || project.isCompleted}
-              className={`px-4 py-2 rounded-lg ${project.isCompleted
+              className={`px-4 py-2 rounded-lg ${
+                project.isCompleted
                   ? "bg-gray-400 cursor-not-allowed"
                   : "bg-green-600 hover:bg-green-700"
-                } text-white`}
+              } text-white`}
             >
               {isCompleting
                 ? "Completing..."

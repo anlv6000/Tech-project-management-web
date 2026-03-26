@@ -34,7 +34,6 @@ import {
   canSaveTask,
 } from "./permissions";
 
-
 const ItemType = "TASK";
 
 const getAuthJsonHeaders = () => {
@@ -80,7 +79,7 @@ function TaskCard({
     canDrag:
       !isProjectCompleted &&
       !!currentProjectRole &&
-      ["projectAdmin", "pm"].includes(currentProjectRole),
+      ["projectAdmin", "projectManager"].includes(currentProjectRole),
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
@@ -147,8 +146,9 @@ function TaskCard({
       <div
         ref={drag as any}
         onClick={onClick}
-        className={`p-4 rounded-lg border hover:shadow-md transition-all ${statusColor} ${isDragging ? "opacity-50" : "opacity-100"
-          } ${isProjectCompleted ? "cursor-not-allowed" : "cursor-pointer"}`}
+        className={`p-4 rounded-lg border hover:shadow-md transition-all ${statusColor} ${
+          isDragging ? "opacity-50" : "opacity-100"
+        } ${isProjectCompleted ? "cursor-not-allowed" : "cursor-pointer"}`}
       >
         <div className="flex justify-between items-start">
           <h3 className="font-medium text-gray-900 mb-2">{task.title}</h3>
@@ -170,7 +170,11 @@ function TaskCard({
                   const id = task.id ?? task._id;
                   if (!id) return;
 
-                  if (window.confirm(`Are you sure you want to delete task "${task.title}"?`)) {
+                  if (
+                    window.confirm(
+                      `Are you sure you want to delete task "${task.title}"?`,
+                    )
+                  ) {
                     deleteTask(id);
                   }
                 }}
@@ -217,7 +221,6 @@ function TaskCard({
             {new Date(task.deadline).toLocaleDateString()}
           </div>
         )}
-
       </div>
 
       {showEditModal && (
@@ -307,7 +310,7 @@ function Column({
     canDrop: () =>
       !isProjectCompleted &&
       !!currentProjectRole &&
-      ["projectAdmin", "pm"].includes(currentProjectRole),
+      ["projectAdmin", "projectManager"].includes(currentProjectRole),
     drop: (item: { id: string; workUnitId: string }) => {
       if (item.workUnitId !== workUnitId) {
         onDrop(item.id, workUnitId);
@@ -340,10 +343,11 @@ function Column({
 
       <div
         ref={drop as any}
-        className={`flex-1 space-y-3 min-h-[200px] p-2 rounded-lg transition-colors ${isOver
-          ? "bg-blue-50 border-2 border-dashed border-blue-300"
-          : "bg-transparent"
-          }`}
+        className={`flex-1 space-y-3 min-h-[200px] p-2 rounded-lg transition-colors ${
+          isOver
+            ? "bg-blue-50 border-2 border-dashed border-blue-300"
+            : "bg-transparent"
+        }`}
       >
         {tasks.map((task) => (
           <TaskCard
@@ -472,8 +476,6 @@ export default function TaskBoard() {
     setTaskChanges({});
     await loadSubTasks(task);
   };
-
-
 
   const handleSubTaskClick = async (subTask: Task) => {
     setTaskStack((prev) => [...prev, subTask]);
@@ -720,7 +722,6 @@ export default function TaskBoard() {
       order: tasksInUnit.length,
       type: "parent",
     });
-
 
     setShowCreateTask(false);
     setNewTaskTitle("");
@@ -1128,16 +1129,17 @@ export default function TaskBoard() {
                       onChange={(e) =>
                         handleTaskChange("status", e.target.value)
                       }
-                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${isProjectCompleted ||
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${
+                        isProjectCompleted ||
                         !currentProjectRole ||
                         !canUpdateStatus(
                           selectedTask,
                           currentProjectRole,
                           currentUserId,
                         )
-                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                        : "focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        }`}
+                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                          : "focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      }`}
                     >
                       <option value="todo">To Do</option>
                       <option value="in-progress">In Progress</option>
@@ -1168,12 +1170,13 @@ export default function TaskBoard() {
                             : undefined,
                         )
                       }
-                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${isProjectCompleted ||
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${
+                        isProjectCompleted ||
                         !currentProjectRole ||
                         !canAssignTask(currentProjectRole)
-                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                        : "focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        }`}
+                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                          : "focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      }`}
                     >
                       <option value="">Unassigned</option>
                       {projectMembers.map((u: any) => {
@@ -1220,10 +1223,11 @@ export default function TaskBoard() {
                           <button
                             disabled={isProjectCompleted}
                             onClick={handleLogTime}
-                            className={`px-4 py-2 rounded-lg ${isProjectCompleted
-                              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                              : "bg-blue-600 text-white hover:bg-blue-700"
-                              }`}
+                            className={`px-4 py-2 rounded-lg ${
+                              isProjectCompleted
+                                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                                : "bg-blue-600 text-white hover:bg-blue-700"
+                            }`}
                           >
                             Log Time
                           </button>
@@ -1303,21 +1307,23 @@ export default function TaskBoard() {
 
                           <span
                             onClick={() => handleSubTaskClick(subTask)}
-                            className={`flex-1 text-sm cursor-pointer hover:text-blue-600 hover:underline ${subTask.status === "done"
-                              ? "line-through text-gray-400"
-                              : "text-gray-700"
-                              }`}
+                            className={`flex-1 text-sm cursor-pointer hover:text-blue-600 hover:underline ${
+                              subTask.status === "done"
+                                ? "line-through text-gray-400"
+                                : "text-gray-700"
+                            }`}
                           >
                             {subTask.title}
                           </span>
 
                           <span
-                            className={`text-xs px-2 py-0.5 rounded-full ${subTask.status === "done"
-                              ? "bg-green-100 text-green-700"
-                              : subTask.status === "in-progress"
-                                ? "bg-yellow-100 text-yellow-700"
-                                : "bg-gray-100 text-gray-600"
-                              }`}
+                            className={`text-xs px-2 py-0.5 rounded-full ${
+                              subTask.status === "done"
+                                ? "bg-green-100 text-green-700"
+                                : subTask.status === "in-progress"
+                                  ? "bg-yellow-100 text-yellow-700"
+                                  : "bg-gray-100 text-gray-600"
+                            }`}
                           >
                             {subTask.status}
                           </span>
@@ -1379,7 +1385,9 @@ export default function TaskBoard() {
 
                   <div className="flex flex-wrap gap-3 mb-4">
                     {updatedAttachments.map((att) => {
-                      const isImage = att.fileUrl.match(/\.(jpg|jpeg|png|gif)$/i);
+                      const isImage = att.fileUrl.match(
+                        /\.(jpg|jpeg|png|gif)$/i,
+                      );
                       return (
                         <div key={att._id} className="relative">
                           {isImage ? (
@@ -1404,7 +1412,11 @@ export default function TaskBoard() {
                     canUploadAttachment(currentProjectRole) && (
                       <div className="mt-4">
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Add Attachment (only images and PDFs <span className="text-xs text-gray-500">(max 10MB)</span>)
+                          Add Attachment (only images and PDFs{" "}
+                          <span className="text-xs text-gray-500">
+                            (max 10MB)
+                          </span>
+                          )
                         </label>
                         <input
                           disabled={isProjectCompleted}
@@ -1524,10 +1536,11 @@ export default function TaskBoard() {
                       <button
                         disabled={isProjectCompleted}
                         onClick={handleAddComment}
-                        className={`px-4 py-2 rounded-lg ${isProjectCompleted
-                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                          : "bg-blue-600 text-white hover:bg-blue-700"
-                          }`}
+                        className={`px-4 py-2 rounded-lg ${
+                          isProjectCompleted
+                            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                            : "bg-blue-600 text-white hover:bg-blue-700"
+                        }`}
                       >
                         Comment
                       </button>
@@ -1547,15 +1560,16 @@ export default function TaskBoard() {
                       currentUserId,
                     )
                   }
-                  className={`px-6 py-2 rounded-lg font-medium ${!currentProjectRole ||
+                  className={`px-6 py-2 rounded-lg font-medium ${
+                    !currentProjectRole ||
                     !canSaveTask(
                       selectedTask,
                       currentProjectRole,
                       currentUserId,
                     )
-                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                    : "bg-blue-600 text-white hover:bg-blue-700"
-                    }`}
+                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                      : "bg-blue-600 text-white hover:bg-blue-700"
+                  }`}
                 >
                   Done
                 </button>
