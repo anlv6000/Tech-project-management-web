@@ -53,47 +53,47 @@ const isSystemAdmin = (req) => req.user?.role === "admin";
 
 export const requireProjectRole =
   (allowedRoles = [], projectIdResolver) =>
-  async (req, res, next) => {
-    try {
-      if (isSystemAdmin(req)) {
-        return next();
+    async (req, res, next) => {
+      try {
+        if (isSystemAdmin(req)) {
+          return next();
+        }
+
+        const resolvedProjectId = projectIdResolver
+          ? await projectIdResolver(req)
+          : req.params.projectId || req.params.id || req.body.projectId;
+
+        if (!resolvedProjectId) {
+          return res.status(400).json({ message: "Project id is required" });
+        }
+
+        const membership = await getProjectMembership(
+          req.user?._id || req.user?.id,
+          resolvedProjectId,
+        );
+
+        if (!membership) {
+          return res
+            .status(403)
+            .json({ message: "You are not a member of this project" });
+        }
+
+        if (!allowedRoles.includes(membership.role)) {
+          return res
+            .status(403)
+            .json({ message: "You do not have permission for this action" });
+        }
+
+        req.projectMembership = membership;
+        req.projectRole = membership.role;
+        req.projectId = getIdString(resolvedProjectId);
+
+        next();
+      } catch (error) {
+        console.error("requireProjectRole error:", error);
+        res.status(500).json({ message: error.message });
       }
-
-      const resolvedProjectId = projectIdResolver
-        ? await projectIdResolver(req)
-        : req.params.projectId || req.params.id || req.body.projectId;
-
-      if (!resolvedProjectId) {
-        return res.status(400).json({ message: "Project id is required" });
-      }
-
-      const membership = await getProjectMembership(
-        req.user?._id || req.user?.id,
-        resolvedProjectId,
-      );
-
-      if (!membership) {
-        return res
-          .status(403)
-          .json({ message: "You are not a member of this project" });
-      }
-
-      if (!allowedRoles.includes(membership.role)) {
-        return res
-          .status(403)
-          .json({ message: "You do not have permission for this action" });
-      }
-
-      req.projectMembership = membership;
-      req.projectRole = membership.role;
-      req.projectId = getIdString(resolvedProjectId);
-
-      next();
-    } catch (error) {
-      console.error("requireProjectRole error:", error);
-      res.status(500).json({ message: error.message });
-    }
-  };
+    };
 
 export const attachTaskToRequest = async (req, res, next) => {
   try {
@@ -136,7 +136,7 @@ export const requireTaskCreatePermission = async (req, res, next) => {
         .json({ message: "You are not a member of this project" });
     }
 
-    if (!["projectAdmin", "projectManager"].includes(membership.role)) {
+    if (!["projectAdmin", "projectManager", "member"].includes(membership.role)) {
       return res
         .status(403)
         .json({ message: "You do not have permission to create tasks" });
@@ -169,13 +169,23 @@ export const requireTaskUpdatePermission = async (req, res, next) => {
 
     const userId = getIdString(req.user?._id || req.user?.id);
     const assigneeId = getIdString(task.assigneeId);
+    const creatorId = getIdString(task.createdBy);
 
+    // Admin/Manager luôn được phép
     if (["projectAdmin", "projectManager"].includes(membership.role)) {
       req.projectMembership = membership;
       req.projectRole = membership.role;
       return next();
     }
 
+    // Nếu là creator thì cho phép sửa tất cả
+    if (creatorId === userId) {
+      req.projectMembership = membership;
+      req.projectRole = membership.role;
+      return next();
+    }
+
+    // Member được phép nếu là assignee (nhưng bị chặn các field nhạy cảm)
     if (membership.role === "member" && assigneeId === userId) {
       const forbiddenFields = [
         "projectId",
@@ -209,6 +219,8 @@ export const requireTaskUpdatePermission = async (req, res, next) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+
 
 export const requireTaskDeletePermission = async (req, res, next) => {
   try {

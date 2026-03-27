@@ -311,7 +311,7 @@ export const endSprint = async (req, res) => {
       }
       await Task.updateMany(
         { workUnitId: sprint._id, status: { $ne: "done" } },
-        { workUnitId: backlogUnit._id, status: "todo" }
+        { workUnitId: backlogUnit._id }
       );
     }
 
