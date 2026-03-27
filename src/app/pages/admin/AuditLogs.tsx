@@ -10,10 +10,12 @@ export default function AuditLogs() {
     deleteAuditLog,
     deleteAuditLogsByDate,
   } = useData();
+
   const [searchQuery, setSearchQuery] = useState("");
   const [filterAction, setFilterAction] = useState("all");
+  const [filterDate, setFilterDate] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [deleteDate, setDeleteDate] = useState("");
+
   const users = getAllUsers();
   const itemsPerPage = 10;
 
@@ -31,36 +33,50 @@ export default function AuditLogs() {
     [auditLogs],
   );
 
-  const filteredLogs = useMemo(
-    () =>
-      normalizedLogs
-        .filter((log) => {
-          const details = (log.details || "").toLowerCase();
-          const action = (log.action || "").toLowerCase();
-          const entity = (log.entity || "").toLowerCase();
-          const query = searchQuery.toLowerCase();
+  const filteredLogs = useMemo(() => {
+    return normalizedLogs
+      .filter((log) => {
+        const details = (log.details || "").toLowerCase();
+        const action = (log.action || "").toLowerCase();
+        const entity = (log.entity || "").toLowerCase();
+        const query = searchQuery.toLowerCase();
 
-          const matchesSearch =
-            details.includes(query) ||
-            action.includes(query) ||
-            entity.includes(query);
+        const matchesSearch =
+          details.includes(query) ||
+          action.includes(query) ||
+          entity.includes(query);
 
-          const matchesFilter =
-            filterAction === "all" || log.action === filterAction;
+        const matchesAction =
+          filterAction === "all" || log.action === filterAction;
 
-          return matchesSearch && matchesFilter;
-        })
-        .sort((a, b) => {
-          const timeA = a.logTime ? new Date(a.logTime).getTime() : 0;
-          const timeB = b.logTime ? new Date(b.logTime).getTime() : 0;
-          return timeB - timeA;
-        }),
-    [normalizedLogs, searchQuery, filterAction],
-  );
+        const matchesDate = (() => {
+          if (!filterDate) return true;
+          if (!log.logTime) return false;
+
+          const logDate = new Date(log.logTime);
+          if (Number.isNaN(logDate.getTime())) return false;
+
+          const year = logDate.getFullYear();
+          const month = String(logDate.getMonth() + 1).padStart(2, "0");
+          const day = String(logDate.getDate()).padStart(2, "0");
+          const localDate = `${year}-${month}-${day}`;
+
+          return localDate === filterDate;
+        })();
+
+        return matchesSearch && matchesAction && matchesDate;
+      })
+      .sort((a, b) => {
+        const timeA = a.logTime ? new Date(a.logTime).getTime() : 0;
+        const timeB = b.logTime ? new Date(b.logTime).getTime() : 0;
+        return timeB - timeA;
+      });
+  }, [normalizedLogs, searchQuery, filterAction, filterDate]);
 
   const actions = ["all", ...new Set(normalizedLogs.map((log) => log.action))];
 
   const totalPages = Math.max(1, Math.ceil(filteredLogs.length / itemsPerPage));
+
   const getVisiblePages = () => {
     const pages: (number | string)[] = [];
 
@@ -92,6 +108,7 @@ export default function AuditLogs() {
 
     return pages;
   };
+
   const paginatedLogs = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredLogs.slice(startIndex, startIndex + itemsPerPage);
@@ -99,7 +116,7 @@ export default function AuditLogs() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filterAction]);
+  }, [searchQuery, filterAction, filterDate]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -159,6 +176,38 @@ export default function AuditLogs() {
     );
   };
 
+  const handleDeleteFilteredLogs = async () => {
+    if (!filterDate) {
+      alert("Please select a date to filter first");
+      return;
+    }
+
+    if (filteredLogs.length === 0) {
+      alert("No audit logs found for the selected date");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete all audit logs currently filtered on ${filterDate}?`,
+    );
+    if (!confirmed) return;
+
+    try {
+      await deleteAuditLogsByDate(filterDate);
+
+      await addAuditLog(
+        "delete",
+        "auditlog",
+        filterDate,
+        `Deleted filtered audit logs on ${filterDate}`,
+      );
+
+      setCurrentPage(1);
+    } catch (error) {
+      alert("Failed to delete filtered audit logs");
+    }
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="mb-8 flex items-center justify-between gap-4">
@@ -178,7 +227,7 @@ export default function AuditLogs() {
       </div>
 
       <div className="bg-white p-4 rounded-lg border mb-6">
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid md:grid-cols-3 gap-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
@@ -203,6 +252,15 @@ export default function AuditLogs() {
                 </option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <input
+              type="date"
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
           </div>
         </div>
       </div>
@@ -240,54 +298,38 @@ export default function AuditLogs() {
       <div className="bg-white rounded-lg border">
         <div className="overflow-x-auto">
           <div className="bg-white p-4 rounded-lg border mb-6">
-            <div className="flex flex-col md:flex-row md:items-end gap-4">
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Delete logs by date
+                  Filter audit logs by date
                 </label>
-                <input
-                  type="date"
-                  value={deleteDate}
-                  onChange={(e) => setDeleteDate(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg"
-                />
+                <div className="text-sm text-gray-500">
+                  {filterDate
+                    ? `Showing ${filteredLogs.length} log(s) on ${filterDate}`
+                    : `Showing ${filteredLogs.length} filtered log(s)`}
+                </div>
               </div>
 
-              <button
-                onClick={async () => {
-                  if (!deleteDate) {
-                    alert("Please select a date");
-                    return;
-                  }
+              <div className="flex items-center gap-2">
+                {filterDate && (
+                  <button
+                    onClick={() => setFilterDate("")}
+                    className="px-3 py-1.5 text-sm rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 transition"
+                  >
+                    Clear date
+                  </button>
+                )}
 
-                  const confirmed = window.confirm(
-                    `Delete all audit logs on ${deleteDate}?`,
-                  );
-                  if (!confirmed) return;
-
-                  try {
-                    await deleteAuditLogsByDate(deleteDate);
-                    await addAuditLog(
-                      "delete",
-                      "auditlog",
-                      deleteDate,
-                      `Deleted audit logs on ${deleteDate}`,
-                    );
-                    setDeleteDate("");
-                    setCurrentPage(1);
-                  } catch (error) {
-                    alert("Failed to delete audit logs by date");
-                  }
-                }}
-                className="px-3 py-1.5 text-sm rounded-md 
-           bg-gray-100 text-red-600 
-           hover:bg-red-100 hover:text-red-600 
-           transition"
-              >
-                Delete by Date
-              </button>
+                <button
+                  onClick={handleDeleteFilteredLogs}
+                  className="px-3 py-1.5 text-sm rounded-md bg-gray-100 text-red-600 hover:bg-red-100 hover:text-red-600 transition"
+                >
+                  Delete filtered logs
+                </button>
+              </div>
             </div>
           </div>
+
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
@@ -385,10 +427,7 @@ export default function AuditLogs() {
                             alert("Failed to delete audit log");
                           }
                         }}
-                        className="px-2 py-0.5 text-xs rounded-md 
-             bg-gray-100 text-red-600 
-             hover:bg-red-100 hover:text-red-600 
-             transition"
+                        className="px-2 py-0.5 text-xs rounded-md bg-gray-100 text-red-600 hover:bg-red-100 hover:text-red-600 transition"
                       >
                         Delete
                       </button>

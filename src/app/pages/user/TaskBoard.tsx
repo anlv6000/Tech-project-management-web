@@ -2232,7 +2232,7 @@ export default function TaskBoard() {
                     canUploadAttachment(currentProjectRole) && (
                       <div className="mt-4">
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Add Attachment (only images and PDFs{" "}
+                          Add Attachment (only images{" "}
                           <span className="text-xs text-gray-500">
                             (max 10MB)
                           </span>
