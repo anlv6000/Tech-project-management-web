@@ -7,7 +7,7 @@ const workUnitSchema = new mongoose.Schema({
     required: true
   },
   name: { type: String, required: true, trim: true },
-  type: { type: String, enum: ['sprint', 'column', 'phase'], required: true },
+  type: { type: String, enum: ['sprint', 'column', 'phase', 'backlog'], required: true },
   order: { type: Number, default: 0 },
   startDate: { type: Date, default: null },
   endDate: { type: Date, default: null },

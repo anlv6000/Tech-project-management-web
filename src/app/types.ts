@@ -8,7 +8,7 @@ export type ProjectRole =
   | "viewer";
 export type Methodology = "agile" | "kanban" | "waterfall";
 export type TaskStatus = "todo" | "in-progress" | "done" | "backlog";
-export type WorkUnitType = "sprint" | "column" | "phase";
+export type WorkUnitType = "sprint" | "column" | "phase" | "backlog";
 
 export interface User {
   id?: string;

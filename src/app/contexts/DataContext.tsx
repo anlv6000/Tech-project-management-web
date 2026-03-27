@@ -314,7 +314,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
     if (project.methodology === "agile") {
       defaultUnits = [
-        { name: "Backlog", type: "sprint", order: 0 },
+        { name: "Backlog", type: "backlog", order: 0 },
         { name: "Sprint 1", type: "sprint", order: 1, goal: "First sprint" },
       ];
     } else if (project.methodology === "kanban") {
