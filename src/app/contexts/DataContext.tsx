@@ -50,7 +50,10 @@ interface DataContextType {
   deleteWorkUnit: (id: string) => void;
   getProjectWorkUnits: (projectId: string) => WorkUnit[];
   startSprint: (sprintId: string) => Promise<WorkUnit>;
-  endSprint: (sprintId: string, moveUncompletedTo?: string) => Promise<{ sprint: WorkUnit; uncompletedCount: number }>;
+  endSprint: (
+    sprintId: string,
+    moveUncompletedTo?: string,
+  ) => Promise<{ sprint: WorkUnit; uncompletedCount: number }>;
   getWorkUnitById: (id: string) => WorkUnit | undefined;
   getSprintStats: (sprintId: string) => Promise<{
     sprint: WorkUnit;
@@ -112,12 +115,15 @@ interface DataContextType {
   resetUserPassword: (id: string, newPassword: string) => Promise<void>;
   // Audit Logs
   auditLogs: AuditLog[];
+  deleteAuditLog: (id: string) => Promise<void>;
+  deleteAuditLogsByDate: (date: string) => Promise<void>;
   addAuditLog: (
     action: string,
     entity: string,
     entityId: string,
     details: string,
   ) => void;
+  getRecentAuditLogs: () => Promise<AuditLog[]>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -252,7 +258,10 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       const savedUser = sessionStorage.getItem("currentUser");
       console.log("[CreateProject] Checking sessionStorage...");
       console.log("[CreateProject] Token:", token ? "Found" : "Missing");
-      console.log("[CreateProject] CurrentUser:", savedUser ? "Found" : "Missing");
+      console.log(
+        "[CreateProject] CurrentUser:",
+        savedUser ? "Found" : "Missing",
+      );
       if (!token || !savedUser) {
         console.error("[CreateProject] No active session. Please login again.");
         throw new Error("No active session. Please login again.");
@@ -302,7 +311,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       throw error;
     }
   };
-
 
   const createDefaultWorkUnits = async (project: Project) => {
     let defaultUnits: {
@@ -387,6 +395,21 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     return projects.find((p) => p.id === id || p._id === id) as
       | Project
       | undefined;
+  };
+  const getRecentAuditLogs = async () => {
+    const token = sessionStorage.getItem("token");
+    const authHeaders: HeadersInit = token
+      ? { Authorization: `Bearer ${token}` }
+      : {};
+
+    const res = await fetch(`${API_BASE_URL}/api/audit-logs/recent`, {
+      headers: authHeaders,
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data.map((log: any) => ({ ...log, id: log.id || log._id }));
+    }
+    return [];
   };
 
   const getUserProjects = (userId: string): Project[] => {
@@ -481,7 +504,9 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
       if (userProjectsRes.ok) {
         const data = await userProjectsRes.json();
-        setUserProjects(data.map((up: any) => ({ ...up, id: up._id || up.id })));
+        setUserProjects(
+          data.map((up: any) => ({ ...up, id: up._id || up.id })),
+        );
       }
     } catch (error) {
       console.error("Failed to refresh projects:", error);
@@ -668,17 +693,20 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
   const startSprint = async (sprintId: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/work-units/sprint/${sprintId}/start`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/api/work-units/sprint/${sprintId}/start`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+        },
+      );
 
       if (!response.ok) throw new Error("Failed to start sprint");
 
       const updated = await response.json();
       setWorkUnits((prev) =>
         prev.map((wu) =>
-          (wu.id === sprintId || wu._id === sprintId)
+          wu.id === sprintId || wu._id === sprintId
             ? { ...updated, id: updated._id || updated.id }
             : wu,
         ),
@@ -692,18 +720,21 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
   const endSprint = async (sprintId: string, moveUncompletedTo?: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/work-units/sprint/${sprintId}/end`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ moveUncompletedTo }),
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/api/work-units/sprint/${sprintId}/end`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ moveUncompletedTo }),
+        },
+      );
 
       if (!response.ok) throw new Error("Failed to end sprint");
 
       const data = await response.json();
       setWorkUnits((prev) =>
         prev.map((wu) =>
-          (wu.id === sprintId || wu._id === sprintId)
+          wu.id === sprintId || wu._id === sprintId
             ? { ...data.sprint, id: data.sprint._id || data.sprint.id }
             : wu,
         ),
@@ -719,14 +750,17 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }
   };
   const refreshTasksForProject = async (projectId: string) => {
-    const response = await fetch(`${API_BASE_URL}/api/tasks/project/${projectId}`, {
-      headers: getAuthHeaders(),
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/api/tasks/project/${projectId}`,
+      {
+        headers: getAuthHeaders(),
+      },
+    );
     if (response.ok) {
       const data = await response.json();
       setTasks((prev) => {
         const filteredPrev = prev.filter(
-          (t) => String(t.projectId) !== String(projectId)
+          (t) => String(t.projectId) !== String(projectId),
         );
         return [...filteredPrev, ...data];
       });
@@ -735,10 +769,13 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
   const getSprintStats = async (sprintId: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/work-units/sprint/${sprintId}/stats`, {
-        method: "GET",
-        headers: getAuthHeaders(),
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/api/work-units/sprint/${sprintId}/stats`,
+        {
+          method: "GET",
+          headers: getAuthHeaders(),
+        },
+      );
 
       if (!response.ok) throw new Error("Failed to fetch sprint stats");
 
@@ -752,10 +789,9 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   const getWorkUnitById = (id: string) => {
     const normalizedId = String(id).trim();
     return workUnits.find(
-      (wu) => String(wu.id || wu._id || "").trim() === normalizedId
+      (wu) => String(wu.id || wu._id || "").trim() === normalizedId,
     );
   };
-
 
   // Task methods
   const createTask = async (
@@ -884,13 +920,14 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
   const getTaskAttachments = (taskId: string) => {
     const normalizedTaskId = String(taskId).trim();
-    return attachments.filter(a => String(a.taskId || '').trim() === normalizedTaskId);
+    return attachments.filter(
+      (a) => String(a.taskId || "").trim() === normalizedTaskId,
+    );
   };
 
   // Attachment methods
   const addAttachment = async (taskId: string, file: File) => {
     try {
-
       const formData = new FormData();
       formData.append("file", file);
       formData.append("taskId", String(taskId));
@@ -914,7 +951,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       console.error("Add attachment error:", error);
     }
   };
-
 
   const removeAttachment = async (id: string) => {
     try {
@@ -976,18 +1012,65 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     const normalizedId = String(id || "").trim();
     return tasks.find((t) => String(t.id || t._id).trim() === normalizedId);
   };
+  const deleteAuditLog = async (id: string): Promise<void> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/audit-logs/${id}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(false),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete audit log");
+      }
+
+      setAuditLogs((prev) => prev.filter((log) => (log.id || log._id) !== id));
+    } catch (error) {
+      console.error("Delete audit log error:", error);
+      throw error;
+    }
+  };
+
+  const deleteAuditLogsByDate = async (date: string): Promise<void> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/audit-logs`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ date }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete audit logs by date");
+      }
+
+      const selectedDate = new Date(date);
+
+      setAuditLogs((prev) =>
+        prev.filter((log) => {
+          if (!log.createdAt) return true;
+
+          const logDate = new Date(log.createdAt);
+          return logDate.toDateString() !== selectedDate.toDateString();
+        }),
+      );
+    } catch (error) {
+      console.error("Delete audit logs by date error:", error);
+      throw error;
+    }
+  };
 
   const refreshNotifications = async (userId: string) => {
     const normalizedUserId = String(userId).trim();
     if (!normalizedUserId) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/notifications/user/${normalizedUserId}`);
+      const response = await fetch(
+        `${API_BASE_URL}/notifications/user/${normalizedUserId}`,
+      );
       if (!response.ok) return;
       const data = await response.json();
       setNotifications(data.map((n: any) => ({ ...n, id: n.id || n._id })));
     } catch (error) {
-      console.error('Unable to refresh notifications', error);
+      console.error("Unable to refresh notifications", error);
     }
   };
   // User methods
@@ -1137,6 +1220,9 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     endSprint,
     getSprintStats,
     getWorkUnitById,
+    getRecentAuditLogs,
+    deleteAuditLog,
+    deleteAuditLogsByDate,
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

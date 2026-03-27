@@ -1,13 +1,21 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useData } from "../../contexts/DataContext";
 import { FileText, Search, Filter } from "lucide-react";
-import { API_BASE_URL } from "../../config/baseApi";
+
 export default function AuditLogs() {
-  const { auditLogs, getAllUsers, addAuditLog } = useData();
+  const {
+    auditLogs,
+    getAllUsers,
+    addAuditLog,
+    deleteAuditLog,
+    deleteAuditLogsByDate,
+  } = useData();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterAction, setFilterAction] = useState("all");
-
+  const [currentPage, setCurrentPage] = useState(1);
+  const [deleteDate, setDeleteDate] = useState("");
   const users = getAllUsers();
+  const itemsPerPage = 10;
 
   const normalizedLogs = useMemo(
     () =>
@@ -23,24 +31,81 @@ export default function AuditLogs() {
     [auditLogs],
   );
 
-  const filteredLogs = normalizedLogs
-    .filter((log) => {
-      const matchesSearch =
-        log.details.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        log.action.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredLogs = useMemo(
+    () =>
+      normalizedLogs
+        .filter((log) => {
+          const details = (log.details || "").toLowerCase();
+          const action = (log.action || "").toLowerCase();
+          const entity = (log.entity || "").toLowerCase();
+          const query = searchQuery.toLowerCase();
 
-      const matchesFilter =
-        filterAction === "all" || log.action === filterAction;
+          const matchesSearch =
+            details.includes(query) ||
+            action.includes(query) ||
+            entity.includes(query);
 
-      return matchesSearch && matchesFilter;
-    })
-    .sort(
-      (a, b) =>
-        new Date(b.logTime || "").getTime() -
-        new Date(a.logTime || "").getTime(),
-    );
+          const matchesFilter =
+            filterAction === "all" || log.action === filterAction;
+
+          return matchesSearch && matchesFilter;
+        })
+        .sort((a, b) => {
+          const timeA = a.logTime ? new Date(a.logTime).getTime() : 0;
+          const timeB = b.logTime ? new Date(b.logTime).getTime() : 0;
+          return timeB - timeA;
+        }),
+    [normalizedLogs, searchQuery, filterAction],
+  );
 
   const actions = ["all", ...new Set(normalizedLogs.map((log) => log.action))];
+
+  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / itemsPerPage));
+  const getVisiblePages = () => {
+    const pages: (number | string)[] = [];
+
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+      return pages;
+    }
+
+    pages.push(1);
+
+    if (currentPage > 3) {
+      pages.push("...");
+    }
+
+    const startPage = Math.max(2, currentPage - 1);
+    const endPage = Math.min(totalPages - 1, currentPage + 1);
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+
+    if (currentPage < totalPages - 2) {
+      pages.push("...");
+    }
+
+    pages.push(totalPages);
+
+    return pages;
+  };
+  const paginatedLogs = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredLogs.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredLogs, currentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterAction]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const handleExportCsv = async () => {
     const headers = [
@@ -51,6 +116,7 @@ export default function AuditLogs() {
       "Entity",
       "Details",
     ];
+
     const rows = filteredLogs.map((log) => {
       const matchedUser = users.find(
         (u) => (u.id || u._id) === log.userIdValue,
@@ -58,6 +124,7 @@ export default function AuditLogs() {
       const userName =
         log.userObject?.fullName || matchedUser?.fullName || "Unknown";
       const email = log.userObject?.email || matchedUser?.email || "";
+
       return [
         log.logTime ? new Date(log.logTime).toLocaleString() : "",
         userName,
@@ -75,6 +142,7 @@ export default function AuditLogs() {
           .join(","),
       )
       .join("\n");
+
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -82,6 +150,7 @@ export default function AuditLogs() {
     link.download = `audit-logs-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
+
     await addAuditLog(
       "export",
       "report",
@@ -99,6 +168,7 @@ export default function AuditLogs() {
             Track all system activities and changes
           </p>
         </div>
+
         <button
           onClick={handleExportCsv}
           className="px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700"
@@ -107,7 +177,6 @@ export default function AuditLogs() {
         </button>
       </div>
 
-      {/* Filters */}
       <div className="bg-white p-4 rounded-lg border mb-6">
         <div className="grid md:grid-cols-2 gap-4">
           <div className="relative">
@@ -120,6 +189,7 @@ export default function AuditLogs() {
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
           </div>
+
           <div className="relative">
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <select
@@ -137,7 +207,6 @@ export default function AuditLogs() {
         </div>
       </div>
 
-      {/* Stats */}
       <div className="grid md:grid-cols-4 gap-6 mb-6">
         <div className="bg-white p-6 rounded-lg border">
           <p className="text-gray-600 mb-2">Total Logs</p>
@@ -145,18 +214,21 @@ export default function AuditLogs() {
             {normalizedLogs.length}
           </p>
         </div>
+
         <div className="bg-white p-6 rounded-lg border">
           <p className="text-gray-600 mb-2">Creates</p>
           <p className="text-3xl font-bold text-green-600">
             {normalizedLogs.filter((l) => l.action === "create").length}
           </p>
         </div>
+
         <div className="bg-white p-6 rounded-lg border">
           <p className="text-gray-600 mb-2">Updates</p>
           <p className="text-3xl font-bold text-blue-600">
             {normalizedLogs.filter((l) => l.action === "update").length}
           </p>
         </div>
+
         <div className="bg-white p-6 rounded-lg border">
           <p className="text-gray-600 mb-2">Deletes</p>
           <p className="text-3xl font-bold text-red-600">
@@ -165,9 +237,57 @@ export default function AuditLogs() {
         </div>
       </div>
 
-      {/* Logs Table */}
       <div className="bg-white rounded-lg border">
         <div className="overflow-x-auto">
+          <div className="bg-white p-4 rounded-lg border mb-6">
+            <div className="flex flex-col md:flex-row md:items-end gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Delete logs by date
+                </label>
+                <input
+                  type="date"
+                  value={deleteDate}
+                  onChange={(e) => setDeleteDate(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg"
+                />
+              </div>
+
+              <button
+                onClick={async () => {
+                  if (!deleteDate) {
+                    alert("Please select a date");
+                    return;
+                  }
+
+                  const confirmed = window.confirm(
+                    `Delete all audit logs on ${deleteDate}?`,
+                  );
+                  if (!confirmed) return;
+
+                  try {
+                    await deleteAuditLogsByDate(deleteDate);
+                    await addAuditLog(
+                      "delete",
+                      "auditlog",
+                      deleteDate,
+                      `Deleted audit logs on ${deleteDate}`,
+                    );
+                    setDeleteDate("");
+                    setCurrentPage(1);
+                  } catch (error) {
+                    alert("Failed to delete audit logs by date");
+                  }
+                }}
+                className="px-3 py-1.5 text-sm rounded-md 
+           bg-gray-100 text-red-600 
+           hover:bg-red-100 hover:text-red-600 
+           transition"
+              >
+                Delete by Date
+              </button>
+            </div>
+          </div>
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
@@ -186,20 +306,26 @@ export default function AuditLogs() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Details
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Actions
+                </th>
               </tr>
             </thead>
+
             <tbody className="divide-y divide-gray-200">
-              {filteredLogs.map((log) => {
+              {paginatedLogs.map((log) => {
                 const user =
                   log.userObject ||
                   users.find((u) => (u.id || u._id) === log.userIdValue);
+
                 return (
-                  <tr key={log.id} className="hover:bg-gray-50">
+                  <tr key={log.id || log._id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 text-sm text-gray-600">
                       {log.logTime
                         ? new Date(log.logTime).toLocaleString()
                         : "-"}
                     </td>
+
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
@@ -209,12 +335,15 @@ export default function AuditLogs() {
                         </div>
                         <div>
                           <p className="text-sm font-medium text-gray-900">
-                            {user?.fullName}
+                            {user?.fullName || "Unknown"}
                           </p>
-                          <p className="text-xs text-gray-600">{user?.email}</p>
+                          <p className="text-xs text-gray-600">
+                            {user?.email || ""}
+                          </p>
                         </div>
                       </div>
                     </td>
+
                     <td className="px-6 py-4">
                       <span
                         className={`inline-block px-3 py-1 text-xs font-medium rounded-full capitalize ${
@@ -230,11 +359,39 @@ export default function AuditLogs() {
                         {log.action}
                       </span>
                     </td>
+
                     <td className="px-6 py-4 text-sm text-gray-900 capitalize">
                       {log.entity}
                     </td>
+
                     <td className="px-6 py-4 text-sm text-gray-700">
                       {log.details}
+                    </td>
+
+                    <td className="px-6 py-4 text-sm">
+                      <button
+                        onClick={async () => {
+                          const logId = log.id || log._id;
+                          if (!logId) return;
+
+                          const confirmed = window.confirm(
+                            "Delete this audit log?",
+                          );
+                          if (!confirmed) return;
+
+                          try {
+                            await deleteAuditLog(logId);
+                          } catch (error) {
+                            alert("Failed to delete audit log");
+                          }
+                        }}
+                        className="px-2 py-0.5 text-xs rounded-md 
+             bg-gray-100 text-red-600 
+             hover:bg-red-100 hover:text-red-600 
+             transition"
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
                 );
@@ -243,10 +400,61 @@ export default function AuditLogs() {
           </table>
         </div>
 
-        {filteredLogs.length === 0 && (
+        {filteredLogs.length === 0 ? (
           <div className="p-12 text-center">
             <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600">No audit logs found</p>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between px-6 py-4 border-t">
+            <p className="text-sm text-gray-600">
+              Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
+              {Math.min(currentPage * itemsPerPage, filteredLogs.length)} of{" "}
+              {filteredLogs.length} logs
+            </p>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 rounded-lg border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+              >
+                Prev
+              </button>
+
+              {getVisiblePages().map((page, index) =>
+                page === "..." ? (
+                  <span
+                    key={`ellipsis-${index}`}
+                    className="px-2 py-1.5 text-sm text-gray-500"
+                  >
+                    ...
+                  </span>
+                ) : (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(Number(page))}
+                    className={`px-3 py-1.5 rounded-lg text-sm ${
+                      currentPage === page
+                        ? "bg-purple-600 text-white"
+                        : "border hover:bg-gray-50"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ),
+              )}
+
+              <button
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                }
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 rounded-lg border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </div>
