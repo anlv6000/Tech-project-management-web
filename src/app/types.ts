@@ -117,12 +117,21 @@ export interface Notification {
   userId: string;
   title: string;
   message: string;
-  type: "task" | "comment" | "project" | "system";
+  type: "task" | "comment" | "project" | "system" | "invitation";
   isRead: boolean;
   createdAt: string;
   link?: string;
+  data?: InvitationData; 
 }
-
+export interface InvitationData {
+  projectId: string;
+  projectName: string;
+  role: string; // ví dụ: "Member"
+  status: "pending" | "accepted" | "rejected";
+  invitationToken: string;
+  createdAt: string;
+  updatedAt: string;
+}
 export interface AuditLog {
   _id?: string;
   id?: string;
