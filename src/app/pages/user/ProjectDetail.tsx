@@ -91,7 +91,10 @@ export default function ProjectDetail() {
   const [updatedProject, setUpdatedProject] = useState({
     name: "",
     description: "",
+    startDate: "",
+    endDate: "",
   });
+
 
   const normalizeId = (value: unknown): string => {
     if (!value) return "";
@@ -199,6 +202,8 @@ export default function ProjectDetail() {
       setUpdatedProject({
         name: project.name || "",
         description: project.description || "",
+        startDate: project.startDate ? project.startDate.slice(0, 10) : "",
+        endDate: project.endDate ? project.endDate.slice(0, 10) : "",
       });
     }
   }, [project]);
@@ -664,6 +669,37 @@ export default function ProjectDetail() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="Project Description"
                       />
+
+                      {/* Start Date */}
+                      <input
+                        type="date"
+                        value={updatedProject.startDate || ""}
+                        onChange={(e) =>
+                          setUpdatedProject((prev) => ({
+                            ...prev,
+                            startDate: e.target.value,
+                          }))
+                        }
+                        min={new Date().toISOString().split("T")[0]} // hôm nay
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Start Date"
+                      />
+
+                      {/* End Date */}
+                      <input
+                        type="date"
+                        value={updatedProject.endDate || ""}
+                        onChange={(e) =>
+                          setUpdatedProject((prev) => ({
+                            ...prev,
+                            endDate: e.target.value,
+                          }))
+                        }
+                        min={updatedProject.startDate || new Date().toISOString().split("T")[0]} // ít nhất bằng startDate
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="End Date"
+                      />
+
 
                       {updateError && (
                         <p className="text-red-600">{updateError}</p>
