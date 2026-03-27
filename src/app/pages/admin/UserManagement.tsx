@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useData } from '../../contexts/DataContext';
 import { UserX, UserCheck, Search } from 'lucide-react';
 import { API_BASE_URL } from "../../config/baseApi";
+import { toast } from "sonner";
 
 export default function UserManagement() {
 
@@ -350,10 +351,10 @@ export default function UserManagement() {
                 onClick={async () => {
                   try {
                     await resetUserPassword(selectedUser.id || selectedUser._id, resetPassword);
-                    alert("Password reset successfully!");
+                    toast.success("Password reset successfully!");
                     setResetPassword('');
                   } catch {
-                    alert("Failed to reset password");
+                    toast.error("Failed to reset password");
                   }
                 }}
                 className="w-full py-2 bg-blue-600 text-white rounded"

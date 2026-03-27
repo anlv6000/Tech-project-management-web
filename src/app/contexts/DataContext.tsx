@@ -22,7 +22,7 @@ import {
 } from "../types";
 import { useAuth } from "./AuthContext";
 import { API_BASE_URL } from "../config/baseApi";
-
+import { toast } from "sonner";
 interface DataContextType {
   // Projects
   projects: Project[];
@@ -1108,7 +1108,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       );
     } catch (error) {
       console.error("Update user error:", error);
-      alert(error instanceof Error ? error.message : "Failed to update user");
+      toast.error(error instanceof Error ? error.message : "Failed to update user");
     }
   };
   const resetUserPassword = async (id: string, newPassword: string) => {

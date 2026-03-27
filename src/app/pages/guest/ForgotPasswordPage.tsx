@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router';
 import { CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
 import { API_BASE_URL } from "../../config/baseApi";
+import { toast } from "sonner";
 
 export default function ForgotPasswordPage() {
   const [step, setStep] = useState<'email' | 'otp' | 'reset'>('email');

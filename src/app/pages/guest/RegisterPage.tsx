@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuth, registerUser, verifyOtp, resendOtp } from "../../contexts/AuthContext";
 import { API_BASE_URL } from "../../config/baseApi";
+import { toast } from "sonner";
 export default function RegisterPage() {
   const navigate = useNavigate();
   const { register } = useAuth();
@@ -11,6 +12,7 @@ export default function RegisterPage() {
   const [emailForOtp, setEmailForOtp] = useState('');
   const [countdown, setCountdown] = useState(30);
   const [canResend, setCanResend] = useState(false);
+  
 
   useEffect(() => {
     if (step !== "otp") return;
@@ -146,7 +148,7 @@ export default function RegisterPage() {
 
     setTimeout(() => navigate("/login"), 1500);
   } else {
-    alert(res.message);
+    toast.error(res.message);
   }
 };
 
@@ -161,7 +163,7 @@ export default function RegisterPage() {
       setCountdown(30);
       setCanResend(false);
     } else {
-      alert(res.message);
+      toast.error(res.message);
     }
   };
 

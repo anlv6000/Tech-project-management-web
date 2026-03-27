@@ -4,6 +4,7 @@ import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { ProjectRole, UserProject } from "../../types";
 import { API_BASE_URL } from "../../config/baseApi";
+import { toast } from "sonner";
 import {
   canCompleteProject,
   canManageMembers,
@@ -451,7 +452,7 @@ export default function ProjectDetail() {
       const result = await response.json();
 
       if (response.ok) {
-        alert("Project marked as complete!");
+        toast.success("Project marked as complete!");
         await loadProjectData(projectId);
         window.location.reload();
       } else {
@@ -487,7 +488,7 @@ export default function ProjectDetail() {
       const result = await response.json();
 
       if (response.ok) {
-        alert("Project updated successfully!");
+        toast.success("Project updated successfully!");
         setEditMode(false);
         await loadProjectData(projectId);
         window.location.reload();
@@ -564,12 +565,12 @@ export default function ProjectDetail() {
 
   const handleMarkPhaseDone = async (wu: any) => {
     if (!canMarkPhaseDone(currentProjectRole)) {
-      alert("Only project admins can complete phases.");
+      toast.error("Only project admins can complete phases.");
       return;
     }
 
     if (wu.isDone) {
-      alert("This phase is already completed.");
+      toast.error("This phase is already completed.");
       return;
     }
 
@@ -586,11 +587,11 @@ export default function ProjectDetail() {
         await loadProjectData(projectId);
       } else {
         const error = await response.json();
-        alert(error.message || "Failed to mark phase as done");
+        toast.error(error.message || "Failed to mark phase as done");
       }
     } catch (error) {
       console.error("Mark phase done error:", error);
-      alert("Failed to mark phase as done");
+      toast.error("Failed to mark phase as done");
     }
   };
 

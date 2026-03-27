@@ -7,6 +7,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { Task, Attachment, ProjectRole } from "../../types";
 import { API_BASE_URL } from "../../config/baseApi";
 import { WorkUnit, Project } from "../../types";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   Plus,
@@ -151,7 +152,7 @@ function TaskCard({
       );
 
       if (response.ok) {
-        alert("Task updated successfully!");
+        toast.success("Task updated successfully!");
         setShowEditModal(false);
         window.location.reload();
       } else {
@@ -656,12 +657,12 @@ export default function TaskBoard() {
       !currentProjectRole ||
       !canCreateSubTask(selectedTask, currentProjectRole, currentUserId)
     ) {
-      alert("You do not have permission to create sub-tasks.");
+      toast.error("You do not have permission to create sub-tasks.");
       return;
     }
 
     if (!newSubTaskTitle.trim() || !newSubTaskDesc.trim()) {
-      alert("Title and description are required");
+      toast.error("Title and description are required");
       return;
     }
 
@@ -695,7 +696,7 @@ export default function TaskBoard() {
       setNewSubTaskDesc("");
       setShowAddSubTask(false);
     } catch (err) {
-      alert("Failed to create sub-task");
+      toast.error("Failed to create sub-task");
     }
   };
 
@@ -706,7 +707,7 @@ export default function TaskBoard() {
       !currentProjectRole ||
       !canSaveTask(subTask, currentProjectRole, currentUserId)
     ) {
-      alert("You do not have permission to update this sub-task.");
+      toast.error("You do not have permission to update this sub-task.");
       return;
     }
 
@@ -736,7 +737,7 @@ export default function TaskBoard() {
     if (!taskId || !newWorkUnitId) return;
 
     if (!currentProjectRole || !canMoveTask(currentProjectRole)) {
-      alert("You do not have permission to move tasks.");
+      toast.error("You do not have permission to move tasks.");
       return;
     }
 
@@ -754,7 +755,7 @@ export default function TaskBoard() {
 
   const handleAddTask = (workUnitId: string) => {
     if (!currentProjectRole || !canCreateTask(currentProjectRole)) {
-      alert("You do not have permission to create tasks.");
+      toast.error("You do not have permission to create tasks.");
       return;
     }
 
@@ -764,7 +765,7 @@ export default function TaskBoard() {
 
   const handleOpenSprintModal = () => {
     if (!currentProjectRole || !canCreateWorkUnit(currentProjectRole)) {
-      alert("You do not have permission to create sprint.");
+      toast.error("You do not have permission to create sprint.");
       return;
     }
 
@@ -778,26 +779,26 @@ export default function TaskBoard() {
   const handleCreateSprint = async () => {
     try {
       if (!sprintName.trim()) {
-        alert("Sprint name is required");
+        toast.error("Sprint name is required");
         return;
       }
 
       if (!sprintStartDate) {
-        alert("Start date is required");
+        toast.error("Start date is required");
         return;
       }
 
       if (!sprintEndDate) {
-        alert("End date is required");
+        toast.error("End date is required");
         return;
       }
       if (new Date(sprintStartDate) < new Date()) {
-        alert("Start date cannot be in the past");
+        toast.error("Start date cannot be in the past");
         return;
       }
 
       if (new Date(sprintStartDate) >= new Date(sprintEndDate)) {
-        alert("End date must be after start date");
+        toast.error("End date must be after start date");
         return;
       }
 
@@ -816,7 +817,7 @@ export default function TaskBoard() {
       setSprintGoal("");
     } catch (error) {
       console.error("Failed to create sprint:", error);
-      alert("Failed to create sprint. Please try again.");
+      toast.error("Failed to create sprint. Please try again.");
     }
   };
 
@@ -824,7 +825,7 @@ export default function TaskBoard() {
     if (!selectedTask || !user) return;
 
     if (!currentProjectRole || !canUploadAttachment(currentProjectRole)) {
-      alert("You do not have permission to upload attachments.");
+      toast.error("You do not have permission to upload attachments.");
       return;
     }
 
@@ -838,7 +839,7 @@ export default function TaskBoard() {
     if (!selectedTask) return;
 
     if (!currentProjectRole || !canSaveTask(selectedTask, currentProjectRole, currentUserId)) {
-      alert("You do not have permission to update this task.");
+      toast.error("You do not have permission to update this task.");
       return;
     }
 
@@ -894,22 +895,22 @@ export default function TaskBoard() {
 
   const handleCreateTask = () => {
     if (!currentProjectRole || !canCreateTask(currentProjectRole)) {
-      alert("You do not have permission to create tasks.");
+      toast.error("You do not have permission to create tasks.");
       return;
     }
 
     if (!newTaskTitle.trim()) {
-      alert("Task title is required");
+      toast.error("Task title is required");
       return;
     }
 
     if (!newTaskDesc.trim()) {
-      alert("Task description is required");
+      toast.error("Task description is required");
       return;
     }
 
     if (!newTaskDeadline) {
-      alert("Deadline is required");
+      toast.error("Deadline is required");
       return;
     }
 
@@ -918,14 +919,14 @@ export default function TaskBoard() {
 
     // deadline phải >= hôm nay
     if (deadlineDate < today) {
-      alert("Deadline cannot be before today");
+      toast.error("Deadline cannot be before today");
       return;
     }
 
     // deadline phải <= endDate của sprint/phase
     const workUnit = getWorkUnitById(createWorkUnitId); // bạn đã có workUnit trong context
     if (workUnit?.endDate && deadlineDate > new Date(workUnit.endDate)) {
-      alert("Deadline must be before sprint/phase end date");
+      toast.error("Deadline must be before sprint/phase end date");
       return;
     }
 
@@ -938,7 +939,7 @@ export default function TaskBoard() {
     );
 
     if (existingTask) {
-      alert("Task title must be unique within the same column");
+      toast.error("Task title must be unique within the same column");
       return;
     }
 
@@ -964,17 +965,17 @@ export default function TaskBoard() {
     if (!selectedTask || !currentProjectRole) return;
 
     if (field === "status" && !canUpdateStatus(selectedTask, currentProjectRole, currentUserId)) {
-      alert("You do not have permission to update task status.");
+      toast.error("You do not have permission to update task status.");
       return;
     }
 
     if (field === "assigneeId" && !canAssignTask(selectedTask, currentProjectRole, currentUserId)) {
-      alert("You do not have permission to assign task.");
+      toast.error("You do not have permission to assign task.");
       return;
     }
 
     if (field !== "status" && field !== "assigneeId" && !canSaveTask(selectedTask, currentProjectRole, currentUserId)) {
-      alert("You do not have permission to update this task.");
+      toast.error("You do not have permission to update this task.");
       return;
     }
 
@@ -1030,7 +1031,7 @@ export default function TaskBoard() {
       }
     } catch (error) {
       console.error("Update task error:", error);
-      alert("Failed to update task.");
+      toast.error("Failed to update task.");
     }
   };
 
@@ -1039,7 +1040,7 @@ export default function TaskBoard() {
     if (!newComment.trim() || !selectedTask) return;
 
     if (!currentProjectRole || !canComment(currentProjectRole)) {
-      alert("You do not have permission to comment.");
+      toast.error("You do not have permission to comment.");
       return;
     }
 
@@ -1049,7 +1050,7 @@ export default function TaskBoard() {
   const handleAddReply = (parentId: string) => {
     if (!replyContent.trim() || !selectedTask) return;
     if (!currentProjectRole || !canComment(currentProjectRole)) {
-      alert("You do not have permission to comment.");
+      toast.error("You do not have permission to comment.");
       return;
     }
     addComment(selectedTaskId, replyContent, parentId);
@@ -1063,7 +1064,7 @@ export default function TaskBoard() {
       !currentProjectRole ||
       !canLogWork(selectedTask, currentProjectRole, currentUserId)
     ) {
-      alert("You do not have permission to log work on this task.");
+      toast.error("You do not have permission to log work on this task.");
       return;
     }
 
@@ -1133,7 +1134,7 @@ export default function TaskBoard() {
         currentUserId,
       )
     ) {
-      alert("You do not have permission to delete this attachment.");
+      toast.error("You do not have permission to delete this attachment.");
       return;
     }
 
@@ -1148,10 +1149,10 @@ export default function TaskBoard() {
       }
 
       handleCloseFullscreen();
-      alert("Attachment deleted successfully");
+      toast.success("Attachment deleted successfully");
     } catch (error) {
       console.error("Failed to delete attachment:", error);
-      alert("Failed to delete attachment");
+      toast.error("Failed to delete attachment");
     }
   };
 
@@ -1159,7 +1160,7 @@ export default function TaskBoard() {
     if (!projectId) return;
 
     if (!currentProjectRole || !canCreateWorkUnit(currentProjectRole)) {
-      alert("You do not have permission to delete work units.");
+      toast.error("You do not have permission to delete work units.");
       return;
     }
 
@@ -1178,23 +1179,23 @@ export default function TaskBoard() {
 
   const handleStartSprint = async (sprintId: string) => {
     if (!currentProjectRole || !canCreateWorkUnit(currentProjectRole)) {
-      alert("You do not have permission to manage sprints.");
+      toast.error("You do not have permission to manage sprints.");
       return;
     }
 
     try {
       await startSprint(sprintId);
-      alert("Sprint started successfully!");
+      toast.success("Sprint started successfully!");
       if (projectId) loadProjectData(projectId);
     } catch (error) {
       console.error("Failed to start sprint:", error);
-      alert("Failed to start sprint. Please try again.");
+      toast.error("Failed to start sprint. Please try again.");
     }
   };
 
   const handleEndSprint = async (sprintId: string) => {
     if (!currentProjectRole || !canCreateWorkUnit(currentProjectRole)) {
-      alert("You do not have permission to manage sprints.");
+      toast.error("You do not have permission to manage sprints.");
       return;
     }
 
@@ -1205,11 +1206,11 @@ export default function TaskBoard() {
 
     try {
       await endSprint(sprintId, "backlog");
-      alert("Sprint ended successfully!");
+      toast.success("Sprint ended successfully!");
       if (projectId) loadProjectData(projectId);
     } catch (error) {
       console.error("Failed to end sprint:", error);
-      alert("Failed to end sprint. Please try again.");
+      toast.error("Failed to end sprint. Please try again.");
     }
   };
 
@@ -1220,7 +1221,7 @@ export default function TaskBoard() {
       setShowSprintStats(true);
     } catch (error) {
       console.error("Failed to fetch sprint stats:", error);
-      alert("Failed to load sprint statistics.");
+      toast.error("Failed to load sprint statistics.");
     }
   };
   const projectWorkUnits = getProjectWorkUnits(projectId);

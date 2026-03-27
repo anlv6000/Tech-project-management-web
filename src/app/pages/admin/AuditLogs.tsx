@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useData } from "../../contexts/DataContext";
 import { FileText, Search, Filter } from "lucide-react";
+import { toast } from "sonner";
 
 export default function AuditLogs() {
   const {
@@ -178,12 +179,12 @@ export default function AuditLogs() {
 
   const handleDeleteFilteredLogs = async () => {
     if (!filterDate) {
-      alert("Please select a date to filter first");
+      toast.error("Please select a date to filter first");
       return;
     }
 
     if (filteredLogs.length === 0) {
-      alert("No audit logs found for the selected date");
+      toast.error("No audit logs found for the selected date");
       return;
     }
 
@@ -204,7 +205,7 @@ export default function AuditLogs() {
 
       setCurrentPage(1);
     } catch (error) {
-      alert("Failed to delete filtered audit logs");
+      toast.error("Failed to delete filtered audit logs");
     }
   };
 
@@ -424,7 +425,7 @@ export default function AuditLogs() {
                           try {
                             await deleteAuditLog(logId);
                           } catch (error) {
-                            alert("Failed to delete audit log");
+                            toast.error("Failed to delete audit log");
                           }
                         }}
                         className="px-2 py-0.5 text-xs rounded-md bg-gray-100 text-red-600 hover:bg-red-100 hover:text-red-600 transition"
