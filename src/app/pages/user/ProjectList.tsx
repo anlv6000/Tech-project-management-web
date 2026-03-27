@@ -28,7 +28,7 @@ export default function ProjectList() {
     refreshProjects,
   } = useData();
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showInviteModal, setShowInviteModal] = useState(false);
+
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
     null,
   );
@@ -47,26 +47,7 @@ export default function ProjectList() {
     startDate: todayDate,
     endDate: "",
   });
-  const [inviteData, setInviteData] = useState({
-    searchInput: "",
-    role: "member", // mặc định
-  });
 
-  // Dropdown chọn role
-  <select
-    value={inviteData.role}
-    onChange={(e) => setInviteData({ ...inviteData, role: e.target.value })}
-  >
-    <option value="projectAdmin">Project Admin</option>
-    <option value="pm">Project Manager</option>
-    <option value="member">Member</option>
-    <option value="viewer">Viewer</option>
-  </select>;
-
-  const [userSuggestions, setUserSuggestions] = useState<any[]>([]);
-  const [inviteLoading, setInviteLoading] = useState(false);
-  const [inviteError, setInviteError] = useState("");
-  const [inviteSuccess, setInviteSuccess] = useState(false);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [createError, setCreateError] = useState("");
   const [createSuccess, setCreateSuccess] = useState(false);
@@ -103,9 +84,9 @@ export default function ProjectList() {
       setCreateError("Project description is required");
       return;
     }
-    
-    if (formData.description.length > 200) {
-      setCreateError("Description is too long (max 200 characters)");
+
+    if (formData.description.length > 50) {
+      setCreateError("Description is too long (max 50 characters)");
       return;
     }
 
@@ -119,12 +100,12 @@ export default function ProjectList() {
       return;
     }
 
-    if (formData.endDate < todayDate) {
+    if (new Date(formData.endDate) < new Date(todayDate)) {
       setCreateError("End date cannot be in the past");
       return;
     }
 
-    if (formData.endDate < formData.startDate) {
+    if (new Date(formData.endDate) < new Date(formData.startDate)) {
       setCreateError("End date cannot be earlier than start date");
       return;
     }
@@ -177,73 +158,6 @@ export default function ProjectList() {
     }
   };
 
-  const handleSearchUser = async (input: string) => {
-    setInviteData({ ...inviteData, searchInput: input });
-
-    if (input.length < 2) {
-      setUserSuggestions([]);
-      return;
-    }
-
-    try {
-      const isEmail = input.includes("@");
-      const query = isEmail ? `email=${input}` : `fullName=${input}`;
-      const response = await fetch(`${API_BASE_URL}/api/users/search?${query}`);
-
-      if (response.ok) {
-        const users = await response.json();
-        setUserSuggestions(users);
-      }
-    } catch (error) {
-      console.error("Search user error:", error);
-    }
-  };
-
-  const handleInviteUser = async (userOrEmail: any) => {
-    if (!selectedProjectId) return;
-
-    setInviteError("");
-    setInviteSuccess(false);
-    setInviteLoading(true);
-    try {
-      const invitePayload =
-        typeof userOrEmail === "string"
-          ? { email: userOrEmail, role: inviteData.role }
-          : {
-            fullName: userOrEmail.fullName || userOrEmail.name,
-            email: userOrEmail.email,
-            role: inviteData.role,
-          };
-
-      const response = await fetch(
-        `${API_BASE_URL}/api/projects/${selectedProjectId}/invite`,
-        {
-          method: "POST",
-          headers: authJsonHeaders,
-          body: JSON.stringify(invitePayload),
-        },
-      );
-
-      if (response.ok) {
-        const result = await response.json();
-        setInviteSuccess(true);
-        setTimeout(() => {
-          setShowInviteModal(false);
-          setInviteData({ searchInput: "", role: "Member" });
-          setUserSuggestions([]);
-          setInviteSuccess(false);
-        }, 1500);
-      } else {
-        const error = await response.json();
-        setInviteError(error.message || "Failed to invite user");
-      }
-    } catch (error) {
-      console.error("Invite error:", error);
-      setInviteError("Failed to invite user. Please try again.");
-    } finally {
-      setInviteLoading(false);
-    }
-  };
 
   const handleAddSprint = async (projectId: string, sprintName: string) => {
     try {
@@ -300,19 +214,21 @@ export default function ProjectList() {
             const projectId = (project.id || project._id)!;
             const members = getProjectMembers(projectId);
             const projectTasks = getTasksByProject(projectId);
-            const completedTasks = projectTasks.filter(
-              (t) => t.status === "done",
-            ).length;
+            const completedTasks = projectTasks.filter((t) => t.status === "done").length;
             const progress =
               projectTasks.length > 0
                 ? (completedTasks / projectTasks.length) * 100
                 : 0;
 
+            const isOverdue =
+              new Date(project.endDate) < new Date() && !project.isCompleted;
+
             return (
               <Link
                 key={projectId}
                 to={`/app/projects/${projectId}`}
-                className={`bg-white p-6 rounded-lg border hover:shadow-lg transition-shadow ${project.isCompleted ? "opacity-50 cursor-not-allowed" : ""}`}
+                className={`bg-white p-6 rounded-lg border hover:shadow-lg transition-shadow ${project.isCompleted ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
               >
                 <h3 className="text-xl font-bold text-gray-900 mb-2">
                   {project.name}
@@ -323,6 +239,11 @@ export default function ProjectList() {
                   {project.isCompleted && (
                     <span className="px-2 py-1 bg-green-100 text-green-600 rounded-full text-xs">
                       Completed
+                    </span>
+                  )}
+                  {isOverdue && (
+                    <span className="px-2 py-1 bg-red-100 text-red-600 rounded-full text-xs">
+                      Overdue
                     </span>
                   )}
                 </div>
@@ -389,7 +310,7 @@ export default function ProjectList() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
+                  Description (50 characters max)
                 </label>
                 <textarea
                   value={formData.description}
@@ -442,7 +363,6 @@ export default function ProjectList() {
                     value={formData.startDate}
                     disabled
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed"
-                    required
                   />
                 </div>
 
@@ -467,11 +387,14 @@ export default function ProjectList() {
                 <button
                   type="button"
                   onClick={() => {
-                    setFormData((prev) => ({
-                      ...prev,
+                    setShowCreateModal(false);
+                    setFormData({
+                      name: "",
+                      description: "",
+                      methodology: "agile",
                       startDate: getTodayDate(),
-                    }));
-                    setShowCreateModal(true);
+                      endDate: "",
+                    });
                   }}
                   disabled={isCreatingProject}
                   className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -494,126 +417,6 @@ export default function ProjectList() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* Invite User Modal */}
-      {showInviteModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full">
-            <div className="p-6 border-b flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-gray-900">
-                Invite to Project
-              </h2>
-              <button
-                onClick={() => {
-                  setShowInviteModal(false);
-                  setUserSuggestions([]);
-                  setInviteData({ searchInput: "", role: "Member" });
-                }}
-                className="p-2 hover:bg-gray-100 rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              {inviteError && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <h3 className="font-medium text-red-900">Error</h3>
-                    <p className="text-sm text-red-700 mt-1">{inviteError}</p>
-                  </div>
-                </div>
-              )}
-
-              {inviteSuccess && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <h3 className="font-medium text-green-900">Success</h3>
-                    <p className="text-sm text-green-700 mt-1">
-                      User invited to project!
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Search by Email or Name
-                </label>
-                <input
-                  type="text"
-                  value={inviteData.searchInput}
-                  onChange={(e) => handleSearchUser(e.target.value)}
-                  disabled={inviteLoading}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                  placeholder="john@example.com hoặc John Doe"
-                />
-              </div>
-
-              {/* User Suggestions */}
-              {userSuggestions.length > 0 && (
-                <div className="border rounded-lg overflow-hidden bg-gray-50 max-h-48 overflow-y-auto">
-                  {userSuggestions.map((suggestion) => (
-                    <button
-                      key={suggestion._id || suggestion.id}
-                      onClick={() => handleInviteUser(suggestion)}
-                      disabled={inviteLoading}
-                      className="w-full text-left px-4 py-3 hover:bg-blue-100 disabled:hover:bg-gray-50 border-b last:border-b-0 transition-colors disabled:opacity-50"
-                    >
-                      <div className="font-medium text-gray-900">
-                        {suggestion.fullName}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        {suggestion.email}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* If email not found, allow direct invite */}
-              {inviteData.searchInput.includes("@") &&
-                userSuggestions.length === 0 &&
-                inviteData.searchInput.length > 2 && (
-                  <button
-                    onClick={() => handleInviteUser(inviteData.searchInput)}
-                    disabled={inviteLoading}
-                    className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
-                  >
-                    {inviteLoading ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Inviting...
-                      </>
-                    ) : (
-                      `Invite ${inviteData.searchInput} (New User)`
-                    )}
-                  </button>
-                )}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Role
-                </label>
-                <select
-                  value={inviteData.role}
-                  onChange={(e) =>
-                    setInviteData({ ...inviteData, role: e.target.value })
-                  }
-                  disabled={inviteLoading}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                >
-                  <option value="Member">Member</option>
-                  <option value="Lead">Lead</option>
-                  <option value="Admin">Admin</option>
-                </select>
-              </div>
-            </div>
           </div>
         </div>
       )}

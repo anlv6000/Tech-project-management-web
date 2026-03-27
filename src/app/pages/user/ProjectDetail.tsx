@@ -8,6 +8,9 @@ import {
   canCompleteProject,
   canManageMembers,
   canManageProject,
+  canCreateWorkUnit,
+  canEditPhase,
+  canMarkPhaseDone,
 } from "./permissions";
 import {
   ArrowLeft,
@@ -43,11 +46,21 @@ export default function ProjectDetail() {
     getTasksByProject,
     getAllUsers,
     loadProjectData,
+    getTasksByWorkUnit,
+    updateTask,
+    updateWorkUnit,
   } = useData() as any;
 
   const [activeTab, setActiveTab] = useState<
     "overview" | "members" | "reports"
   >("overview");
+  const [editingPhase, setEditingPhase] = useState<any>(null);
+  const [phaseEndDate, setPhaseEndDate] = useState("");
+  const phaseStartDate = editingPhase?.startDate
+    ? new Date(editingPhase.startDate).toISOString().split("T")[0]
+    : new Date().toISOString().split("T")[0];
+  const [phaseModalError, setPhaseModalError] = useState("");
+  const [phaseActionLoading, setPhaseActionLoading] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
   const [inviteData, setInviteData] = useState<{
     searchInput: string;
@@ -71,7 +84,9 @@ export default function ProjectDetail() {
   const [memberActionLoading, setMemberActionLoading] = useState("");
   const [memberActionError, setMemberActionError] = useState("");
   const [memberEditMode, setMemberEditMode] = useState(false);
-  const [editedRoles, setEditedRoles] = useState<Record<string, string>>({});
+  const [editedRoles, setEditedRoles] = useState<Record<string, ProjectRole>>(
+    {},
+  );
 
   const [updatedProject, setUpdatedProject] = useState({
     name: "",
@@ -87,24 +102,44 @@ export default function ProjectDetail() {
     return String(value);
   };
 
-  const normalizeRole = (role: unknown): string => {
-    if (!role) return "member";
-    if (role === "Admin") return "projectAdmin";
-    if (role === "PM") return "pm";
-    if (role === "Lead") return "pm";
-    if (role === "Manager") return "pm";
-    if (role === "Member") return "member";
-    if (role === "Viewer") return "viewer";
-    return String(role);
+  const normalizeRole = (role: unknown): ProjectRole | null => {
+    if (!role) return null;
+
+    const value = String(role).trim();
+
+    if (value === "projectAdmin" || value === "Project Admin") {
+      return "projectAdmin";
+    }
+
+    if (
+      value === "projectManager" ||
+      value === "Project Manager" ||
+      value === "pm" ||
+      value === "PM" ||
+      value === "Lead" ||
+      value === "Manager"
+    ) {
+      return "projectManager";
+    }
+
+    if (value === "member" || value === "Member") {
+      return "member";
+    }
+
+    if (value === "viewer" || value === "Viewer") {
+      return "viewer";
+    }
+
+    return null;
   };
 
-  const formatRoleLabel = (role: string) => {
+  const formatRoleLabel = (role: unknown) => {
     const normalized = normalizeRole(role);
     if (normalized === "projectAdmin") return "Project Admin";
-    if (normalized === "pm") return "Project Manager";
+    if (normalized === "projectManager") return "Project Manager";
     if (normalized === "member") return "Member";
     if (normalized === "viewer") return "Viewer";
-    return normalized;
+    return "Unknown Role";
   };
 
   if (!projectId) return null;
@@ -135,9 +170,23 @@ export default function ProjectDetail() {
     return memberUserId === currentUserId;
   });
 
-  const currentProjectRole = normalizeRole(currentMember?.role) as
-    | ProjectRole
-    | undefined;
+  const currentProjectRole = normalizeRole(currentMember?.role);
+
+  const isPhaseCompleted = (wu: any) => {
+    return wu.isDone === true;
+  };
+
+  const isPhaseEditable = (wu: any) => {
+    if (wu.type !== "phase") return false;
+    if (!canEditPhase(currentProjectRole)) return false;
+    if (wu.order === 1) return true;
+
+    const prevPhase = workUnits.find(
+      (item: any) => item.type === "phase" && item.order === wu.order - 1,
+    );
+
+    return prevPhase ? isPhaseCompleted(prevPhase) : true;
+  };
 
   const token = sessionStorage.getItem("token");
   const authJsonHeaders = {
@@ -257,10 +306,14 @@ export default function ProjectDetail() {
   };
 
   const handleStartEditMembers = () => {
-    const initialRoles: Record<string, string> = {};
+    const initialRoles: Record<string, ProjectRole> = {};
     members.forEach((member) => {
       const memberUserId = normalizeId(member.userId);
-      initialRoles[memberUserId] = normalizeRole(member.role);
+      const normalizedRole = normalizeRole(member.role);
+
+      if (memberUserId && normalizedRole) {
+        initialRoles[memberUserId] = normalizedRole;
+      }
     });
     setEditedRoles(initialRoles);
     setMemberActionError("");
@@ -268,10 +321,14 @@ export default function ProjectDetail() {
   };
 
   const handleCancelEditMembers = () => {
-    const initialRoles: Record<string, string> = {};
+    const initialRoles: Record<string, ProjectRole> = {};
     members.forEach((member) => {
       const memberUserId = normalizeId(member.userId);
-      initialRoles[memberUserId] = normalizeRole(member.role);
+      const normalizedRole = normalizeRole(member.role);
+
+      if (memberUserId && normalizedRole) {
+        initialRoles[memberUserId] = normalizedRole;
+      }
     });
     setEditedRoles(initialRoles);
     setMemberActionError("");
@@ -295,10 +352,12 @@ export default function ProjectDetail() {
         const isCurrentUser = memberUserId === currentUserId;
         if (isCurrentUser) return false;
 
-        const originalRole = normalizeRole(member.role).trim();
-        const editedRole = normalizeRole(editedRoles[memberUserId]).trim();
+        const originalRole = normalizeRole(member.role);
+        const editedRole = normalizeRole(editedRoles[memberUserId]);
 
-        return editedRole !== "" && editedRole !== originalRole;
+        if (!originalRole || !editedRole) return false;
+
+        return editedRole !== originalRole;
       });
 
       if (changedMembers.length === 0) {
@@ -308,38 +367,34 @@ export default function ProjectDetail() {
         return;
       }
 
-      const requests = changedMembers.map(async (member) => {
-        const memberUserId = normalizeId(member.userId);
-        const newRole = normalizeRole(editedRoles[memberUserId]).trim();
+      await Promise.all(
+        changedMembers.map(async (member) => {
+          const memberUserId = normalizeId(member.userId);
+          const newRole = normalizeRole(editedRoles[memberUserId]);
 
-        const response = await fetch(
-          `${API_BASE_URL}/api/user-projects/${memberUserId}/${projectId}`,
-          {
-            method: "PUT",
-            headers: authJsonHeaders,
-            body: JSON.stringify({ role: newRole }),
-          },
-        );
+          if (!newRole) {
+            throw new Error(`Invalid role for user ${memberUserId}`);
+          }
 
-        const rawText = await response.text();
-
-        let result: any = {};
-        try {
-          result = rawText ? JSON.parse(rawText) : {};
-        } catch {
-          result = { message: rawText || "Invalid server response" };
-        }
-
-        if (!response.ok) {
-          throw new Error(
-            result.message || `Failed to update role for ${memberUserId}`,
+          const response = await fetch(
+            `${API_BASE_URL}/api/user-projects/${memberUserId}/${projectId}`,
+            {
+              method: "PUT",
+              headers: authJsonHeaders,
+              body: JSON.stringify({ role: newRole }),
+            },
           );
-        }
 
-        return result;
-      });
+          const result = await response.json().catch(() => ({}));
 
-      await Promise.all(requests);
+          if (!response.ok) {
+            throw new Error(
+              result.message || `Failed to update role for ${memberUserId}`,
+            );
+          }
+        }),
+      );
+
       await loadProjectData(projectId);
       setMemberEditMode(false);
       setMemberActionLoading("");
@@ -351,7 +406,6 @@ export default function ProjectDetail() {
       setMemberActionLoading("");
     }
   };
-
   const handleCompleteProject = async () => {
     if (!currentProjectRole || !canCompleteProject(currentProjectRole)) {
       setCompletionError(
@@ -401,7 +455,7 @@ export default function ProjectDetail() {
       console.error("Complete project error:", error);
       setCompletionError("An error occurred while completing the project.");
     } finally {
-      setUpdateLoading(false);
+      setIsCompleting(false);
     }
   };
 
@@ -441,6 +495,101 @@ export default function ProjectDetail() {
       setUpdateLoading(false);
     }
   };
+  const openPhaseEditor = (wu: any) => {
+    setPhaseModalError("");
+    setPhaseEndDate(
+      wu.endDate ? new Date(wu.endDate).toISOString().split("T")[0] : "",
+    );
+    setEditingPhase(wu);
+  };
+
+  const closePhaseEditor = () => {
+    setEditingPhase(null);
+    setPhaseModalError("");
+    setPhaseEndDate("");
+  };
+
+  const handleSavePhase = async () => {
+    if (!editingPhase) return;
+    if (!phaseEndDate) {
+      setPhaseModalError("End date is required.");
+      return;
+    }
+
+    if (!canEditPhase(currentProjectRole)) {
+      setPhaseModalError("Only project admins can update phases.");
+      return;
+    }
+
+    const startDateObj = editingPhase?.startDate
+      ? new Date(editingPhase.startDate)
+      : new Date();
+    const endDateObj = new Date(phaseEndDate);
+
+    if (endDateObj < startDateObj) {
+      setPhaseModalError("End date must be on or after phase start date.");
+      return;
+    }
+
+    if (project?.endDate && endDateObj > new Date(project.endDate)) {
+      setPhaseModalError("End date cannot exceed project end date.");
+      return;
+    }
+
+    setPhaseActionLoading(true);
+    setPhaseModalError("");
+
+    try {
+      await updateWorkUnit(editingPhase.id || editingPhase._id, {
+        endDate: phaseEndDate,
+      });
+
+      await loadProjectData(projectId);
+      closePhaseEditor();
+    } catch (error: any) {
+      console.error("Phase update error:", error);
+      setPhaseModalError(
+        error?.message || "An error occurred while updating the phase.",
+      );
+    } finally {
+      setPhaseActionLoading(false);
+    }
+  };
+
+  const handleMarkPhaseDone = async (wu: any) => {
+    if (!canMarkPhaseDone(currentProjectRole)) {
+      alert("Only project admins can complete phases.");
+      return;
+    }
+
+    if (wu.isDone) {
+      alert("This phase is already completed.");
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/work-units/mark-done/${wu.id || wu._id}`,
+        {
+          method: "PUT",
+          headers: authJsonHeaders,
+        },
+      );
+
+      if (response.ok) {
+        await loadProjectData(projectId);
+      } else {
+        const error = await response.json();
+        alert(error.message || "Failed to mark phase as done");
+      }
+    } catch (error) {
+      console.error("Mark phase done error:", error);
+      alert("Failed to mark phase as done");
+    }
+  };
+
+  const isOverdue =
+    new Date(project.endDate) < new Date() && !project.isCompleted;
 
   const completedTasks = tasks.filter((t: any) => t.status === "done").length;
   const inProgressTasks = tasks.filter(
@@ -484,6 +633,7 @@ export default function ProjectDetail() {
                   <div className="bg-white p-6 rounded-lg shadow-lg w-[500px]">
                     <div className="flex justify-between items-center mb-4">
                       <h2 className="text-lg font-semibold">Edit Project</h2>
+
                       <button onClick={() => setEditMode(false)}>
                         <X className="w-5 h-5 text-gray-600" />
                       </button>
@@ -544,7 +694,24 @@ export default function ProjectDetail() {
                     {project.name}
                   </h1>
                   <p className="text-gray-600 mb-4">{project.description}</p>
-
+                  {/* Hiển thị deadline */}
+                  <div className="flex items-center gap-2 text-sm mb-4">
+                    <span className="font-medium text-gray-700">Deadline:</span>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs ${new Date(project.endDate) < new Date() && !project.isCompleted
+                        ? "bg-red-100 text-red-600"
+                        : "bg-gray-100 text-gray-700"
+                        }`}
+                    >
+                      {new Date(project.endDate).toLocaleDateString()}
+                    </span>
+                  </div>
+                  {isOverdue && (
+                    <div className="flex items-center gap-2 p-4 bg-red-50 text-red-700 rounded-lg mb-4">
+                      <AlertCircle className="w-5 h-5" />
+                      <span>This project has passed its end date and is overdue.</span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-3 flex-wrap">
                     {currentProjectRole &&
                       canManageProject(currentProjectRole) && (
@@ -567,6 +734,7 @@ export default function ProjectDetail() {
                 Open Board
               </button>
             </Link>
+
           </div>
         </div>
       </div>
@@ -587,8 +755,8 @@ export default function ProjectDetail() {
                     setActiveTab(tab.id as "overview" | "members" | "reports")
                   }
                   className={`flex items-center gap-2 px-4 py-4 border-b-2 transition-colors ${activeTab === tab.id
-                      ? "border-blue-600 text-blue-600"
-                      : "border-transparent text-gray-600 hover:text-gray-900"
+                    ? "border-blue-600 text-blue-600"
+                    : "border-transparent text-gray-600 hover:text-gray-900"
                     }`}
                 >
                   <Icon className="w-5 h-5" />
@@ -658,6 +826,8 @@ export default function ProjectDetail() {
 
                 <div className="space-y-3">
                   {workUnits.map((wu: any) => {
+                    const now = new Date();
+                    const isOverdue = wu.endDate && new Date(wu.endDate) < now && !wu.isDone;
                     const wuId = wu.id || wu._id || "";
                     const unitTasks = tasks.filter(
                       (t: any) =>
@@ -674,8 +844,8 @@ export default function ProjectDetail() {
 
                     return (
                       <div key={wuId} className="p-4 border rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <div>
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
                             <h3 className="font-medium text-gray-900">
                               {wu.name}
                             </h3>
@@ -683,16 +853,68 @@ export default function ProjectDetail() {
                               <p className="text-sm text-gray-600">{wu.goal}</p>
                             )}
                           </div>
-                          <span className="text-sm text-gray-600">
-                            {unitTasks.length} tasks
-                          </span>
+                          <div className="flex flex-col items-end gap-2">
+                            <span className="text-sm text-gray-600">
+                              {unitTasks.length} tasks
+                            </span>
+                            {wu.type === "phase" && (canEditPhase(currentProjectRole) || canMarkPhaseDone(currentProjectRole)) && (
+                              <div className="flex items-center gap-2">
+                                {canEditPhase(currentProjectRole) && (
+                                  <button
+                                    disabled={!isPhaseEditable(wu)}
+                                    onClick={() => openPhaseEditor(wu)}
+                                    className={`text-xs px-2 py-1 rounded ${isPhaseEditable(wu)
+                                      ? "bg-blue-600 text-white hover:bg-blue-700"
+                                      : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                                      }`}
+                                  >
+                                    Edit Phase Dates
+                                  </button>
+                                )}
+                                {canMarkPhaseDone(currentProjectRole) && (
+                                  <button
+                                    disabled={!isPhaseEditable(wu) || wu.isDone}
+                                    onClick={() => handleMarkPhaseDone(wu)}
+                                    className={`text-xs px-2 py-1 rounded ${isPhaseEditable(wu) && !wu.isDone
+                                      ? "bg-green-600 text-white hover:bg-green-700"
+                                      : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                                      }`}
+                                  >
+                                    {wu.isDone ? "Completed" : "Mark as Completed"}
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
 
-                        {wu.startDate && wu.endDate && (
-                          <div className="text-sm text-gray-600 mb-2">
-                            {new Date(wu.startDate).toLocaleDateString()} -{" "}
-                            {new Date(wu.endDate).toLocaleDateString()}
-                          </div>
+                        <div className="text-sm text-gray-600 mb-2">
+                          {wu.startDate
+                            ? new Date(wu.startDate).toLocaleDateString()
+                            : "Start: not set"}
+                          {" - "}
+                          {wu.endDate
+                            ? new Date(wu.endDate).toLocaleDateString()
+                            : "End: not set"}
+
+                          {isOverdue && (
+                            <span className="ml-2 px-2 py-1 bg-red-100 text-red-600 rounded-full text-xs">
+                              Overdue
+                            </span>
+                          )}
+                        </div>
+
+
+                        {wu.type === "phase" && canEditPhase(currentProjectRole) && !isPhaseEditable(wu) && (
+                          <p className="text-xs text-red-500">
+                            Phase {wu.order} is locked until Phase {wu.order - 1} is completed.
+                          </p>
+                        )}
+
+                        {wu.type === "phase" && wu.isDone && (
+                          <p className="text-xs text-green-600 font-medium">
+                            ✓ Phase {wu.order} completed
+                          </p>
                         )}
 
                         <div className="w-full bg-gray-200 rounded-full h-2">
@@ -708,7 +930,63 @@ export default function ProjectDetail() {
               </div>
             </div>
           )}
+          {editingPhase && (
+            <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
+              <div className="bg-white p-6 rounded-lg shadow-lg w-[420px]">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold">Edit Phase Dates</h2>
+                  <button onClick={closePhaseEditor}>
+                    <X className="w-5 h-5 text-gray-600" />
+                  </button>
+                </div>
 
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-sm font-medium mb-1">Start Date</p>
+                    <input
+                      type="date"
+                      value={phaseStartDate}
+                      disabled
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100"
+                    />
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-medium mb-1">End Date</p>
+                    <input
+                      type="date"
+                      value={phaseEndDate}
+                      onChange={(e) => setPhaseEndDate(e.target.value)}
+                      min={new Date().toISOString().split("T")[0]}
+                      max={project?.endDate ? new Date(project.endDate).toISOString().split("T")[0] : undefined}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+
+                  {phaseModalError && (
+                    <p className="text-sm text-red-600">{phaseModalError}</p>
+                  )}
+
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={closePhaseEditor}
+                      disabled={phaseActionLoading}
+                      className="px-3 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSavePhase}
+                      disabled={phaseActionLoading}
+                      className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {phaseActionLoading ? "Saving..." : "Save"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           {activeTab === "members" && (
             <div className="bg-white rounded-lg border">
               <div className="p-6 border-b flex items-center justify-between">
@@ -827,11 +1105,14 @@ export default function ProjectDetail() {
                         ) : (
                           <select
                             value={
-                              editedRoles[memberUserId] ?? normalizedMemberRole
+                              editedRoles[memberUserId] ??
+                              normalizedMemberRole ??
+                              "member"
                             }
                             disabled={memberActionLoading === "saving"}
                             onChange={(e) => {
                               const nextRole = normalizeRole(e.target.value);
+                              if (!nextRole) return;
                               setEditedRoles((prev) => ({
                                 ...prev,
                                 [memberUserId]: nextRole,
@@ -839,7 +1120,9 @@ export default function ProjectDetail() {
                             }}
                             className="px-3 py-1 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                           >
-                            <option value="pm">Project Manager</option>
+                            <option value="projectManager">
+                              Project Manager
+                            </option>
                             <option value="member">Member</option>
                             <option value="viewer">Viewer</option>
                           </select>
@@ -1025,7 +1308,7 @@ export default function ProjectDetail() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                 >
                   <option value="member">Member</option>
-                  <option value="pm">Project Manager</option>
+                  <option value="projectManager">Project Manager</option>
                   <option value="viewer">Viewer</option>
                 </select>
               </div>
@@ -1041,8 +1324,8 @@ export default function ProjectDetail() {
               onClick={handleCompleteProject}
               disabled={isCompleting || project.isCompleted}
               className={`px-4 py-2 rounded-lg ${project.isCompleted
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-green-600 hover:bg-green-700"
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-green-600 hover:bg-green-700"
                 } text-white`}
             >
               {isCompleting
