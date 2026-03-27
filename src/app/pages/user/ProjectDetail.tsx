@@ -419,14 +419,14 @@ export default function ProjectDetail() {
       return;
     }
 
-    if (tasks.some((task: any) => task.status !== "done")) {
-      alert(
-        `Cannot complete project. ${
-          tasks.filter((task: any) => task.status !== "done").length
-        } tasks are not completed.`,
-      );
-      return;
-    }
+    // if (tasks.some((task: any) => task.status !== "done")) {
+    //   alert(
+    //     `Cannot complete project. ${
+    //       tasks.filter((task: any) => task.status !== "done").length
+    //     } tasks are not completed.`,
+    //   );
+    //   return;
+    // }
 
     if (
       !window.confirm(

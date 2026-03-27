@@ -386,6 +386,9 @@ function Column({
 
   const isWorkUnitDisabledFinal =
     isWorkUnitDisabled || isDisabledPhase || isDisabledSprint;
+
+  const isPlusDisabled =
+    workUnit?.type === "sprint" && workUnit?.status === "planning";
   const [{ isOver }, drop] = useDrop({
     accept: ItemType,
     canDrop: () => {
@@ -435,6 +438,7 @@ function Column({
         {!isProjectCompleted &&
           !isWorkUnitDisabledFinal &&
           currentProjectRole &&
+          !isPlusDisabled &&
           canCreateTask(currentProjectRole) &&
           !(
             // Phase rule: chưa start thì ẩn nút +
@@ -766,6 +770,10 @@ export default function TaskBoard() {
 
       if (!sprintEndDate) {
         alert("End date is required");
+        return;
+      }
+      if (new Date(sprintStartDate) < new Date()) {
+        alert("Start date cannot be in the past");
         return;
       }
 
@@ -1182,6 +1190,10 @@ export default function TaskBoard() {
     project?.methodology === "agile" &&
     selectedWorkUnit?.type === "sprint" &&
     selectedWorkUnit?.status === "closed";
+
+  const isPlusDisabled =
+    selectedWorkUnit?.type === "sprint" &&
+    selectedWorkUnit?.status === "planning";
 
   const isTaskViewOnly = isDisabledPhase || isDisabledSprint;
 
