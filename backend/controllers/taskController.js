@@ -351,7 +351,6 @@ export const removeRelatedTask = async (req, res) => {
 
     if (!task) return res.status(404).json({ message: 'Task not found' });
 
-    // Gỡ 2 chiều
     task.relatedTasks = task.relatedTasks.filter(
       r => r.taskId.toString() !== relatedTaskId
     );
