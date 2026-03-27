@@ -1,0 +1,30 @@
+# Frontend
+node_modules/
+dist/
+build/
+*.log
+logs/
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.prettierignore
+package-lock.json
+yarn.lock
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vs
+.vscode
+*.suo
+*.sln
+*.csproj
+
+**/.env
+**/.env.*
