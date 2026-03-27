@@ -69,7 +69,8 @@ export function canCreateTask(projectRole: ProjectRole | string): boolean {
   const normalizedRole = normalizeRole(projectRole);
   return (
     normalizedRole === "projectAdmin" ||
-    normalizedRole === "projectManager"
+    normalizedRole === "projectManager" ||
+    normalizedRole === "member"
   );
 }
 
@@ -92,14 +93,15 @@ export function canEditTask(
   return normalizedRole === "member" && assigneeId === String(userId);
 }
 
-export function canUpdateStatus(
+
+export function canAssignTask(
   task: Task,
   projectRole: ProjectRole | string,
   userId: string,
 ): boolean {
   const normalizedRole = normalizeRole(projectRole);
-  if (!normalizedRole) return false;
 
+  // Admin/Manager luôn được phép
   if (
     normalizedRole === "projectAdmin" ||
     normalizedRole === "projectManager"
@@ -107,11 +109,13 @@ export function canUpdateStatus(
     return true;
   }
 
-  const assigneeId = getIdString(task.assigneeId);
-  return normalizedRole === "member" && assigneeId === String(userId);
+  // Người tạo task cũng được phép
+  const creatorId = getIdString(task.createdBy);
+  return creatorId === String(userId);
 }
 
-export function canAssignTask(projectRole: ProjectRole | string): boolean {
+
+export function canMoveTask(projectRole: ProjectRole | string): boolean {
   const normalizedRole = normalizeRole(projectRole);
   return (
     normalizedRole === "projectAdmin" ||
@@ -119,43 +123,9 @@ export function canAssignTask(projectRole: ProjectRole | string): boolean {
   );
 }
 
-export function canSaveTask(
-  task: Task,
-  projectRole: ProjectRole | string,
-  userId: string,
-): boolean {
-  const normalizedRole = normalizeRole(projectRole);
-  if (!normalizedRole) return false;
 
-  if (
-    normalizedRole === "projectAdmin" ||
-    normalizedRole === "projectManager"
-  ) {
-    return true;
-  }
 
-  const assigneeId = getIdString(task.assigneeId);
-  return normalizedRole === "member" && assigneeId === String(userId);
-}
 
-export function canLogWork(
-  task: Task,
-  projectRole: ProjectRole | string,
-  userId: string,
-): boolean {
-  const normalizedRole = normalizeRole(projectRole);
-  if (!normalizedRole) return false;
-
-  if (
-    normalizedRole === "projectAdmin" ||
-    normalizedRole === "projectManager"
-  ) {
-    return true;
-  }
-
-  const assigneeId = getIdString(task.assigneeId);
-  return normalizedRole === "member" && assigneeId === String(userId);
-}
 
 export function canComment(projectRole: ProjectRole | string): boolean {
   const normalizedRole = normalizeRole(projectRole);
@@ -194,12 +164,17 @@ export function canDeleteAttachment(
   return normalizedRole === "member" && uploaderId === String(userId || "");
 }
 
-export function canCreateSubTask(projectRole: ProjectRole | string): boolean {
+export function canCreateSubTask(
+  task: Task,
+  projectRole: ProjectRole | string,
+  userId: string,
+): boolean {
   const normalizedRole = normalizeRole(projectRole);
-  return (
-    normalizedRole === "projectAdmin" ||
-    normalizedRole === "projectManager"
-  );
+  if (normalizedRole === "projectAdmin" || normalizedRole === "projectManager") {
+    return true;
+  }
+  const creatorId = getIdString(task.createdBy);
+  return normalizedRole === "member" && creatorId === String(userId);
 }
 
 export function canUpdateSubTask(
@@ -208,23 +183,65 @@ export function canUpdateSubTask(
   userId: string,
 ): boolean {
   const normalizedRole = normalizeRole(projectRole);
-  if (!normalizedRole) return false;
-
-  if (
-    normalizedRole === "projectAdmin" ||
-    normalizedRole === "projectManager"
-  ) {
+  if (normalizedRole === "projectAdmin" || normalizedRole === "projectManager") {
     return true;
   }
-
   const assigneeId = getIdString(subTask.assigneeId);
-  return normalizedRole === "member" && assigneeId === String(userId);
+  const creatorId = getIdString(subTask.createdBy);
+  return normalizedRole === "member" && (assigneeId === String(userId) || creatorId === String(userId));
 }
 
-export function canDeleteSubTask(projectRole: ProjectRole | string): boolean {
+export function canDeleteSubTask(
+  subTask: Task,
+  projectRole: ProjectRole | string,
+  userId: string,
+): boolean {
   const normalizedRole = normalizeRole(projectRole);
-  return (
-    normalizedRole === "projectAdmin" ||
-    normalizedRole === "projectManager"
-  );
+  if (normalizedRole === "projectAdmin" || normalizedRole === "projectManager") {
+    return true;
+  }
+  const creatorId = getIdString(subTask.createdBy);
+  return normalizedRole === "member" && creatorId === String(userId);
+}
+
+export function canSaveTask(
+  task: Task,
+  projectRole: ProjectRole | string,
+  userId: string,
+): boolean {
+  const normalizedRole = normalizeRole(projectRole);
+  if (normalizedRole === "projectAdmin" || normalizedRole === "projectManager") {
+    return true;
+  }
+  const assigneeId = getIdString(task.assigneeId);
+  const creatorId = getIdString(task.createdBy);
+  return normalizedRole === "member" && (assigneeId === String(userId) || creatorId === String(userId));
+}
+
+export function canLogWork(
+  task: Task,
+  projectRole: ProjectRole | string,
+  userId: string,
+): boolean {
+  const normalizedRole = normalizeRole(projectRole);
+  if (normalizedRole === "projectAdmin" || normalizedRole === "projectManager") {
+    return true;
+  }
+  const assigneeId = getIdString(task.assigneeId);
+  const creatorId = getIdString(task.createdBy);
+  return normalizedRole === "member" && (assigneeId === String(userId) || creatorId === String(userId));
+}
+
+export function canUpdateStatus(
+  task: Task,
+  projectRole: ProjectRole | string,
+  userId: string,
+): boolean {
+  const normalizedRole = normalizeRole(projectRole);
+  if (normalizedRole === "projectAdmin" || normalizedRole === "projectManager") {
+    return true;
+  }
+  const assigneeId = getIdString(task.assigneeId);
+  const creatorId = getIdString(task.createdBy);
+  return normalizedRole === "member" && (assigneeId === String(userId) || creatorId === String(userId));
 }

@@ -33,6 +33,7 @@ import {
   canDeleteAttachment,
   canComment,
   canSaveTask,
+  canMoveTask,
 } from "./permissions";
 
 
@@ -616,10 +617,14 @@ export default function TaskBoard() {
   const handleCreateSubTask = async () => {
     if (!selectedTask) return;
 
-    if (!currentProjectRole || !canCreateSubTask(currentProjectRole)) {
+    if (
+      !currentProjectRole ||
+      !canCreateSubTask(selectedTask, currentProjectRole, currentUserId)
+    ) {
       alert("You do not have permission to create sub-tasks.");
       return;
     }
+
 
     if (!newSubTaskTitle.trim() || !newSubTaskDesc.trim()) {
       alert("Title and description are required");
@@ -696,7 +701,7 @@ export default function TaskBoard() {
   const handleDrop = async (taskId: string, newWorkUnitId: string) => {
     if (!taskId || !newWorkUnitId) return;
 
-    if (!currentProjectRole || !canAssignTask(currentProjectRole)) {
+    if (!currentProjectRole || !canMoveTask(currentProjectRole)) {
       alert("You do not have permission to move tasks.");
       return;
     }
@@ -916,7 +921,7 @@ export default function TaskBoard() {
       return;
     }
 
-    if (field === "assigneeId" && !canAssignTask(currentProjectRole)) {
+    if (field === "assigneeId" && !canAssignTask(selectedTask, currentProjectRole, currentUserId)) {
       alert("You do not have permission to assign task.");
       return;
     }
@@ -1714,7 +1719,7 @@ export default function TaskBoard() {
                         isProjectCompleted ||
                         !currentProjectRole ||
                         isTaskViewOnly ||
-                        !canAssignTask(currentProjectRole)
+                        !canAssignTask(selectedTask, currentProjectRole, currentUserId)
                       }
                       value={(() => {
                         if (taskChanges.assigneeId)
@@ -1724,14 +1729,12 @@ export default function TaskBoard() {
                       onChange={(e) =>
                         handleTaskChange(
                           "assigneeId",
-                          e.target.value !== ""
-                            ? String(e.target.value)
-                            : undefined,
+                          e.target.value !== "" ? String(e.target.value) : undefined,
                         )
                       }
                       className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${isProjectCompleted ||
                         !currentProjectRole ||
-                        !canAssignTask(currentProjectRole)
+                        !canAssignTask(selectedTask, currentProjectRole, currentUserId)
                         ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                         : "focus:outline-none focus:ring-2 focus:ring-blue-500"
                         }`}
@@ -1746,6 +1749,7 @@ export default function TaskBoard() {
                         );
                       })}
                     </select>
+
                   </div>
                 </div>
 
@@ -1803,7 +1807,7 @@ export default function TaskBoard() {
                     {!isProjectCompleted &&
                       !isTaskViewOnly &&
                       currentProjectRole &&
-                      canCreateSubTask(currentProjectRole) && (
+                      canCreateSubTask(selectedTask, currentProjectRole, currentUserId) && (
                         <button
                           onClick={() => setShowAddSubTask(!showAddSubTask)}
                           className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
@@ -2074,32 +2078,32 @@ export default function TaskBoard() {
                   </div>
 
                   {currentProjectRole &&
-                  !isTaskViewOnly &&
-                  canComment(currentProjectRole) && (
-                    <div className="flex gap-3">
-                      <input
-                        type="text"
-                        value={newComment}
-                        onChange={(e) => setNewComment(e.target.value)}
-                        placeholder="Add a comment..."
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        onKeyPress={(e) =>
-                          e.key === "Enter" && handleAddComment()
-                        }
-                      />
+                    !isTaskViewOnly &&
+                    canComment(currentProjectRole) && (
+                      <div className="flex gap-3">
+                        <input
+                          type="text"
+                          value={newComment}
+                          onChange={(e) => setNewComment(e.target.value)}
+                          placeholder="Add a comment..."
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          onKeyPress={(e) =>
+                            e.key === "Enter" && handleAddComment()
+                          }
+                        />
 
-                      <button
-                        disabled={isProjectCompleted}
-                        onClick={handleAddComment}
-                        className={`px-4 py-2 rounded-lg ${isProjectCompleted
-                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                          : "bg-blue-600 text-white hover:bg-blue-700"
-                          }`}
-                      >
-                        Comment
-                      </button>
-                    </div>
-                  )}
+                        <button
+                          disabled={isProjectCompleted}
+                          onClick={handleAddComment}
+                          className={`px-4 py-2 rounded-lg ${isProjectCompleted
+                            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                            : "bg-blue-600 text-white hover:bg-blue-700"
+                            }`}
+                        >
+                          Comment
+                        </button>
+                      </div>
+                    )}
                 </div>
               </div>
 
