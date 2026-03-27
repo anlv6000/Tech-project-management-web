@@ -6,13 +6,15 @@ import {
   getAuditLogsByEntity,
   createAuditLog,
   deleteAuditLog,
+  getRecentAuditLogs,
+  deleteAuditLogsByDate,
 } from "../controllers/auditLogController.js";
 
 const router = express.Router();
 
 // Get all audit logs
 router.get("/", authenticateToken, requireAdmin, getAllAuditLogs);
-
+router.get("/recent", authenticateToken, requireAdmin, getRecentAuditLogs);
 // Get audit logs by action
 router.get(
   "/action/:action",
@@ -40,5 +42,6 @@ router.post("/", authenticateToken, createAuditLog);
 
 // Delete audit log
 router.delete("/:id", authenticateToken, requireAdmin, deleteAuditLog);
+router.delete("/", authenticateToken, requireAdmin, deleteAuditLogsByDate);
 
 export default router;
