@@ -189,9 +189,8 @@ function TaskCard({
       <div
         ref={drag as any}
         onClick={onClick}
-        className={`p-4 rounded-lg border hover:shadow-md transition-all ${statusColor} ${
-          isDragging ? "opacity-50" : "opacity-100"
-        } ${isProjectCompleted ? "cursor-not-allowed" : "cursor-pointer"}`}
+        className={`p-4 rounded-lg border hover:shadow-md transition-all ${statusColor} ${isDragging ? "opacity-50" : "opacity-100"
+          } ${isProjectCompleted ? "cursor-not-allowed" : "cursor-pointer"}`}
       >
         <div className="flex justify-between items-start">
           <h3 className="font-medium text-gray-900 mb-2">{task.title}</h3>
@@ -389,10 +388,11 @@ function Column({
 
   const isPlusDisabled =
     workUnit?.type === "sprint" && workUnit?.status === "planning";
+
   const [{ isOver }, drop] = useDrop({
     accept: ItemType,
     canDrop: () => {
-      if (isProjectCompleted || isWorkUnitDisabled) return false;
+      if (isProjectCompleted || isWorkUnitDisabledFinal) return false;
       if (
         !currentProjectRole ||
         !["projectAdmin", "projectManager"].includes(currentProjectRole)
@@ -410,9 +410,30 @@ function Column({
 
       return true;
     },
-    drop: (item: { id: string; workUnitId: string }) => {
+    drop: async (item: { id: string; workUnitId: string }) => {
       if (item.workUnitId !== workUnitId) {
-        onDrop(item.id, workUnitId);
+        let newStatus = undefined;
+
+        // Kanban: map column name -> status
+        if (project?.methodology === "kanban" && workUnit?.type === "column") {
+          if (workUnit.name === "To Do") newStatus = "todo";
+          else if (workUnit.name === "In Progress") newStatus = "in-progress";
+          else if (workUnit.name === "Done") newStatus = "done";
+        }
+
+        try {
+          await fetch(`${API_BASE_URL}/api/tasks/${item.id}`, {
+            method: "PUT",
+            headers: getAuthJsonHeaders(),
+            body: JSON.stringify({
+              workUnitId,
+              ...(newStatus && { status: newStatus }),
+            }),
+          });
+          await onDrop(item.id, workUnitId);
+        } catch (error) {
+          console.error("Failed to update task:", error);
+        }
       }
     },
     collect: (monitor) => ({
@@ -425,9 +446,8 @@ function Column({
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2
-            className={`text-lg font-bold ${
-              isWorkUnitDisabledFinal ? "text-green-600" : "text-gray-900"
-            }`}
+            className={`text-lg font-bold ${isWorkUnitDisabledFinal ? "text-green-600" : "text-gray-900"
+              }`}
           >
             {workUnit.name}
             {isWorkUnitDisabledFinal && " ✓"}
@@ -455,13 +475,12 @@ function Column({
 
       <div
         ref={drop as any}
-        className={`flex-1 space-y-3 min-h-[200px] p-2 rounded-lg transition-colors ${
-          isWorkUnitDisabled
-            ? "bg-green-100 border-2 border-dashed border-green-300"
-            : isOver
-              ? "bg-blue-50 border-2 border-dashed border-blue-300"
-              : "bg-transparent"
-        }`}
+        className={`flex-1 space-y-3 min-h-[200px] p-2 rounded-lg transition-colors ${isWorkUnitDisabled
+          ? "bg-green-100 border-2 border-dashed border-green-300"
+          : isOver
+            ? "bg-blue-50 border-2 border-dashed border-blue-300"
+            : "bg-transparent"
+          }`}
       >
         {tasks.map((task) => (
           <TaskCard
@@ -815,13 +834,10 @@ export default function TaskBoard() {
     await addAttachment(taskId, file);
   };
 
-  const handleSaveTask = () => {
+  const handleSaveTask = async () => {
     if (!selectedTask) return;
 
-    if (
-      !currentProjectRole ||
-      !canSaveTask(selectedTask, currentProjectRole, currentUserId)
-    ) {
+    if (!currentProjectRole || !canSaveTask(selectedTask, currentProjectRole, currentUserId)) {
       alert("You do not have permission to update this task.");
       return;
     }
@@ -830,13 +846,30 @@ export default function TaskBoard() {
     if (!selectedTaskId) return;
 
     if (Object.keys(taskChanges).length > 0) {
-      updateTask(selectedTaskId, taskChanges);
+      let updatePayload: any = { ...taskChanges };
+
+      // ✅ Nếu có status và project là Kanban thì map sang column
+      if (taskChanges.status && project?.methodology === "kanban") {
+        const targetColumn = workUnits.find(
+          (wu) =>
+            wu.type === "column" &&
+            ((taskChanges.status === "todo" && wu.name === "To Do") ||
+              (taskChanges.status === "in-progress" && wu.name === "In Progress") ||
+              (taskChanges.status === "done" && wu.name === "Done"))
+        );
+        if (targetColumn) {
+          updatePayload.workUnitId = targetColumn.id || targetColumn._id;
+        }
+      }
+
+      await updateTask(selectedTaskId, updatePayload);
       setTaskChanges({});
     }
 
     setTaskStack([]);
     setSubTasks([]);
   };
+
 
   const handleCloseTaskModal = () => {
     if (Object.keys(taskChanges).length > 0) {
@@ -927,62 +960,80 @@ export default function TaskBoard() {
     setNewTaskDeadline("");
   };
 
-  const handleTaskChange = (field: keyof Task, value: any) => {
+  const handleTaskChange = async (field: keyof Task, value: any) => {
     if (!selectedTask || !currentProjectRole) return;
 
-    if (
-      field === "status" &&
-      !canUpdateStatus(selectedTask, currentProjectRole, currentUserId)
-    ) {
+    if (field === "status" && !canUpdateStatus(selectedTask, currentProjectRole, currentUserId)) {
       alert("You do not have permission to update task status.");
       return;
     }
 
-    if (
-      field === "assigneeId" &&
-      !canAssignTask(selectedTask, currentProjectRole, currentUserId)
-    ) {
+    if (field === "assigneeId" && !canAssignTask(selectedTask, currentProjectRole, currentUserId)) {
       alert("You do not have permission to assign task.");
       return;
     }
 
-    if (
-      field !== "status" &&
-      field !== "assigneeId" &&
-      !canSaveTask(selectedTask, currentProjectRole, currentUserId)
-    ) {
+    if (field !== "status" && field !== "assigneeId" && !canSaveTask(selectedTask, currentProjectRole, currentUserId)) {
       alert("You do not have permission to update this task.");
       return;
     }
 
     setTaskChanges((prev) => ({ ...prev, [field]: value }));
 
-    if (field === "assigneeId" && selectedTask) {
-      const assignedUser = users?.find(
-        (u: any) => String(normalizeId(u.id || u._id)) === String(value),
-      );
+    try {
+      let updatePayload: any = { [field]: value };
 
-      if (assignedUser) {
-        fetch(`${API_BASE_URL}/api/notifications`, {
-          method: "POST",
-          headers: getAuthJsonHeaders(),
-          body: JSON.stringify({
-            userId: assignedUser.id || assignedUser._id,
-            type: "task",
-            title: `Assigned to Task: ${selectedTask.title}`,
-            message: `You have been assigned to task "${selectedTask.title}" in project ${project?.name}`,
-            relatedEntityId: selectedTask.id || selectedTask._id,
-            relatedEntityType: "task",
-            actionLink: `/app/projects/${selectedTask.projectId}/board?taskId=${selectedTask.id || selectedTask._id}`,
-            data: {
-              projectId: selectedTask.projectId,
-              taskId: selectedTask.id || selectedTask._id,
-            },
-          }),
-        });
+      // ✅ Nếu là Kanban và đổi status thì map sang column tương ứng
+      if (field === "status" && project?.methodology === "kanban") {
+        const targetColumn = workUnits.find(
+          (wu) =>
+            wu.type === "column" &&
+            ((value === "todo" && wu.name === "To Do") ||
+              (value === "in-progress" && wu.name === "In Progress") ||
+              (value === "done" && wu.name === "Done"))
+        );
+        if (targetColumn) {
+          updatePayload.workUnitId = targetColumn.id || targetColumn._id;
+        }
       }
+
+      await fetch(`${API_BASE_URL}/api/tasks/${selectedTask.id || selectedTask._id}`, {
+        method: "PUT",
+        headers: getAuthJsonHeaders(),
+        body: JSON.stringify(updatePayload),
+      });
+
+      // Nếu đổi assignee thì gửi notification
+      if (field === "assigneeId") {
+        const assignedUser = users?.find(
+          (u: any) => String(normalizeId(u.id || u._id)) === String(value),
+        );
+        if (assignedUser) {
+          await fetch(`${API_BASE_URL}/api/notifications`, {
+            method: "POST",
+            headers: getAuthJsonHeaders(),
+            body: JSON.stringify({
+              userId: assignedUser.id || assignedUser._id,
+              type: "task",
+              title: `Assigned to Task: ${selectedTask.title}`,
+              message: `You have been assigned to task "${selectedTask.title}" in project ${project?.name}`,
+              relatedEntityId: selectedTask.id || selectedTask._id,
+              relatedEntityType: "task",
+              actionLink: `/app/projects/${selectedTask.projectId}/board?taskId=${selectedTask.id || selectedTask._id}`,
+              data: {
+                projectId: selectedTask.projectId,
+                taskId: selectedTask.id || selectedTask._id,
+              },
+            }),
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Update task error:", error);
+      alert("Failed to update task.");
     }
   };
+
 
   const handleAddComment = () => {
     if (!newComment.trim() || !selectedTask) return;
@@ -1318,11 +1369,10 @@ export default function TaskBoard() {
                     <button
                       onClick={handleOpenSprintModal}
                       disabled={!allSprintsClosed}
-                      className={`px-4 py-2 rounded-lg ${
-                        allSprintsClosed
-                          ? "bg-blue-600 text-white hover:bg-blue-700"
-                          : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                      }`}
+                      className={`px-4 py-2 rounded-lg ${allSprintsClosed
+                        ? "bg-blue-600 text-white hover:bg-blue-700"
+                        : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        }`}
                     >
                       + New Sprint
                     </button>
@@ -1381,8 +1431,8 @@ export default function TaskBoard() {
                             max={
                               project?.endDate
                                 ? new Date(project.endDate)
-                                    .toISOString()
-                                    .split("T")[0]
+                                  .toISOString()
+                                  .split("T")[0]
                                 : undefined
                             }
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -1619,8 +1669,8 @@ export default function TaskBoard() {
                           max={
                             project?.endDate
                               ? new Date(project.endDate)
-                                  .toISOString()
-                                  .split("T")[0]
+                                .toISOString()
+                                .split("T")[0]
                               : undefined
                           }
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
@@ -1666,11 +1716,10 @@ export default function TaskBoard() {
                 return (
                   <div
                     key={workUnitId}
-                    className={`p-4 rounded-lg relative ${
-                      workUnit.type === "phase" && workUnit.isDone
-                        ? "bg-green-100 border-2 border-green-300"
-                        : "bg-gray-100"
-                    }`}
+                    className={`p-4 rounded-lg relative ${workUnit.type === "phase" && workUnit.isDone
+                      ? "bg-green-100 border-2 border-green-300"
+                      : "bg-gray-100"
+                      }`}
                   >
                     <Column
                       workUnit={workUnit}
@@ -1716,27 +1765,27 @@ export default function TaskBoard() {
                               )}
                               {(workUnit.status === "active" ||
                                 workUnit.status === "planning") && (
-                                <>
-                                  <button
-                                    onClick={() =>
-                                      handleViewSprintStats(workUnitId)
-                                    }
-                                    className="text-xs px-2 py-1 text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 rounded"
-                                  >
-                                    Stats
-                                  </button>
-                                  {workUnit.status === "active" && (
+                                  <>
                                     <button
                                       onClick={() =>
-                                        handleEndSprint(workUnitId)
+                                        handleViewSprintStats(workUnitId)
                                       }
-                                      className="text-xs px-2 py-1 text-orange-600 hover:text-orange-800 bg-orange-50 hover:bg-orange-100 rounded"
+                                      className="text-xs px-2 py-1 text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 rounded"
                                     >
-                                      End
+                                      Stats
                                     </button>
-                                  )}
-                                </>
-                              )}
+                                    {workUnit.status === "active" && (
+                                      <button
+                                        onClick={() =>
+                                          handleEndSprint(workUnitId)
+                                        }
+                                        className="text-xs px-2 py-1 text-orange-600 hover:text-orange-800 bg-orange-50 hover:bg-orange-100 rounded"
+                                      >
+                                        End
+                                      </button>
+                                    )}
+                                  </>
+                                )}
                             </>
                           )}
                           {workUnit.type !== "backlog" && (
@@ -1945,17 +1994,16 @@ export default function TaskBoard() {
                       onChange={(e) =>
                         handleTaskChange("status", e.target.value)
                       }
-                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${
-                        isProjectCompleted ||
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${isProjectCompleted ||
                         !currentProjectRole ||
                         !canUpdateStatus(
                           selectedTask,
                           currentProjectRole,
                           currentUserId,
                         )
-                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                          : "focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      }`}
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                        : "focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        }`}
                     >
                       <option value="todo">To Do</option>
                       <option value="in-progress">In Progress</option>
@@ -1991,17 +2039,16 @@ export default function TaskBoard() {
                             : undefined,
                         )
                       }
-                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${
-                        isProjectCompleted ||
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${isProjectCompleted ||
                         !currentProjectRole ||
                         !canAssignTask(
                           selectedTask,
                           currentProjectRole,
                           currentUserId,
                         )
-                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                          : "focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      }`}
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                        : "focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        }`}
                     >
                       <option value="">Unassigned</option>
                       {projectMembers.map((u: any) => {
@@ -2049,11 +2096,10 @@ export default function TaskBoard() {
                           <button
                             disabled={isProjectCompleted}
                             onClick={handleLogTime}
-                            className={`px-4 py-2 rounded-lg ${
-                              isProjectCompleted
-                                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                                : "bg-blue-600 text-white hover:bg-blue-700"
-                            }`}
+                            className={`px-4 py-2 rounded-lg ${isProjectCompleted
+                              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                              : "bg-blue-600 text-white hover:bg-blue-700"
+                              }`}
                           >
                             Log Time
                           </button>
@@ -2138,23 +2184,21 @@ export default function TaskBoard() {
 
                           <span
                             onClick={() => handleSubTaskClick(subTask)}
-                            className={`flex-1 text-sm cursor-pointer hover:text-blue-600 hover:underline ${
-                              subTask.status === "done"
-                                ? "line-through text-gray-400"
-                                : "text-gray-700"
-                            }`}
+                            className={`flex-1 text-sm cursor-pointer hover:text-blue-600 hover:underline ${subTask.status === "done"
+                              ? "line-through text-gray-400"
+                              : "text-gray-700"
+                              }`}
                           >
                             {subTask.title}
                           </span>
 
                           <span
-                            className={`text-xs px-2 py-0.5 rounded-full ${
-                              subTask.status === "done"
-                                ? "bg-green-100 text-green-700"
-                                : subTask.status === "in-progress"
-                                  ? "bg-yellow-100 text-yellow-700"
-                                  : "bg-gray-100 text-gray-600"
-                            }`}
+                            className={`text-xs px-2 py-0.5 rounded-full ${subTask.status === "done"
+                              ? "bg-green-100 text-green-700"
+                              : subTask.status === "in-progress"
+                                ? "bg-yellow-100 text-yellow-700"
+                                : "bg-gray-100 text-gray-600"
+                              }`}
                           >
                             {subTask.status}
                           </span>
@@ -2348,11 +2392,10 @@ export default function TaskBoard() {
                         <button
                           disabled={isProjectCompleted}
                           onClick={handleAddComment}
-                          className={`px-4 py-2 rounded-lg ${
-                            isProjectCompleted
-                              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                              : "bg-blue-600 text-white hover:bg-blue-700"
-                          }`}
+                          className={`px-4 py-2 rounded-lg ${isProjectCompleted
+                            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                            : "bg-blue-600 text-white hover:bg-blue-700"
+                            }`}
                         >
                           Comment
                         </button>
@@ -2372,16 +2415,15 @@ export default function TaskBoard() {
                       currentUserId,
                     )
                   }
-                  className={`px-6 py-2 rounded-lg font-medium ${
-                    !currentProjectRole ||
+                  className={`px-6 py-2 rounded-lg font-medium ${!currentProjectRole ||
                     !canSaveTask(
                       selectedTask,
                       currentProjectRole,
                       currentUserId,
                     )
-                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                      : "bg-blue-600 text-white hover:bg-blue-700"
-                  }`}
+                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    : "bg-blue-600 text-white hover:bg-blue-700"
+                    }`}
                 >
                   Done
                 </button>
@@ -2472,8 +2514,8 @@ export default function TaskBoard() {
                     max={
                       createWorkUnit?.endDate
                         ? new Date(createWorkUnit.endDate)
-                            .toISOString()
-                            .split("T")[0]
+                          .toISOString()
+                          .split("T")[0]
                         : undefined
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
