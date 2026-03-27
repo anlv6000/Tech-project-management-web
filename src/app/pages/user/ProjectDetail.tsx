@@ -84,6 +84,7 @@ export default function ProjectDetail() {
   const [memberActionLoading, setMemberActionLoading] = useState("");
   const [memberActionError, setMemberActionError] = useState("");
   const [memberEditMode, setMemberEditMode] = useState(false);
+  const [showWaterfallGuide, setShowWaterfallGuide] = useState(false);
   const [editedRoles, setEditedRoles] = useState<Record<string, ProjectRole>>(
     {},
   );
@@ -94,7 +95,6 @@ export default function ProjectDetail() {
     startDate: "",
     endDate: "",
   });
-
 
   const normalizeId = (value: unknown): string => {
     if (!value) return "";
@@ -238,11 +238,11 @@ export default function ProjectDetail() {
         const result = await response.json();
         const filtered = Array.isArray(result)
           ? result.filter(
-            (u: any) =>
-              !members.some(
-                (m) => normalizeId(m.userId) === normalizeId(u._id || u.id),
-              ),
-          )
+              (u: any) =>
+                !members.some(
+                  (m) => normalizeId(m.userId) === normalizeId(u._id || u.id),
+                ),
+            )
           : [];
 
         setUserSuggestions(filtered);
@@ -269,14 +269,14 @@ export default function ProjectDetail() {
       const invitePayload =
         typeof userOrEmail === "string"
           ? {
-            email: userOrEmail,
-            role: inviteData.role,
-          }
+              email: userOrEmail,
+              role: inviteData.role,
+            }
           : {
-            fullName: userOrEmail.fullName || userOrEmail.name,
-            email: userOrEmail.email,
-            role: inviteData.role,
-          };
+              fullName: userOrEmail.fullName || userOrEmail.name,
+              email: userOrEmail.email,
+              role: inviteData.role,
+            };
 
       const response = await fetch(
         `${API_BASE_URL}/api/projects/${projectId}/invite`,
@@ -421,7 +421,8 @@ export default function ProjectDetail() {
 
     if (tasks.some((task: any) => task.status !== "done")) {
       alert(
-        `Cannot complete project. ${tasks.filter((task: any) => task.status !== "done").length
+        `Cannot complete project. ${
+          tasks.filter((task: any) => task.status !== "done").length
         } tasks are not completed.`,
       );
       return;
@@ -614,10 +615,9 @@ export default function ProjectDetail() {
     tasks: tasks.filter(
       (t: any) =>
         String(t.workUnitId || "").trim() ===
-        String(wu.id || wu._id || "").trim() && t.type !== "subtask",
+          String(wu.id || wu._id || "").trim() && t.type !== "subtask",
     ).length,
   }));
-
 
   return (
     <div className="h-full flex flex-col">
@@ -695,11 +695,13 @@ export default function ProjectDetail() {
                             endDate: e.target.value,
                           }))
                         }
-                        min={updatedProject.startDate || new Date().toISOString().split("T")[0]} // ít nhất bằng startDate
+                        min={
+                          updatedProject.startDate ||
+                          new Date().toISOString().split("T")[0]
+                        } // ít nhất bằng startDate
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="End Date"
                       />
-
 
                       {updateError && (
                         <p className="text-red-600">{updateError}</p>
@@ -726,18 +728,33 @@ export default function ProjectDetail() {
                 </div>
               ) : (
                 <>
-                  <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                    {project.name}
-                  </h1>
+                  <div className="flex items-center gap-2 mb-2">
+                    <h1 className="text-3xl font-bold text-gray-900">
+                      {project.name}
+                    </h1>
+
+                    {project.methodology === "waterfall" && (
+                      <button
+                        type="button"
+                        onClick={() => setShowWaterfallGuide(true)}
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
+                        title="Waterfall Guide"
+                      >
+                        !
+                      </button>
+                    )}
+                  </div>
                   <p className="text-gray-600 mb-4">{project.description}</p>
                   {/* Hiển thị deadline */}
                   <div className="flex items-center gap-2 text-sm mb-4">
                     <span className="font-medium text-gray-700">Deadline:</span>
                     <span
-                      className={`px-2 py-1 rounded-full text-xs ${new Date(project.endDate) < new Date() && !project.isCompleted
-                        ? "bg-red-100 text-red-600"
-                        : "bg-gray-100 text-gray-700"
-                        }`}
+                      className={`px-2 py-1 rounded-full text-xs ${
+                        new Date(project.endDate) < new Date() &&
+                        !project.isCompleted
+                          ? "bg-red-100 text-red-600"
+                          : "bg-gray-100 text-gray-700"
+                      }`}
                     >
                       {new Date(project.endDate).toLocaleDateString()}
                     </span>
@@ -745,7 +762,9 @@ export default function ProjectDetail() {
                   {isOverdue && (
                     <div className="flex items-center gap-2 p-4 bg-red-50 text-red-700 rounded-lg mb-4">
                       <AlertCircle className="w-5 h-5" />
-                      <span>This project has passed its end date and is overdue.</span>
+                      <span>
+                        This project has passed its end date and is overdue.
+                      </span>
                     </div>
                   )}
                   <div className="flex items-center gap-3 flex-wrap">
@@ -763,14 +782,12 @@ export default function ProjectDetail() {
               )}
             </div>
 
-
             <Link to={`/app/projects/${projectId}/board`}>
               <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                 <Kanban className="w-5 h-5" />
                 Open Board
               </button>
             </Link>
-
           </div>
         </div>
       </div>
@@ -790,10 +807,11 @@ export default function ProjectDetail() {
                   onClick={() =>
                     setActiveTab(tab.id as "overview" | "members" | "reports")
                   }
-                  className={`flex items-center gap-2 px-4 py-4 border-b-2 transition-colors ${activeTab === tab.id
-                    ? "border-blue-600 text-blue-600"
-                    : "border-transparent text-gray-600 hover:text-gray-900"
-                    }`}
+                  className={`flex items-center gap-2 px-4 py-4 border-b-2 transition-colors ${
+                    activeTab === tab.id
+                      ? "border-blue-600 text-blue-600"
+                      : "border-transparent text-gray-600 hover:text-gray-900"
+                  }`}
                 >
                   <Icon className="w-5 h-5" />
                   {tab.label}
@@ -863,7 +881,8 @@ export default function ProjectDetail() {
                 <div className="space-y-3">
                   {workUnits.map((wu: any) => {
                     const now = new Date();
-                    const isOverdue = wu.endDate && new Date(wu.endDate) < now && !wu.isDone;
+                    const isOverdue =
+                      wu.endDate && new Date(wu.endDate) < now && !wu.isDone;
                     const wuId = wu.id || wu._id || "";
                     const unitTasks = tasks.filter(
                       (t: any) =>
@@ -893,34 +912,42 @@ export default function ProjectDetail() {
                             <span className="text-sm text-gray-600">
                               {unitTasks.length} tasks
                             </span>
-                            {wu.type === "phase" && (canEditPhase(currentProjectRole) || canMarkPhaseDone(currentProjectRole)) && (
-                              <div className="flex items-center gap-2">
-                                {canEditPhase(currentProjectRole) && (
-                                  <button
-                                    disabled={!isPhaseEditable(wu)}
-                                    onClick={() => openPhaseEditor(wu)}
-                                    className={`text-xs px-2 py-1 rounded ${isPhaseEditable(wu)
-                                      ? "bg-blue-600 text-white hover:bg-blue-700"
-                                      : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                            {wu.type === "phase" &&
+                              (canEditPhase(currentProjectRole) ||
+                                canMarkPhaseDone(currentProjectRole)) && (
+                                <div className="flex items-center gap-2">
+                                  {canEditPhase(currentProjectRole) && (
+                                    <button
+                                      disabled={!isPhaseEditable(wu)}
+                                      onClick={() => openPhaseEditor(wu)}
+                                      className={`text-xs px-2 py-1 rounded ${
+                                        isPhaseEditable(wu)
+                                          ? "bg-blue-600 text-white hover:bg-blue-700"
+                                          : "bg-gray-200 text-gray-500 cursor-not-allowed"
                                       }`}
-                                  >
-                                    Edit Phase Dates
-                                  </button>
-                                )}
-                                {canMarkPhaseDone(currentProjectRole) && (
-                                  <button
-                                    disabled={!isPhaseEditable(wu) || wu.isDone}
-                                    onClick={() => handleMarkPhaseDone(wu)}
-                                    className={`text-xs px-2 py-1 rounded ${isPhaseEditable(wu) && !wu.isDone
-                                      ? "bg-green-600 text-white hover:bg-green-700"
-                                      : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                                    >
+                                      Edit Phase Dates
+                                    </button>
+                                  )}
+                                  {canMarkPhaseDone(currentProjectRole) && (
+                                    <button
+                                      disabled={
+                                        !isPhaseEditable(wu) || wu.isDone
+                                      }
+                                      onClick={() => handleMarkPhaseDone(wu)}
+                                      className={`text-xs px-2 py-1 rounded ${
+                                        isPhaseEditable(wu) && !wu.isDone
+                                          ? "bg-green-600 text-white hover:bg-green-700"
+                                          : "bg-gray-200 text-gray-500 cursor-not-allowed"
                                       }`}
-                                  >
-                                    {wu.isDone ? "Completed" : "Mark as Completed"}
-                                  </button>
-                                )}
-                              </div>
-                            )}
+                                    >
+                                      {wu.isDone
+                                        ? "Completed"
+                                        : "Mark as Completed"}
+                                    </button>
+                                  )}
+                                </div>
+                              )}
                           </div>
                         </div>
 
@@ -940,12 +967,14 @@ export default function ProjectDetail() {
                           )}
                         </div>
 
-
-                        {wu.type === "phase" && canEditPhase(currentProjectRole) && !isPhaseEditable(wu) && (
-                          <p className="text-xs text-red-500">
-                            Phase {wu.order} is locked until Phase {wu.order - 1} is completed.
-                          </p>
-                        )}
+                        {wu.type === "phase" &&
+                          canEditPhase(currentProjectRole) &&
+                          !isPhaseEditable(wu) && (
+                            <p className="text-xs text-red-500">
+                              Phase {wu.order} is locked until Phase{" "}
+                              {wu.order - 1} is completed.
+                            </p>
+                          )}
 
                         {wu.type === "phase" && wu.isDone && (
                           <p className="text-xs text-green-600 font-medium">
@@ -994,7 +1023,13 @@ export default function ProjectDetail() {
                       value={phaseEndDate}
                       onChange={(e) => setPhaseEndDate(e.target.value)}
                       min={new Date().toISOString().split("T")[0]}
-                      max={project?.endDate ? new Date(project.endDate).toISOString().split("T")[0] : undefined}
+                      max={
+                        project?.endDate
+                          ? new Date(project.endDate)
+                              .toISOString()
+                              .split("T")[0]
+                          : undefined
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                     />
                   </div>
@@ -1090,7 +1125,9 @@ export default function ProjectDetail() {
                   {members.map((member) => {
                     const memberUserId = normalizeId(member.userId);
                     const populatedUser =
-                      typeof member.userId === "object" ? (member.userId as any) : null;
+                      typeof member.userId === "object"
+                        ? (member.userId as any)
+                        : null;
 
                     const memberUser = allUsers.find(
                       (u: any) => normalizeId(u.id || u._id) === memberUserId,
@@ -1230,6 +1267,94 @@ export default function ProjectDetail() {
           )}
         </div>
       </div>
+      {showWaterfallGuide && project.methodology === "waterfall" && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-lg w-full shadow-xl">
+            <div className="p-6 border-b flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900">
+                Waterfall Guide
+              </h2>
+              <button
+                onClick={() => setShowWaterfallGuide(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="flex gap-3">
+                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
+                  1
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">
+                    Work by phase order
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    In Waterfall, the project is divided into phases and should
+                    be done step by step.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
+                  2
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">
+                    Complete previous phase first
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    The next phase should only be edited or completed after the
+                    previous phase is done.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
+                  3
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">
+                    Update phase dates carefully
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    End date must not be before start date and must not exceed
+                    project end date.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
+                  4
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">
+                    Mark phase as completed
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    After finishing all tasks in a phase, mark that phase as
+                    completed before moving on.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 border-t flex justify-end">
+              <button
+                onClick={() => setShowWaterfallGuide(false)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showAddMember && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -1359,10 +1484,11 @@ export default function ProjectDetail() {
             <button
               onClick={handleCompleteProject}
               disabled={isCompleting || project.isCompleted}
-              className={`px-4 py-2 rounded-lg ${project.isCompleted
-                ? "bg-gray-400 cursor-not-allowed"
-                : "bg-green-600 hover:bg-green-700"
-                } text-white`}
+              className={`px-4 py-2 rounded-lg ${
+                project.isCompleted
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-green-600 hover:bg-green-700"
+              } text-white`}
             >
               {isCompleting
                 ? "Completing..."
