@@ -132,13 +132,12 @@ export default function AdminDashboard() {
               recentLogs.map((log) => (
                 <div key={log.id || log._id} className="flex gap-3">
                   <div
-                    className={`w-2 h-2 rounded-full mt-2 ${
-                      log.action === "create"
+                    className={`w-2 h-2 rounded-full mt-2 ${log.action === "create"
                         ? "bg-green-600"
                         : log.action === "update"
                           ? "bg-blue-600"
                           : "bg-purple-600"
-                    }`}
+                      }`}
                   />
 
                   <div>
@@ -187,34 +186,32 @@ export default function AdminDashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {projects.slice(0, 5).map((project) => {
-                const projectTasks = tasks.filter(
-                  (t) => t.projectId === project.id,
-                );
-                return (
-                  <tr key={project.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <p className="font-medium text-gray-900">
-                        {project.name}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {project.description}
-                      </p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-block px-2 py-1 text-xs font-medium rounded-full capitalize bg-blue-100 text-blue-600">
-                        {project.methodology}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-gray-900">
-                      {projectTasks.length}
-                    </td>
-                    <td className="px-6 py-4 text-gray-600">
-                      {new Date(project.createdAt).toLocaleDateString()}
-                    </td>
-                  </tr>
-                );
-              })}
+              {[...projects]
+                .sort(
+                  (a, b) =>
+                    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                )
+                .slice(0, 5)
+                .map((project) => {
+                  const projectTasks = tasks.filter((t) => t.projectId === project.id);
+                  return (
+                    <tr key={project.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4">
+                        <p className="font-medium text-gray-900">{project.name}</p>
+                        <p className="text-sm text-gray-600">{project.description}</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="inline-block px-2 py-1 text-xs font-medium rounded-full capitalize bg-blue-100 text-blue-600">
+                          {project.methodology}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-gray-900">{projectTasks.length}</td>
+                      <td className="px-6 py-4 text-gray-600">
+                        {new Date(project.createdAt).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  );
+                })}
             </tbody>
           </table>
         </div>
