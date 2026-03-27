@@ -225,3 +225,165 @@ export const markPhaseDone = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 };
+
+export const startSprint = async (req, res) => {
+  try {
+    const sprint = await WorkUnit.findById(req.params.id);
+    if (!sprint) {
+      return res.status(404).json({ message: "Sprint not found" });
+    }
+
+    if (sprint.type !== "sprint") {
+      return res.status(400).json({ message: "Only sprints can be started" });
+    }
+
+    if (sprint.status !== "planning") {
+      return res.status(400).json({ message: "Only sprints in planning status can be started" });
+    }
+
+    // Set start date if not already set
+    const updateFields = { status: "active" };
+    if (!sprint.startDate) {
+      updateFields.startDate = new Date();
+    }
+
+    const updated = await WorkUnit.findByIdAndUpdate(
+      req.params.id,
+      updateFields,
+      { new: true }
+    );
+
+    await createAuditLogFromRequest(req, {
+      action: "update",
+      entity: "workunit",
+      entityId: updated._id,
+      details: `${req.user?.fullName || "User"} started sprint ${updated.name}`,
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error("startSprint error:", error);
+    res.status(400).json({ message: error.message });
+  }
+};
+
+export const endSprint = async (req, res) => {
+  try {
+    const { moveUncompletedTo } = req.body;
+    const sprint = await WorkUnit.findById(req.params.id);
+    if (!sprint) {
+      return res.status(404).json({ message: "Sprint not found" });
+    }
+
+    if (sprint.type !== "sprint") {
+      return res.status(400).json({ message: "Only sprints can be ended" });
+    }
+
+    if (sprint.status !== "active") {
+      return res.status(400).json({ message: "Only active sprints can be ended" });
+    }
+
+    // Get all uncompleted tasks in this sprint
+    const uncompletedTasks = await Task.find({
+      workUnitId: sprint._id,
+      status: { $ne: "done" }
+    });
+
+    // Move uncompleted tasks
+    if (moveUncompletedTo && moveUncompletedTo !== "backlog") {
+      // Move to another sprint
+      const targetSprint = await WorkUnit.findById(moveUncompletedTo);
+      if (!targetSprint || targetSprint.type !== "sprint") {
+        return res.status(400).json({ message: "Invalid target sprint" });
+      }
+      await Task.updateMany(
+        { workUnitId: sprint._id, status: { $ne: "done" } },
+        { workUnitId: targetSprint._id }
+      );
+    } else if (moveUncompletedTo === "backlog") {
+      // Move to backlog column
+      const backlogUnit = await WorkUnit.findOne({
+        projectId: sprint.projectId,
+        type: "backlog"
+      });
+      if (!backlogUnit) {
+        return res.status(400).json({ message: "Backlog column not found" });
+      }
+      await Task.updateMany(
+        { workUnitId: sprint._id, status: { $ne: "done" } },
+        { workUnitId: backlogUnit._id, status: "todo" }
+      );
+    }
+
+    // Close the sprint
+    const updated = await WorkUnit.findByIdAndUpdate(
+      req.params.id,
+      { status: "closed", isDone: true, endDate: new Date() },
+      { new: true }
+    );
+
+    await createAuditLogFromRequest(req, {
+      action: "update",
+      entity: "workunit",
+      entityId: updated._id,
+      details: `${req.user?.fullName || "User"} ended sprint ${updated.name}. ${uncompletedTasks.length} uncompleted tasks moved.`,
+    });
+
+    res.json({
+      sprint: updated,
+      uncompletedCount: uncompletedTasks.length
+    });
+  } catch (error) {
+    console.error("endSprint error:", error);
+    res.status(400).json({ message: error.message });
+  }
+};
+
+export const getSprintStats = async (req, res) => {
+  try {
+    const sprint = await WorkUnit.findById(req.params.id);
+    if (!sprint) {
+      return res.status(404).json({ message: "Sprint not found" });
+    }
+
+    if (sprint.type !== "sprint") {
+      return res.status(400).json({ message: "Work unit is not a sprint" });
+    }
+
+    // Get all tasks in sprint
+    const allTasks = await Task.find({ workUnitId: sprint._id });
+    const completedTasks = await Task.find({ workUnitId: sprint._id, status: "done" });
+    const inProgressTasks = await Task.find({ workUnitId: sprint._id, status: "in-progress" });
+    const todoTasks = await Task.find({ workUnitId: sprint._id, status: "todo" });
+
+    // Calculate story points
+    const totalPoints = allTasks.reduce((sum, task) => sum + (task.storyPoints || 0), 0);
+    const completedPoints = completedTasks.reduce((sum, task) => sum + (task.storyPoints || 0), 0);
+
+    // Calculate remaining work (days left)
+    const daysElapsed = sprint.startDate ? Math.floor((new Date() - new Date(sprint.startDate)) / (1000 * 60 * 60 * 24)) : 0;
+    const daysTotal = sprint.startDate && sprint.endDate ? Math.floor((new Date(sprint.endDate) - new Date(sprint.startDate)) / (1000 * 60 * 60 * 24)) : 0;
+    const daysRemaining = Math.max(0, daysTotal - daysElapsed);
+
+    res.json({
+      sprint: sprint,
+      stats: {
+        totalTasks: allTasks.length,
+        completedTasks: completedTasks.length,
+        inProgressTasks: inProgressTasks.length,
+        todoTasks: todoTasks.length,
+        completionPercentage: allTasks.length > 0 ? Math.round((completedTasks.length / allTasks.length) * 100) : 0,
+        totalStoryPoints: totalPoints,
+        completedStoryPoints: completedPoints,
+        remainingStoryPoints: totalPoints - completedPoints,
+        daysElapsed,
+        daysTotal,
+        daysRemaining,
+        pointsPerDay: daysElapsed > 0 ? (completedPoints / daysElapsed).toFixed(2) : 0
+      }
+    });
+  } catch (error) {
+    console.error("getSprintStats error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};

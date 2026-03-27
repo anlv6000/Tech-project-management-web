@@ -59,9 +59,9 @@ export interface WorkUnit {
   endDate?: string;
   goal?: string;
   isDone?: boolean;
+  status?: 'planning' | 'active' | 'closed';
   createdAt?: string;
   updatedAt?: string;
-  status?: string;
 }
 
 export interface Task {
@@ -81,6 +81,8 @@ export interface Task {
   timeSpent?: number;
   parentId?: string;
   type?: string;
+  storyPoints?: number;
+  issueType?: 'epic' | 'user-story' | 'task' | 'bug' | 'subtask';
   relatedTasks?: {
     taskId: string;
     type: string;

@@ -49,4 +49,26 @@ router.put(
   workUnitController.markPhaseDone,
 );
 
+router.post(
+  "/sprint/:id/start",
+  authenticateToken,
+  attachWorkUnitToRequest,
+  requireWorkUnitManagePermission((req) => req.workUnit.projectId),
+  workUnitController.startSprint,
+);
+
+router.post(
+  "/sprint/:id/end",
+  authenticateToken,
+  attachWorkUnitToRequest,
+  requireWorkUnitManagePermission((req) => req.workUnit.projectId),
+  workUnitController.endSprint,
+);
+
+router.get(
+  "/sprint/:id/stats",
+  authenticateToken,
+  workUnitController.getSprintStats,
+);
+
 export default router;

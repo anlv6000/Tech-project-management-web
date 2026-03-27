@@ -49,6 +49,26 @@ interface DataContextType {
   updateWorkUnit: (id: string, updates: Partial<WorkUnit>) => void;
   deleteWorkUnit: (id: string) => void;
   getProjectWorkUnits: (projectId: string) => WorkUnit[];
+  startSprint: (sprintId: string) => Promise<WorkUnit>;
+  endSprint: (sprintId: string, moveUncompletedTo?: string) => Promise<{ sprint: WorkUnit; uncompletedCount: number }>;
+  getWorkUnitById: (id: string) => WorkUnit | undefined;
+  getSprintStats: (sprintId: string) => Promise<{
+    sprint: WorkUnit;
+    stats: {
+      totalTasks: number;
+      completedTasks: number;
+      inProgressTasks: number;
+      todoTasks: number;
+      completionPercentage: number;
+      totalStoryPoints: number;
+      completedStoryPoints: number;
+      remainingStoryPoints: number;
+      daysElapsed: number;
+      daysTotal: number;
+      daysRemaining: number;
+      pointsPerDay: number;
+    };
+  }>;
   createSprint: (
     projectId: string,
     name: string,
@@ -646,6 +666,97 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     return sprintWithId;
   };
 
+  const startSprint = async (sprintId: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/work-units/sprint/${sprintId}/start`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) throw new Error("Failed to start sprint");
+
+      const updated = await response.json();
+      setWorkUnits((prev) =>
+        prev.map((wu) =>
+          (wu.id === sprintId || wu._id === sprintId)
+            ? { ...updated, id: updated._id || updated.id }
+            : wu,
+        ),
+      );
+      return updated;
+    } catch (error) {
+      console.error("Start sprint error:", error);
+      throw error;
+    }
+  };
+
+  const endSprint = async (sprintId: string, moveUncompletedTo?: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/work-units/sprint/${sprintId}/end`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ moveUncompletedTo }),
+      });
+
+      if (!response.ok) throw new Error("Failed to end sprint");
+
+      const data = await response.json();
+      setWorkUnits((prev) =>
+        prev.map((wu) =>
+          (wu.id === sprintId || wu._id === sprintId)
+            ? { ...data.sprint, id: data.sprint._id || data.sprint.id }
+            : wu,
+        ),
+      );
+      // Refresh tasks to reflect moved ones
+      if (data.uncompletedCount > 0) {
+        refreshTasksForProject(data.projectId);
+      }
+      return data;
+    } catch (error) {
+      console.error("End sprint error:", error);
+      throw error;
+    }
+  };
+  const refreshTasksForProject = async (projectId: string) => {
+    const response = await fetch(`${API_BASE_URL}/api/tasks/project/${projectId}`, {
+      headers: getAuthHeaders(),
+    });
+    if (response.ok) {
+      const data = await response.json();
+      setTasks((prev) => {
+        const filteredPrev = prev.filter(
+          (t) => String(t.projectId) !== String(projectId)
+        );
+        return [...filteredPrev, ...data];
+      });
+    }
+  };
+
+  const getSprintStats = async (sprintId: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/work-units/sprint/${sprintId}/stats`, {
+        method: "GET",
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) throw new Error("Failed to fetch sprint stats");
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Get sprint stats error:", error);
+      throw error;
+    }
+  };
+  const getWorkUnitById = (id: string) => {
+    const normalizedId = String(id).trim();
+    return workUnits.find(
+      (wu) => String(wu.id || wu._id || "").trim() === normalizedId
+    );
+  };
+
+
   // Task methods
   const createTask = async (
     data: Omit<Task, "id" | "createdAt" | "updatedAt">,
@@ -1022,6 +1133,10 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     auditLogs,
     addAuditLog,
     createSprint,
+    startSprint,
+    endSprint,
+    getSprintStats,
+    getWorkUnitById,
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
