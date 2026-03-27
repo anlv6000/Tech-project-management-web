@@ -187,7 +187,7 @@ function TaskCard({
         ref={drag as any}
         onClick={onClick}
         className={`p-4 rounded-lg border hover:shadow-md transition-all ${statusColor} ${isDragging ? "opacity-50" : "opacity-100"
-          } ${isProjectCompleted || isWorkUnitViewOnly ? "cursor-default" : "cursor-pointer"}`}
+          } ${isProjectCompleted ? "cursor-not-allowed" : "cursor-pointer"}`}
       >
         <div className="flex justify-between items-start">
           <h3 className="font-medium text-gray-900 mb-2">{task.title}</h3>
@@ -522,6 +522,8 @@ export default function TaskBoard() {
   const [newSubTaskTitle, setNewSubTaskTitle] = useState("");
   const [newSubTaskDesc, setNewSubTaskDesc] = useState("");
   const [taskStack, setTaskStack] = useState<Task[]>([]);
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyContent, setReplyContent] = useState("");
   // State để quản lý edit sprint
   const [editingSprint, setEditingSprint] = useState<WorkUnit | null>(null);
   const [editSprintGoal, setEditSprintGoal] = useState<string>("");
@@ -975,7 +977,16 @@ export default function TaskBoard() {
     addComment(selectedTaskId, newComment);
     setNewComment("");
   };
-
+  const handleAddReply = (parentId: string) => {
+    if (!replyContent.trim() || !selectedTask) return;
+    if (!currentProjectRole || !canComment(currentProjectRole)) {
+      alert("You do not have permission to comment.");
+      return;
+    }
+    addComment(selectedTaskId, replyContent, parentId);
+    setReplyContent("");
+    setReplyingTo(null);
+  };
   const handleLogTime = () => {
     if (!timeLog || !selectedTask) return;
 
@@ -1164,6 +1175,88 @@ export default function TaskBoard() {
 
   const isTaskViewOnly = isDisabledPhase || isDisabledSprint;
 
+  const renderComments = (
+    comments: typeof updatedComments,
+    parentId: string | null = null,
+    depth = 0,
+  ) => {
+    const filtered = comments.filter((c: any) => {
+      const cParent = c.parentId ? String(c.parentId) : null;
+      const target = parentId ? String(parentId) : null;
+      return cParent === target;
+    });
+
+    if (filtered.length === 0) return null;
+
+    return filtered.map((comment: any) => (
+      <div
+        key={comment.id || comment._id}
+        className={`flex gap-3 ${depth > 0 ? "ml-8 mt-2 border-l-2 border-gray-100 pl-3" : ""}`}
+      >
+        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+          <span className="text-sm text-blue-600 font-medium">
+            {comment.authorInitial}
+          </span>
+        </div>
+
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-medium text-gray-900">{comment.author}</span>
+            <span className="text-xs text-gray-500">
+              {new Date(comment.createdAt).toLocaleString()}
+            </span>
+          </div>
+
+          <p className="text-gray-700">{comment.content}</p>
+
+          {currentProjectRole &&
+            canComment(currentProjectRole) &&
+            !isProjectCompleted && (
+              <button
+                onClick={() => {
+                  const id = comment.id || comment._id;
+                  setReplyingTo(replyingTo === id ? null : id);
+                  setReplyContent("");
+                }}
+                className="text-xs text-blue-500 hover:text-blue-700 mt-1"
+              >
+                {replyingTo === (comment.id || comment._id)
+                  ? "Cancel"
+                  : "Reply"}
+              </button>
+            )}
+
+          {replyingTo === (comment.id || comment._id) && (
+            <div className="flex gap-2 mt-2">
+              <input
+                type="text"
+                value={replyContent}
+                onChange={(e) => setReplyContent(e.target.value)}
+                placeholder="Write a reply..."
+                className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter")
+                    handleAddReply(comment.id || comment._id);
+                }}
+                autoFocus
+              />
+              <button
+                onClick={() => handleAddReply(comment.id || comment._id)}
+                className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Send
+              </button>
+            </div>
+          )}
+
+          {/* Render replies đệ quy */}
+          <div className="mt-2 space-y-3">
+            {renderComments(comments, comment.id || comment._id, depth + 1)}
+          </div>
+        </div>
+      </div>
+    ));
+  };
 
   return (
     <DndProvider backend={HTML5Backend}>
@@ -2051,30 +2144,7 @@ export default function TaskBoard() {
                   </h3>
 
                   <div className="space-y-3 mb-4">
-                    {updatedComments.map((comment) => (
-                      <div
-                        key={comment.id || comment._id}
-                        className="flex gap-3"
-                      >
-                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                          <span className="text-sm text-blue-600 font-medium">
-                            {comment.authorInitial}
-                          </span>
-                        </div>
-
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-medium text-gray-900">
-                              {comment.author}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              {new Date(comment.createdAt).toLocaleString()}
-                            </span>
-                          </div>
-                          <p className="text-gray-700">{comment.content}</p>
-                        </div>
-                      </div>
-                    ))}
+                    {renderComments(updatedComments)}
                   </div>
 
                   {currentProjectRole &&
