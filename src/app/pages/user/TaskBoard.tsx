@@ -77,6 +77,19 @@ function TaskCard({
   workUnit,
 }: TaskCardProps) {
   const { deleteTask } = useData();
+  // ✅ thêm đoạn này
+  const isDisabledPhase =
+    project?.methodology === "waterfall" &&
+    workUnit?.type === "phase" &&
+    workUnit?.isDone;
+
+  const isDisabledSprint =
+    project?.methodology === "agile" &&
+    workUnit?.type === "sprint" &&
+    workUnit?.status === "closed";
+
+  const isWorkUnitViewOnly = isDisabledPhase || isDisabledSprint;
+
   const canEditThisTask =
     !!currentProjectRole &&
     canEditTask(task, currentProjectRole, currentUserId) &&
@@ -86,7 +99,7 @@ function TaskCard({
     type: ItemType,
     item: { id: task.id || task._id, workUnitId: task.workUnitId },
     canDrag: () => {
-      if (isProjectCompleted || isWorkUnitDisabled) return false;
+      if (isProjectCompleted || isWorkUnitViewOnly) return false;
       if (!currentProjectRole || !["projectAdmin", "projectManager"].includes(currentProjectRole)) return false;
 
       // Agile rule: không cho drag nếu task nằm trong sprint đã closed
@@ -171,13 +184,13 @@ function TaskCard({
     <>
       <div
         ref={drag as any}
-        onClick={isWorkUnitDisabled ? undefined : onClick}
+        onClick={onClick}
         className={`p-4 rounded-lg border hover:shadow-md transition-all ${statusColor} ${isDragging ? "opacity-50" : "opacity-100"
-          } ${isProjectCompleted || isWorkUnitDisabled ? "cursor-not-allowed" : "cursor-pointer"}`}
+          } ${isProjectCompleted || isWorkUnitViewOnly ? "cursor-default" : "cursor-pointer"}`}
       >
         <div className="flex justify-between items-start">
           <h3 className="font-medium text-gray-900 mb-2">{task.title}</h3>
-          {canEditThisTask && !isProjectCompleted && (
+          {!isWorkUnitViewOnly && canEditThisTask && !isProjectCompleted && (
             <div className="flex gap-2">
               <button
                 onClick={(e) => {
@@ -351,7 +364,18 @@ function Column({
   project,
 }: ColumnProps) {
   const workUnitId = workUnit.id || workUnit._id || "";
+  const isDisabledPhase =
+    project?.methodology === "waterfall" &&
+    workUnit?.type === "phase" &&
+    workUnit?.isDone;
 
+  const isDisabledSprint =
+    project?.methodology === "agile" &&
+    workUnit?.type === "sprint" &&
+    workUnit?.status === "closed";
+
+  const isWorkUnitDisabledFinal =
+    isWorkUnitDisabled || isDisabledPhase || isDisabledSprint;
   const [{ isOver }, drop] = useDrop({
     accept: ItemType,
     canDrop: () => {
@@ -383,18 +407,24 @@ function Column({
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className={`text-lg font-bold ${isWorkUnitDisabled ? "text-green-600" : "text-gray-900"
-            }`}>
+          <h2
+            className={`text-lg font-bold ${isWorkUnitDisabledFinal ? "text-green-600" : "text-gray-900"
+              }`}
+          >
             {workUnit.name}
-            {isWorkUnitDisabled && " ✓"}
+            {isWorkUnitDisabledFinal && " ✓"}
           </h2>
           <p className="text-sm text-gray-600">{tasks.length} tasks</p>
         </div>
 
         {!isProjectCompleted &&
-          !isWorkUnitDisabled &&
+          !isWorkUnitDisabledFinal &&
           currentProjectRole &&
-          canCreateTask(currentProjectRole) && (
+          canCreateTask(currentProjectRole) &&
+          !(
+            // Phase rule: chưa start thì ẩn nút +
+            workUnit?.type === "phase" && !workUnit?.startDate
+          ) && (
             <button
               onClick={() => onAddTask(workUnitId)}
               className="p-1.5 hover:bg-gray-100 rounded-lg"
@@ -422,7 +452,6 @@ function Column({
             isProjectCompleted={isProjectCompleted}
             currentProjectRole={currentProjectRole}
             currentUserId={currentUserId}
-            isWorkUnitDisabled={isWorkUnitDisabled}
             project={project}       // truyền xuống
             workUnit={workUnit}     // truyền xuống
           />
@@ -723,7 +752,7 @@ export default function TaskBoard() {
 
       await createSprint(
         projectId,
-        sprintName,
+        `Sprint ${sprintName}`,
         sprintStartDate,
         sprintEndDate,
         sprintGoal || "Sprint goal"
@@ -1105,6 +1134,24 @@ export default function TaskBoard() {
   const allSprintsClosed = projectWorkUnits
     .filter(wu => wu.type === "sprint")
     .every(wu => wu.status === "closed" || wu.isDone);
+
+  const selectedWorkUnit = selectedTask
+    ? getWorkUnitById(selectedTask.workUnitId)
+    : null;
+
+  const isDisabledPhase =
+    project?.methodology === "waterfall" &&
+    selectedWorkUnit?.type === "phase" &&
+    selectedWorkUnit?.isDone;
+
+  const isDisabledSprint =
+    project?.methodology === "agile" &&
+    selectedWorkUnit?.type === "sprint" &&
+    selectedWorkUnit?.status === "closed";
+
+  const isTaskViewOnly = isDisabledPhase || isDisabledSprint;
+
+
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="h-full flex flex-col bg-gray-50">
@@ -1136,8 +1183,8 @@ export default function TaskBoard() {
                     onClick={handleOpenSprintModal}
                     disabled={!allSprintsClosed} // ✅ disable nếu chưa end hết
                     className={`px-4 py-2 rounded-lg ${allSprintsClosed
-                        ? "bg-blue-600 text-white hover:bg-blue-700"
-                        : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                      ? "bg-blue-600 text-white hover:bg-blue-700"
+                      : "bg-gray-300 text-gray-500 cursor-not-allowed"
                       }`}
                   >
                     + New Sprint
@@ -1158,7 +1205,7 @@ export default function TaskBoard() {
                           type="text"
                           value={sprintName}
                           onChange={(e) => setSprintName(e.target.value)}
-                          placeholder="VD: Sprint 1, Sprint 2..."
+                          placeholder="VD: 1, 2..."
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                       </div>
@@ -1622,6 +1669,7 @@ export default function TaskBoard() {
                       disabled={
                         isProjectCompleted ||
                         !currentProjectRole ||
+                        isTaskViewOnly ||
                         !canUpdateStatus(
                           selectedTask,
                           currentProjectRole,
@@ -1657,6 +1705,7 @@ export default function TaskBoard() {
                       disabled={
                         isProjectCompleted ||
                         !currentProjectRole ||
+                        isTaskViewOnly ||
                         !canAssignTask(currentProjectRole)
                       }
                       value={(() => {
@@ -1707,6 +1756,7 @@ export default function TaskBoard() {
                     </div>
 
                     {currentProjectRole &&
+                      !isTaskViewOnly &&
                       canLogWork(
                         selectedTask,
                         currentProjectRole,
@@ -1743,6 +1793,7 @@ export default function TaskBoard() {
                     </h3>
 
                     {!isProjectCompleted &&
+                      !isTaskViewOnly &&
                       currentProjectRole &&
                       canCreateSubTask(currentProjectRole) && (
                         <button
@@ -1905,6 +1956,7 @@ export default function TaskBoard() {
                   </div>
 
                   {currentProjectRole &&
+                    !isTaskViewOnly &&
                     canUploadAttachment(currentProjectRole) && (
                       <div className="mt-4">
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1945,6 +1997,7 @@ export default function TaskBoard() {
                         </a>
 
                         {currentProjectRole &&
+                          !isTaskViewOnly &&
                           canDeleteAttachment(
                             currentProjectRole,
                             fullscreenAttachment.uploadedBy,
@@ -2012,7 +2065,9 @@ export default function TaskBoard() {
                     ))}
                   </div>
 
-                  {currentProjectRole && canComment(currentProjectRole) && (
+                  {currentProjectRole &&
+                  !isTaskViewOnly &&
+                  canComment(currentProjectRole) && (
                     <div className="flex gap-3">
                       <input
                         type="text"
