@@ -54,6 +54,9 @@ export default function ProjectDetail() {
   >("overview");
   const [editingPhase, setEditingPhase] = useState<any>(null);
   const [phaseEndDate, setPhaseEndDate] = useState("");
+  const phaseStartDate = editingPhase?.startDate
+    ? new Date(editingPhase.startDate).toISOString().split("T")[0]
+    : new Date().toISOString().split("T")[0];
   const [phaseModalError, setPhaseModalError] = useState("");
   const [phaseActionLoading, setPhaseActionLoading] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
@@ -515,6 +518,21 @@ export default function ProjectDetail() {
       return;
     }
 
+    const startDateObj = editingPhase?.startDate
+      ? new Date(editingPhase.startDate)
+      : new Date();
+    const endDateObj = new Date(phaseEndDate);
+
+    if (endDateObj < startDateObj) {
+      setPhaseModalError("End date must be on or after phase start date.");
+      return;
+    }
+
+    if (project?.endDate && endDateObj > new Date(project.endDate)) {
+      setPhaseModalError("End date cannot exceed project end date.");
+      return;
+    }
+
     setPhaseActionLoading(true);
     setPhaseModalError("");
 
@@ -919,8 +937,8 @@ export default function ProjectDetail() {
                   <div>
                     <p className="text-sm font-medium mb-1">Start Date</p>
                     <input
-                      type="text"
-                      value={new Date().toISOString().split("T")[0]}
+                      type="date"
+                      value={phaseStartDate}
                       disabled
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100"
                     />
@@ -932,6 +950,8 @@ export default function ProjectDetail() {
                       type="date"
                       value={phaseEndDate}
                       onChange={(e) => setPhaseEndDate(e.target.value)}
+                      min={new Date().toISOString().split("T")[0]}
+                      max={project?.endDate ? new Date(project.endDate).toISOString().split("T")[0] : undefined}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                     />
                   </div>

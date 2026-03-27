@@ -307,6 +307,12 @@ function TaskCard({
                     deadline: e.target.value,
                   })
                 }
+                min={new Date().toISOString().split("T")[0]}
+                max={
+                  workUnit?.endDate
+                    ? new Date(workUnit.endDate).toISOString().split("T")[0]
+                    : undefined
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
               />
             </div>
@@ -551,6 +557,8 @@ export default function TaskBoard() {
   const workUnits = getProjectWorkUnits(projectId) || [];
   const users = getAllUsers() || [];
   const members = getProjectMembers(projectId) || [];
+
+  const createWorkUnit = workUnits.find((wu: any) => wu._id === createWorkUnitId);
 
   const currentUserId = normalizeId(user?.id || user?._id).trim();
 
@@ -2201,6 +2209,12 @@ export default function TaskBoard() {
                     type="date"
                     value={newTaskDeadline}
                     onChange={(e) => setNewTaskDeadline(e.target.value)}
+                    min={new Date().toISOString().split("T")[0]}
+                    max={
+                      createWorkUnit?.endDate
+                        ? new Date(createWorkUnit.endDate).toISOString().split("T")[0]
+                        : undefined
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
