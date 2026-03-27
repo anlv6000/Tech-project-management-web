@@ -45,19 +45,19 @@ const getIdString = (value: any): string => {
   return String(value);
 };
 
-export function canManageProject(projectRole: ProjectRole | string): boolean {
+export function canManageProject(projectRole: ProjectRole | string | null | undefined): boolean {
   return normalizeRole(projectRole) === "projectAdmin";
 }
 
-export function canManageMembers(projectRole: ProjectRole | string): boolean {
+export function canManageMembers(projectRole: ProjectRole | string | null | undefined): boolean {
   return normalizeRole(projectRole) === "projectAdmin";
 }
 
-export function canCompleteProject(projectRole: ProjectRole | string): boolean {
+export function canCompleteProject(projectRole: ProjectRole | string | null | undefined): boolean {
   return normalizeRole(projectRole) === "projectAdmin";
 }
 
-export function canCreateWorkUnit(projectRole: ProjectRole | string): boolean {
+export function canCreateWorkUnit(projectRole: ProjectRole | string | null | undefined): boolean {
   const normalizedRole = normalizeRole(projectRole);
   return (
     normalizedRole === "projectAdmin" ||
@@ -65,7 +65,7 @@ export function canCreateWorkUnit(projectRole: ProjectRole | string): boolean {
   );
 }
 
-export function canCreateTask(projectRole: ProjectRole | string): boolean {
+export function canCreateTask(projectRole: ProjectRole | string | null | undefined): boolean {
   const normalizedRole = normalizeRole(projectRole);
   return (
     normalizedRole === "projectAdmin" ||
@@ -75,7 +75,7 @@ export function canCreateTask(projectRole: ProjectRole | string): boolean {
 
 export function canEditTask(
   task: Task,
-  projectRole: ProjectRole | string,
+  projectRole: ProjectRole | string | null | undefined,
   userId: string,
 ): boolean {
   const normalizedRole = normalizeRole(projectRole);
@@ -111,12 +111,20 @@ export function canUpdateStatus(
   return normalizedRole === "member" && assigneeId === String(userId);
 }
 
-export function canAssignTask(projectRole: ProjectRole | string): boolean {
+export function canAssignTask(projectRole: ProjectRole | string | null | undefined): boolean {
   const normalizedRole = normalizeRole(projectRole);
   return (
     normalizedRole === "projectAdmin" ||
     normalizedRole === "projectManager"
   );
+}
+
+export function canEditPhase(projectRole: ProjectRole | string | null | undefined): boolean {
+  return normalizeRole(projectRole) === "projectAdmin";
+}
+
+export function canMarkPhaseDone(projectRole: ProjectRole | string | null | undefined): boolean {
+  return normalizeRole(projectRole) === "projectAdmin";
 }
 
 export function canSaveTask(

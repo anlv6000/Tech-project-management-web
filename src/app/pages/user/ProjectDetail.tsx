@@ -9,6 +9,8 @@ import {
   canManageMembers,
   canManageProject,
   canCreateWorkUnit,
+  canEditPhase,
+  canMarkPhaseDone,
 } from "./permissions";
 import {
   ArrowLeft,
@@ -176,6 +178,7 @@ export default function ProjectDetail() {
 
   const isPhaseEditable = (wu: any) => {
     if (wu.type !== "phase") return false;
+    if (!canEditPhase(currentProjectRole)) return false;
     if (wu.order === 1) return true;
 
     const prevPhase = workUnits.find(
@@ -513,8 +516,8 @@ export default function ProjectDetail() {
       return;
     }
 
-    if (!currentProjectRole || !canCreateWorkUnit(currentProjectRole)) {
-      setPhaseModalError("You do not have permission to update this phase.");
+    if (!canEditPhase(currentProjectRole)) {
+      setPhaseModalError("Only project admins can update phases.");
       return;
     }
 
@@ -554,8 +557,8 @@ export default function ProjectDetail() {
   };
 
   const handleMarkPhaseDone = async (wu: any) => {
-    if (!currentProjectRole || !canCreateWorkUnit(currentProjectRole)) {
-      alert("You do not have permission to complete this phase.");
+    if (!canMarkPhaseDone(currentProjectRole)) {
+      alert("Only project admins can complete phases.");
       return;
     }
 
@@ -854,28 +857,32 @@ export default function ProjectDetail() {
                             <span className="text-sm text-gray-600">
                               {unitTasks.length} tasks
                             </span>
-                            {wu.type === "phase" && (
+                            {wu.type === "phase" && (canEditPhase(currentProjectRole) || canMarkPhaseDone(currentProjectRole)) && (
                               <div className="flex items-center gap-2">
-                                <button
-                                  disabled={!isPhaseEditable(wu)}
-                                  onClick={() => openPhaseEditor(wu)}
-                                  className={`text-xs px-2 py-1 rounded ${isPhaseEditable(wu)
-                                    ? "bg-blue-600 text-white hover:bg-blue-700"
-                                    : "bg-gray-200 text-gray-500 cursor-not-allowed"
-                                    }`}
-                                >
-                                  Edit Phase Dates
-                                </button>
-                                <button
-                                  disabled={!isPhaseEditable(wu) || wu.isDone}
-                                  onClick={() => handleMarkPhaseDone(wu)}
-                                  className={`text-xs px-2 py-1 rounded ${isPhaseEditable(wu) && !wu.isDone
-                                    ? "bg-green-600 text-white hover:bg-green-700"
-                                    : "bg-gray-200 text-gray-500 cursor-not-allowed"
-                                    }`}
-                                >
-                                  {wu.isDone ? "Completed" : "Mark as Completed"}
-                                </button>
+                                {canEditPhase(currentProjectRole) && (
+                                  <button
+                                    disabled={!isPhaseEditable(wu)}
+                                    onClick={() => openPhaseEditor(wu)}
+                                    className={`text-xs px-2 py-1 rounded ${isPhaseEditable(wu)
+                                      ? "bg-blue-600 text-white hover:bg-blue-700"
+                                      : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                                      }`}
+                                  >
+                                    Edit Phase Dates
+                                  </button>
+                                )}
+                                {canMarkPhaseDone(currentProjectRole) && (
+                                  <button
+                                    disabled={!isPhaseEditable(wu) || wu.isDone}
+                                    onClick={() => handleMarkPhaseDone(wu)}
+                                    className={`text-xs px-2 py-1 rounded ${isPhaseEditable(wu) && !wu.isDone
+                                      ? "bg-green-600 text-white hover:bg-green-700"
+                                      : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                                      }`}
+                                  >
+                                    {wu.isDone ? "Completed" : "Mark as Completed"}
+                                  </button>
+                                )}
                               </div>
                             )}
                           </div>
@@ -898,7 +905,7 @@ export default function ProjectDetail() {
                         </div>
 
 
-                        {wu.type === "phase" && !isPhaseEditable(wu) && (
+                        {wu.type === "phase" && canEditPhase(currentProjectRole) && !isPhaseEditable(wu) && (
                           <p className="text-xs text-red-500">
                             Phase {wu.order} is locked until Phase {wu.order - 1} is completed.
                           </p>
