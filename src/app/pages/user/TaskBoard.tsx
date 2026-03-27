@@ -6,6 +6,7 @@ import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { Task, Attachment, ProjectRole } from "../../types";
 import { API_BASE_URL } from "../../config/baseApi";
+import { WorkUnit, Project } from "../../types";
 import {
   ArrowLeft,
   Plus,
@@ -58,6 +59,9 @@ interface TaskCardProps {
   isProjectCompleted: boolean;
   currentProjectRole?: ProjectRole;
   currentUserId: string;
+  isWorkUnitDisabled?: boolean;
+  project: Project;
+  workUnit: WorkUnit;
 }
 
 function TaskCard({
@@ -67,19 +71,51 @@ function TaskCard({
   isProjectCompleted,
   currentProjectRole,
   currentUserId,
+  isWorkUnitDisabled = false,
+  project,
+  workUnit,
 }: TaskCardProps) {
   const { deleteTask } = useData();
+  // ✅ thêm đoạn này
+  const isDisabledPhase =
+    project?.methodology === "waterfall" &&
+    workUnit?.type === "phase" &&
+    workUnit?.isDone;
+
+  const isDisabledSprint =
+    project?.methodology === "agile" &&
+    workUnit?.type === "sprint" &&
+    workUnit?.status === "closed";
+
+  const isWorkUnitViewOnly = isDisabledPhase || isDisabledSprint;
+
   const canEditThisTask =
     !!currentProjectRole &&
-    canEditTask(task, currentProjectRole, currentUserId);
+    canEditTask(task, currentProjectRole, currentUserId) &&
+    !isWorkUnitDisabled;
 
   const [{ isDragging }, drag] = useDrag({
     type: ItemType,
     item: { id: task.id || task._id, workUnitId: task.workUnitId },
-    canDrag:
-      !isProjectCompleted &&
-      !!currentProjectRole &&
-      ["projectAdmin", "projectManager"].includes(currentProjectRole),
+    canDrag: () => {
+      if (isProjectCompleted || isWorkUnitViewOnly) return false;
+      if (
+        !currentProjectRole ||
+        !["projectAdmin", "projectManager"].includes(currentProjectRole)
+      )
+        return false;
+
+      // Agile rule: không cho drag nếu task nằm trong sprint đã closed
+      if (
+        project?.methodology === "agile" &&
+        workUnit?.type === "sprint" &&
+        workUnit?.status === "closed"
+      ) {
+        return false;
+      }
+
+      return true;
+    },
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
@@ -89,6 +125,7 @@ function TaskCard({
   const [editTaskData, setEditTaskData] = useState({
     title: task.title,
     description: task.description,
+    deadline: task.deadline || "",
   });
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState("");
@@ -134,12 +171,17 @@ function TaskCard({
   const attachments = getTaskAttachments(taskId);
 
   let statusColor = "";
-  if (task.status === "todo") statusColor = "bg-gray-100 border-gray-300";
-  else if (task.status === "in-progress")
+  if (isWorkUnitDisabled) {
+    statusColor = "bg-green-200 border-green-100";
+  } else if (task.status === "todo") {
+    statusColor = "bg-gray-100 border-gray-300";
+  } else if (task.status === "in-progress") {
     statusColor = "bg-yellow-100 border-yellow-300";
-  else if (task.status === "done")
-    statusColor = "bg-green-100 border-green-300";
-  else statusColor = "bg-white border-gray-300";
+  } else if (task.status === "done") {
+    statusColor = "bg-green-100 border-green-100";
+  } else {
+    statusColor = "bg-white border-gray-300";
+  }
 
   return (
     <>
@@ -148,11 +190,11 @@ function TaskCard({
         onClick={onClick}
         className={`p-4 rounded-lg border hover:shadow-md transition-all ${statusColor} ${
           isDragging ? "opacity-50" : "opacity-100"
-        } ${isProjectCompleted ? "cursor-not-allowed" : "cursor-pointer"}`}
+        } ${isProjectCompleted || isWorkUnitViewOnly ? "cursor-default" : "cursor-pointer"}`}
       >
         <div className="flex justify-between items-start">
           <h3 className="font-medium text-gray-900 mb-2">{task.title}</h3>
-          {canEditThisTask && !isProjectCompleted && (
+          {!isWorkUnitViewOnly && canEditThisTask && !isProjectCompleted && (
             <div className="flex gap-2">
               <button
                 onClick={(e) => {
@@ -255,6 +297,23 @@ function TaskCard({
               placeholder="Task Description"
             />
 
+            <div className="mb-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Deadline
+              </label>
+              <input
+                type="date"
+                value={editTaskData.deadline}
+                onChange={(e) =>
+                  setEditTaskData({
+                    ...editTaskData,
+                    deadline: e.target.value,
+                  })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              />
+            </div>
+
             {editError && <p className="text-red-600 mb-2">{editError}</p>}
 
             <div className="flex justify-end gap-4">
@@ -290,6 +349,8 @@ interface ColumnProps {
   isProjectCompleted: boolean;
   currentProjectRole?: ProjectRole;
   currentUserId: string;
+  isWorkUnitDisabled?: boolean;
+  project: Project;
 }
 
 function Column({
@@ -302,15 +363,43 @@ function Column({
   isProjectCompleted,
   currentProjectRole,
   currentUserId,
+  isWorkUnitDisabled = false,
+  project,
 }: ColumnProps) {
   const workUnitId = workUnit.id || workUnit._id || "";
+  const isDisabledPhase =
+    project?.methodology === "waterfall" &&
+    workUnit?.type === "phase" &&
+    workUnit?.isDone;
 
+  const isDisabledSprint =
+    project?.methodology === "agile" &&
+    workUnit?.type === "sprint" &&
+    workUnit?.status === "closed";
+
+  const isWorkUnitDisabledFinal =
+    isWorkUnitDisabled || isDisabledPhase || isDisabledSprint;
   const [{ isOver }, drop] = useDrop({
     accept: ItemType,
-    canDrop: () =>
-      !isProjectCompleted &&
-      !!currentProjectRole &&
-      ["projectAdmin", "projectManager"].includes(currentProjectRole),
+    canDrop: () => {
+      if (isProjectCompleted || isWorkUnitDisabled) return false;
+      if (
+        !currentProjectRole ||
+        !["projectAdmin", "projectManager"].includes(currentProjectRole)
+      )
+        return false;
+
+      // Agile rule: không cho drop vào sprint đã closed
+      if (
+        project?.methodology === "agile" &&
+        workUnit?.type === "sprint" &&
+        workUnit?.status === "closed"
+      ) {
+        return false;
+      }
+
+      return true;
+    },
     drop: (item: { id: string; workUnitId: string }) => {
       if (item.workUnitId !== workUnitId) {
         onDrop(item.id, workUnitId);
@@ -325,13 +414,25 @@ function Column({
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-lg font-bold text-gray-900">{workUnit.name}</h2>
+          <h2
+            className={`text-lg font-bold ${
+              isWorkUnitDisabledFinal ? "text-green-600" : "text-gray-900"
+            }`}
+          >
+            {workUnit.name}
+            {isWorkUnitDisabledFinal && " ✓"}
+          </h2>
           <p className="text-sm text-gray-600">{tasks.length} tasks</p>
         </div>
 
         {!isProjectCompleted &&
+          !isWorkUnitDisabledFinal &&
           currentProjectRole &&
-          canCreateTask(currentProjectRole) && (
+          canCreateTask(currentProjectRole) &&
+          !(
+            // Phase rule: chưa start thì ẩn nút +
+            (workUnit?.type === "phase" && !workUnit?.startDate)
+          ) && (
             <button
               onClick={() => onAddTask(workUnitId)}
               className="p-1.5 hover:bg-gray-100 rounded-lg"
@@ -344,20 +445,24 @@ function Column({
       <div
         ref={drop as any}
         className={`flex-1 space-y-3 min-h-[200px] p-2 rounded-lg transition-colors ${
-          isOver
-            ? "bg-blue-50 border-2 border-dashed border-blue-300"
-            : "bg-transparent"
+          isWorkUnitDisabled
+            ? "bg-green-100 border-2 border-dashed border-green-300"
+            : isOver
+              ? "bg-blue-50 border-2 border-dashed border-blue-300"
+              : "bg-transparent"
         }`}
       >
         {tasks.map((task) => (
           <TaskCard
-            key={task.id || task._id}
+            key={String(task.id ?? task._id)}
             task={task}
             onClick={() => onTaskClick(task)}
             users={users}
             isProjectCompleted={isProjectCompleted}
             currentProjectRole={currentProjectRole}
             currentUserId={currentUserId}
+            project={project} // truyền xuống
+            workUnit={workUnit} // truyền xuống
           />
         ))}
       </div>
@@ -383,16 +488,22 @@ export default function TaskBoard() {
     addComment,
     loadProjectData,
     createSprint,
+    startSprint,
+    endSprint,
+    getSprintStats,
     addAttachment,
     removeAttachment,
     deleteWorkUnit,
     getTasksByProject,
+    updateWorkUnit,
+    getWorkUnitById,
   } = useData();
 
   const [showCreateTask, setShowCreateTask] = useState(false);
   const [createWorkUnitId, setCreateWorkUnitId] = useState("");
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDesc, setNewTaskDesc] = useState("");
+  const [newTaskDeadline, setNewTaskDeadline] = useState("");
   const [newComment, setNewComment] = useState("");
   const [timeLog, setTimeLog] = useState("");
   const [taskChanges, setTaskChanges] = useState<Partial<Task>>({});
@@ -402,11 +513,23 @@ export default function TaskBoard() {
     useState<Attachment | null>(null);
   const [showSprintModal, setShowSprintModal] = useState(false);
   const [sprintName, setSprintName] = useState("");
+  const [sprintStartDate, setSprintStartDate] = useState("");
+  const [sprintEndDate, setSprintEndDate] = useState("");
+  const [sprintGoal, setSprintGoal] = useState("");
+  const [selectedSprintId, setSelectedSprintId] = useState<string | null>(null);
+  const [sprintStats, setSprintStats] = useState<any>(null);
+  const [showSprintStats, setShowSprintStats] = useState(false);
   const [subTasks, setSubTasks] = useState<Task[]>([]);
   const [showAddSubTask, setShowAddSubTask] = useState(false);
   const [newSubTaskTitle, setNewSubTaskTitle] = useState("");
   const [newSubTaskDesc, setNewSubTaskDesc] = useState("");
   const [taskStack, setTaskStack] = useState<Task[]>([]);
+  // State để quản lý edit sprint
+  const [editingSprint, setEditingSprint] = useState<WorkUnit | null>(null);
+  const [editSprintGoal, setEditSprintGoal] = useState<string>("");
+  const [editSprintEndDate, setEditSprintEndDate] = useState<string>("");
+  const [showEditSprintModal, setShowEditSprintModal] =
+    useState<boolean>(false);
 
   const selectedTask =
     taskStack.length > 0 ? taskStack[taskStack.length - 1] : null;
@@ -607,21 +730,50 @@ export default function TaskBoard() {
     }
 
     setSprintName("");
+    setSprintStartDate("");
+    setSprintEndDate("");
+    setSprintGoal("");
     setShowSprintModal(true);
   };
 
   const handleCreateSprint = async () => {
     try {
+      if (!sprintName.trim()) {
+        alert("Sprint name is required");
+        return;
+      }
+
+      if (!sprintStartDate) {
+        alert("Start date is required");
+        return;
+      }
+
+      if (!sprintEndDate) {
+        alert("End date is required");
+        return;
+      }
+
+      if (new Date(sprintStartDate) >= new Date(sprintEndDate)) {
+        alert("End date must be after start date");
+        return;
+      }
+
       await createSprint(
         projectId,
         `Sprint ${sprintName}`,
-        undefined,
-        undefined,
-        "Goal cho sprint",
+        sprintStartDate,
+        sprintEndDate,
+        sprintGoal || "Sprint goal",
       );
+
       setShowSprintModal(false);
+      setSprintName("");
+      setSprintStartDate("");
+      setSprintEndDate("");
+      setSprintGoal("");
     } catch (error) {
       console.error("Failed to create sprint:", error);
+      alert("Failed to create sprint. Please try again.");
     }
   };
 
@@ -699,6 +851,27 @@ export default function TaskBoard() {
       return;
     }
 
+    if (!newTaskDeadline) {
+      alert("Deadline is required");
+      return;
+    }
+
+    const today = new Date();
+    const deadlineDate = new Date(newTaskDeadline);
+
+    // deadline phải >= hôm nay
+    if (deadlineDate < today) {
+      alert("Deadline cannot be before today");
+      return;
+    }
+
+    // deadline phải <= endDate của sprint/phase
+    const workUnit = getWorkUnitById(createWorkUnitId); // bạn đã có workUnit trong context
+    if (workUnit?.endDate && deadlineDate > new Date(workUnit.endDate)) {
+      alert("Deadline must be before sprint/phase end date");
+      return;
+    }
+
     const normalizedWorkUnitId = String(createWorkUnitId).trim();
     const tasksInUnit = getTasksByWorkUnit(normalizedWorkUnitId);
 
@@ -721,11 +894,13 @@ export default function TaskBoard() {
       createdBy: user.id || user._id || "",
       order: tasksInUnit.length,
       type: "parent",
+      deadline: newTaskDeadline,
     });
 
     setShowCreateTask(false);
     setNewTaskTitle("");
     setNewTaskDesc("");
+    setNewTaskDeadline("");
   };
 
   const handleTaskChange = (field: keyof Task, value: any) => {
@@ -914,6 +1089,74 @@ export default function TaskBoard() {
     }
   };
 
+  const handleStartSprint = async (sprintId: string) => {
+    if (!currentProjectRole || !canCreateWorkUnit(currentProjectRole)) {
+      alert("You do not have permission to manage sprints.");
+      return;
+    }
+
+    try {
+      await startSprint(sprintId);
+      alert("Sprint started successfully!");
+      if (projectId) loadProjectData(projectId);
+    } catch (error) {
+      console.error("Failed to start sprint:", error);
+      alert("Failed to start sprint. Please try again.");
+    }
+  };
+
+  const handleEndSprint = async (sprintId: string) => {
+    if (!currentProjectRole || !canCreateWorkUnit(currentProjectRole)) {
+      alert("You do not have permission to manage sprints.");
+      return;
+    }
+
+    const confirmEnd = window.confirm(
+      "Are you sure you want to end this sprint? Uncompleted tasks will be marked as backlog.",
+    );
+    if (!confirmEnd) return;
+
+    try {
+      await endSprint(sprintId, "backlog");
+      alert("Sprint ended successfully!");
+      if (projectId) loadProjectData(projectId);
+    } catch (error) {
+      console.error("Failed to end sprint:", error);
+      alert("Failed to end sprint. Please try again.");
+    }
+  };
+
+  const handleViewSprintStats = async (sprintId: string) => {
+    try {
+      const stats = await getSprintStats(sprintId);
+      setSprintStats(stats);
+      setShowSprintStats(true);
+    } catch (error) {
+      console.error("Failed to fetch sprint stats:", error);
+      alert("Failed to load sprint statistics.");
+    }
+  };
+  const projectWorkUnits = getProjectWorkUnits(projectId);
+  const allSprintsClosed = projectWorkUnits
+    .filter((wu) => wu.type === "sprint")
+    .every((wu) => wu.status === "closed" || wu.isDone);
+
+  const selectedWorkUnit = selectedTask
+    ? getWorkUnitById(selectedTask.workUnitId)
+    : null;
+
+  const isDisabledPhase =
+    project?.methodology === "waterfall" &&
+    selectedWorkUnit?.type === "phase" &&
+    selectedWorkUnit?.isDone;
+
+  const isDisabledSprint =
+    project?.methodology === "agile" &&
+    selectedWorkUnit?.type === "sprint" &&
+    selectedWorkUnit?.status === "closed";
+
+  const isTaskViewOnly = isDisabledPhase || isDisabledSprint;
+
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="h-full flex flex-col bg-gray-50">
@@ -943,7 +1186,12 @@ export default function TaskBoard() {
                 canCreateWorkUnit(currentProjectRole) && (
                   <button
                     onClick={handleOpenSprintModal}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    disabled={!allSprintsClosed} // ✅ disable nếu chưa end hết
+                    className={`px-4 py-2 rounded-lg ${
+                      allSprintsClosed
+                        ? "bg-blue-600 text-white hover:bg-blue-700"
+                        : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    }`}
                   >
                     + New Sprint
                   </button>
@@ -951,29 +1199,322 @@ export default function TaskBoard() {
 
               {showSprintModal && (
                 <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-                  <div className="bg-white p-6 rounded-lg shadow-lg w-[400px] bg-opacity-90">
+                  <div className="bg-white p-6 rounded-lg shadow-lg w-[500px] bg-opacity-95">
                     <h2 className="text-lg font-semibold mb-4">
-                      Tạo Sprint mới
+                      Tạo Sprint Mới
                     </h2>
-                    <input
-                      type="text"
-                      value={sprintName}
-                      onChange={(e) => setSprintName(e.target.value)}
-                      placeholder="Nhập tên sprint (VD: 1, 2, 3...)"
-                      className="w-full px-3 py-2 border rounded mb-4"
-                    />
-                    <div className="flex justify-end gap-2">
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Sprint Name *
+                        </label>
+                        <input
+                          type="text"
+                          value={sprintName}
+                          onChange={(e) => setSprintName(e.target.value)}
+                          placeholder="VD: 1, 2..."
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Start Date
+                          </label>
+                          <input
+                            type="date"
+                            required
+                            value={sprintStartDate}
+                            onChange={(e) => setSprintStartDate(e.target.value)}
+                            min={new Date().toISOString().split("T")[0]}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            End Date
+                          </label>
+                          <input
+                            type="date"
+                            required
+                            value={sprintEndDate}
+                            onChange={(e) => setSprintEndDate(e.target.value)}
+                            min={
+                              sprintStartDate ||
+                              new Date().toISOString().split("T")[0]
+                            }
+                            max={
+                              project?.endDate
+                                ? new Date(project.endDate)
+                                    .toISOString()
+                                    .split("T")[0]
+                                : undefined
+                            }
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Sprint Goal
+                        </label>
+                        <textarea
+                          value={sprintGoal}
+                          onChange={(e) => setSprintGoal(e.target.value)}
+                          placeholder="Mục tiêu của sprint..."
+                          rows={3}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-2 mt-6">
                       <button
-                        onClick={() => setShowSprintModal(false)}
-                        className="px-4 py-2 bg-gray-300 rounded"
+                        onClick={() => {
+                          setShowSprintModal(false);
+                          setSprintName("");
+                          setSprintStartDate("");
+                          setSprintEndDate("");
+                          setSprintGoal("");
+                        }}
+                        className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400"
                       >
                         Hủy
                       </button>
                       <button
                         onClick={handleCreateSprint}
-                        className="px-4 py-2 bg-blue-600 text-white rounded"
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                       >
                         Tạo Sprint
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {showSprintStats && sprintStats && (
+                <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
+                  <div className="bg-white p-6 rounded-lg shadow-lg w-[500px] max-h-[80vh] overflow-auto bg-opacity-95">
+                    {/* Header */}
+                    <div className="flex justify-between items-center mb-6">
+                      <h2 className="text-lg font-semibold">
+                        Sprint Statistics - {sprintStats.sprint.name}
+                      </h2>
+                      <button
+                        onClick={() => {
+                          setShowSprintStats(false);
+                          setSprintStats(null);
+                        }}
+                        className="text-gray-500 hover:text-gray-700"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    {/* Stats Content */}
+                    <div className="space-y-4">
+                      {/* Task counts */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-blue-50 p-4 rounded-lg">
+                          <p className="text-sm text-gray-600">Total Tasks</p>
+                          <p className="text-2xl font-bold text-blue-600">
+                            {sprintStats.stats.totalTasks}
+                          </p>
+                        </div>
+                        <div className="bg-green-50 p-4 rounded-lg">
+                          <p className="text-sm text-gray-600">Completed</p>
+                          <p className="text-2xl font-bold text-green-600">
+                            {sprintStats.stats.completedTasks}
+                          </p>
+                        </div>
+                        <div className="bg-yellow-50 p-4 rounded-lg">
+                          <p className="text-sm text-gray-600">In Progress</p>
+                          <p className="text-2xl font-bold text-yellow-600">
+                            {sprintStats.stats.inProgressTasks}
+                          </p>
+                        </div>
+                        <div className="bg-gray-50 p-4 rounded-lg">
+                          <p className="text-sm text-gray-600">To Do</p>
+                          <p className="text-2xl font-bold text-gray-600">
+                            {sprintStats.stats.todoTasks}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Completion progress */}
+                      <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-lg">
+                        <p className="text-sm text-gray-600 mb-2">
+                          Completion Progress
+                        </p>
+                        <div className="w-full bg-gray-300 rounded-full h-2 mb-2">
+                          <div
+                            style={{
+                              width: `${sprintStats.stats.completionPercentage}%`,
+                            }}
+                            className="bg-green-500 h-2 rounded-full"
+                          />
+                        </div>
+                        <p className="text-lg font-bold text-blue-600">
+                          {sprintStats.stats.completionPercentage}% Complete
+                        </p>
+                      </div>
+
+                      {/* Story points */}
+                      <div className="grid grid-cols-2 gap-4 border-t pt-4">
+                        <div>
+                          <p className="text-sm text-gray-600">
+                            Total Story Points
+                          </p>
+                          <p className="text-2xl font-bold text-gray-800">
+                            {sprintStats.stats.totalStoryPoints}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">
+                            Remaining Points
+                          </p>
+                          <p className="text-2xl font-bold text-orange-600">
+                            {sprintStats.stats.remainingStoryPoints}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Time stats */}
+                      <div className="grid grid-cols-3 gap-3 border-t pt-4 text-center">
+                        <div>
+                          <p className="text-sm text-gray-600">Days Elapsed</p>
+                          <p className="text-lg font-bold">
+                            {sprintStats.stats.daysElapsed}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">
+                            Days Remaining
+                          </p>
+                          <p className="text-lg font-bold text-blue-600">
+                            {sprintStats.stats.daysRemaining}
+                          </p>
+                          {!sprintStats.sprint.endDate && (
+                            <p className="text-xs text-red-600 mt-1">
+                              End date chưa được thiết lập
+                            </p>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Points/Day</p>
+                          <p className="text-lg font-bold">
+                            {sprintStats.stats.pointsPerDay}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Sprint goal */}
+                      {sprintStats.sprint.goal && (
+                        <div className="border-t pt-4">
+                          <p className="text-sm font-semibold text-gray-700 mb-2">
+                            Sprint Goal
+                          </p>
+                          <p className="text-gray-600">
+                            {sprintStats.sprint.goal}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Footer buttons */}
+                    <div className="flex justify-end gap-2 mt-6">
+                      <button
+                        onClick={() => {
+                          setShowSprintStats(false);
+                          setSprintStats(null);
+                          setEditingSprint({
+                            ...sprintStats.sprint,
+                            id: sprintStats.sprint.id || sprintStats.sprint._id,
+                          });
+                          setEditSprintGoal(sprintStats.sprint.goal || "");
+                          setEditSprintEndDate(
+                            sprintStats.sprint.endDate || "",
+                          );
+                          setShowEditSprintModal(true);
+                        }}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                      >
+                        Edit Sprint
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowSprintStats(false);
+                          setSprintStats(null);
+                        }}
+                        className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {showEditSprintModal && editingSprint && (
+                <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
+                  <div className="bg-white p-6 rounded-lg shadow-lg w-[500px] bg-opacity-95">
+                    <h2 className="text-lg font-semibold mb-4">
+                      Chỉnh sửa Sprint
+                    </h2>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Sprint Goal
+                        </label>
+                        <textarea
+                          value={editSprintGoal}
+                          onChange={(e) => setEditSprintGoal(e.target.value)}
+                          rows={3}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 resize-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          End Date
+                        </label>
+                        <input
+                          type="date"
+                          value={editSprintEndDate}
+                          onChange={(e) => setEditSprintEndDate(e.target.value)}
+                          min={new Date().toISOString().split("T")[0]} // không cho chọn trước hôm nay
+                          max={
+                            project?.endDate
+                              ? new Date(project.endDate)
+                                  .toISOString()
+                                  .split("T")[0]
+                              : undefined
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-2 mt-6">
+                      <button
+                        onClick={() => setShowEditSprintModal(false)}
+                        className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400"
+                      >
+                        Hủy
+                      </button>
+                      <button
+                        onClick={async () => {
+                          await updateWorkUnit(editingSprint.id!, {
+                            goal: editSprintGoal,
+                            endDate: editSprintEndDate,
+                          });
+                          setShowEditSprintModal(false);
+                          loadProjectData(editingSprint.projectId);
+                        }}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                      >
+                        Lưu
                       </button>
                     </div>
                   </div>
@@ -993,33 +1534,88 @@ export default function TaskBoard() {
                 return (
                   <div
                     key={workUnitId}
-                    className="bg-gray-100 p-4 rounded-lg relative"
+                    className={`p-4 rounded-lg relative ${
+                      workUnit.type === "phase" && workUnit.isDone
+                        ? "bg-green-100 border-2 border-green-300"
+                        : "bg-gray-100"
+                    }`}
                   >
                     <Column
                       workUnit={workUnit}
                       tasks={tasks}
                       onTaskClick={handleTaskClick}
                       onDrop={(taskId, newWorkUnitId) => {
-                        if (isProjectCompleted) return;
+                        if (
+                          isProjectCompleted ||
+                          (workUnit.type === "phase" && workUnit.isDone)
+                        )
+                          return;
                         return handleDrop(taskId, newWorkUnitId);
                       }}
-                      onAddTask={handleAddTask}
+                      onAddTask={(workUnitId) => {
+                        if (workUnit.type === "phase" && workUnit.isDone)
+                          return;
+                        handleAddTask(workUnitId);
+                      }}
                       users={users}
                       isProjectCompleted={isProjectCompleted}
                       currentProjectRole={currentProjectRole}
                       currentUserId={currentUserId}
+                      isWorkUnitDisabled={
+                        workUnit.type === "phase" && workUnit.isDone
+                      }
+                      project={project}
                     />
 
                     {project?.methodology === "agile" &&
                       !isProjectCompleted &&
                       currentProjectRole &&
                       canCreateWorkUnit(currentProjectRole) && (
-                        <button
-                          onClick={() => handleDeleteWorkUnit(workUnitId)}
-                          className="absolute bottom-2 right-2 text-xs text-red-600 hover:text-red-800"
-                        >
-                          Delete
-                        </button>
+                        <div className="absolute bottom-2 right-2 flex flex-col gap-1">
+                          {workUnit.type === "sprint" && (
+                            <>
+                              {workUnit.status === "planning" && (
+                                <button
+                                  onClick={() => handleStartSprint(workUnitId)}
+                                  className="text-xs px-2 py-1 text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 rounded"
+                                >
+                                  Start
+                                </button>
+                              )}
+                              {(workUnit.status === "active" ||
+                                workUnit.status === "planning") && (
+                                <>
+                                  <button
+                                    onClick={() =>
+                                      handleViewSprintStats(workUnitId)
+                                    }
+                                    className="text-xs px-2 py-1 text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 rounded"
+                                  >
+                                    Stats
+                                  </button>
+                                  {workUnit.status === "active" && (
+                                    <button
+                                      onClick={() =>
+                                        handleEndSprint(workUnitId)
+                                      }
+                                      className="text-xs px-2 py-1 text-orange-600 hover:text-orange-800 bg-orange-50 hover:bg-orange-100 rounded"
+                                    >
+                                      End
+                                    </button>
+                                  )}
+                                </>
+                              )}
+                            </>
+                          )}
+                          {workUnit.type !== "backlog" && (
+                            <button
+                              onClick={() => handleDeleteWorkUnit(workUnitId)}
+                              className="text-xs px-2 py-1 text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 rounded"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
                       )}
                   </div>
                 );
@@ -1119,6 +1715,7 @@ export default function TaskBoard() {
                       disabled={
                         isProjectCompleted ||
                         !currentProjectRole ||
+                        isTaskViewOnly ||
                         !canUpdateStatus(
                           selectedTask,
                           currentProjectRole,
@@ -1155,6 +1752,7 @@ export default function TaskBoard() {
                       disabled={
                         isProjectCompleted ||
                         !currentProjectRole ||
+                        isTaskViewOnly ||
                         !canAssignTask(currentProjectRole)
                       }
                       value={(() => {
@@ -1206,6 +1804,7 @@ export default function TaskBoard() {
                     </div>
 
                     {currentProjectRole &&
+                      !isTaskViewOnly &&
                       canLogWork(
                         selectedTask,
                         currentProjectRole,
@@ -1243,6 +1842,7 @@ export default function TaskBoard() {
                     </h3>
 
                     {!isProjectCompleted &&
+                      !isTaskViewOnly &&
                       currentProjectRole &&
                       canCreateSubTask(currentProjectRole) && (
                         <button
@@ -1409,6 +2009,7 @@ export default function TaskBoard() {
                   </div>
 
                   {currentProjectRole &&
+                    !isTaskViewOnly &&
                     canUploadAttachment(currentProjectRole) && (
                       <div className="mt-4">
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1453,6 +2054,7 @@ export default function TaskBoard() {
                         </a>
 
                         {currentProjectRole &&
+                          !isTaskViewOnly &&
                           canDeleteAttachment(
                             currentProjectRole,
                             fullscreenAttachment.uploadedBy,
@@ -1520,32 +2122,34 @@ export default function TaskBoard() {
                     ))}
                   </div>
 
-                  {currentProjectRole && canComment(currentProjectRole) && (
-                    <div className="flex gap-3">
-                      <input
-                        type="text"
-                        value={newComment}
-                        onChange={(e) => setNewComment(e.target.value)}
-                        placeholder="Add a comment..."
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        onKeyPress={(e) =>
-                          e.key === "Enter" && handleAddComment()
-                        }
-                      />
+                  {currentProjectRole &&
+                    !isTaskViewOnly &&
+                    canComment(currentProjectRole) && (
+                      <div className="flex gap-3">
+                        <input
+                          type="text"
+                          value={newComment}
+                          onChange={(e) => setNewComment(e.target.value)}
+                          placeholder="Add a comment..."
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          onKeyPress={(e) =>
+                            e.key === "Enter" && handleAddComment()
+                          }
+                        />
 
-                      <button
-                        disabled={isProjectCompleted}
-                        onClick={handleAddComment}
-                        className={`px-4 py-2 rounded-lg ${
-                          isProjectCompleted
-                            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                            : "bg-blue-600 text-white hover:bg-blue-700"
-                        }`}
-                      >
-                        Comment
-                      </button>
-                    </div>
-                  )}
+                        <button
+                          disabled={isProjectCompleted}
+                          onClick={handleAddComment}
+                          className={`px-4 py-2 rounded-lg ${
+                            isProjectCompleted
+                              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                              : "bg-blue-600 text-white hover:bg-blue-700"
+                          }`}
+                        >
+                          Comment
+                        </button>
+                      </div>
+                    )}
                 </div>
               </div>
 
@@ -1645,6 +2249,18 @@ export default function TaskBoard() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     rows={3}
                     placeholder="Task description..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Deadline
+                  </label>
+                  <input
+                    type="date"
+                    value={newTaskDeadline}
+                    onChange={(e) => setNewTaskDeadline(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 

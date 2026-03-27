@@ -58,9 +58,10 @@ export interface WorkUnit {
   startDate?: string;
   endDate?: string;
   goal?: string;
+  isDone?: boolean;
+  status?: 'planning' | 'active' | 'closed';
   createdAt?: string;
   updatedAt?: string;
-  status?: string;
 }
 
 export interface Task {
@@ -80,6 +81,8 @@ export interface Task {
   timeSpent?: number;
   parentId?: string;
   type?: string;
+  storyPoints?: number;
+  issueType?: 'epic' | 'user-story' | 'task' | 'bug' | 'subtask';
   relatedTasks?: {
     taskId: string;
     type: string;
@@ -124,13 +127,13 @@ export interface AuditLog {
   _id?: string;
   id?: string;
   userId:
-    | string
-    | {
-        _id?: string;
-        id?: string;
-        fullName?: string;
-        email?: string;
-      };
+  | string
+  | {
+    _id?: string;
+    id?: string;
+    fullName?: string;
+    email?: string;
+  };
   action: string;
   entity: string;
   entityId?: string;

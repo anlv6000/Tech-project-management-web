@@ -8,6 +8,7 @@ import {
   canCompleteProject,
   canManageMembers,
   canManageProject,
+  canCreateWorkUnit,
 } from "./permissions";
 import {
   ArrowLeft,
@@ -43,11 +44,18 @@ export default function ProjectDetail() {
     getTasksByProject,
     getAllUsers,
     loadProjectData,
+    getTasksByWorkUnit,
+    updateTask,
+    updateWorkUnit,
   } = useData() as any;
 
   const [activeTab, setActiveTab] = useState<
     "overview" | "members" | "reports"
   >("overview");
+  const [editingPhase, setEditingPhase] = useState<any>(null);
+  const [phaseEndDate, setPhaseEndDate] = useState("");
+  const [phaseModalError, setPhaseModalError] = useState("");
+  const [phaseActionLoading, setPhaseActionLoading] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
   const [inviteData, setInviteData] = useState<{
     searchInput: string;
@@ -127,7 +135,6 @@ export default function ProjectDetail() {
     if (normalized === "projectManager") return "Project Manager";
     if (normalized === "member") return "Member";
     if (normalized === "viewer") return "Viewer";
-
     return "Unknown Role";
   };
 
@@ -160,6 +167,21 @@ export default function ProjectDetail() {
   });
 
   const currentProjectRole = normalizeRole(currentMember?.role);
+
+  const isPhaseCompleted = (wu: any) => {
+    return wu.isDone === true;
+  };
+
+  const isPhaseEditable = (wu: any) => {
+    if (wu.type !== "phase") return false;
+    if (wu.order === 1) return true;
+
+    const prevPhase = workUnits.find(
+      (item: any) => item.type === "phase" && item.order === wu.order - 1,
+    );
+
+    return prevPhase ? isPhaseCompleted(prevPhase) : true;
+  };
 
   const token = sessionStorage.getItem("token");
   const authJsonHeaders = {
@@ -280,7 +302,6 @@ export default function ProjectDetail() {
 
   const handleStartEditMembers = () => {
     const initialRoles: Record<string, ProjectRole> = {};
-
     members.forEach((member) => {
       const memberUserId = normalizeId(member.userId);
       const normalizedRole = normalizeRole(member.role);
@@ -297,7 +318,6 @@ export default function ProjectDetail() {
 
   const handleCancelEditMembers = () => {
     const initialRoles: Record<string, ProjectRole> = {};
-
     members.forEach((member) => {
       const memberUserId = normalizeId(member.userId);
       const normalizedRole = normalizeRole(member.role);
@@ -383,7 +403,6 @@ export default function ProjectDetail() {
       setMemberActionLoading("");
     }
   };
-
   const handleCompleteProject = async () => {
     if (!currentProjectRole || !canCompleteProject(currentProjectRole)) {
       setCompletionError(
@@ -474,6 +493,86 @@ export default function ProjectDetail() {
       setUpdateLoading(false);
     }
   };
+  const openPhaseEditor = (wu: any) => {
+    setPhaseModalError("");
+    setPhaseEndDate(
+      wu.endDate ? new Date(wu.endDate).toISOString().split("T")[0] : "",
+    );
+    setEditingPhase(wu);
+  };
+
+  const closePhaseEditor = () => {
+    setEditingPhase(null);
+    setPhaseModalError("");
+    setPhaseEndDate("");
+  };
+
+  const handleSavePhase = async () => {
+    if (!editingPhase) return;
+    if (!phaseEndDate) {
+      setPhaseModalError("End date is required.");
+      return;
+    }
+
+    if (!currentProjectRole || !canCreateWorkUnit(currentProjectRole)) {
+      setPhaseModalError("You do not have permission to update this phase.");
+      return;
+    }
+
+    setPhaseActionLoading(true);
+    setPhaseModalError("");
+
+    try {
+      await updateWorkUnit(editingPhase.id || editingPhase._id, {
+        endDate: phaseEndDate,
+      });
+
+      await loadProjectData(projectId);
+      closePhaseEditor();
+    } catch (error: any) {
+      console.error("Phase update error:", error);
+      setPhaseModalError(
+        error?.message || "An error occurred while updating the phase.",
+      );
+    } finally {
+      setPhaseActionLoading(false);
+    }
+  };
+
+  const handleMarkPhaseDone = async (wu: any) => {
+    if (!currentProjectRole || !canCreateWorkUnit(currentProjectRole)) {
+      alert("You do not have permission to complete this phase.");
+      return;
+    }
+
+    if (wu.isDone) {
+      alert("This phase is already completed.");
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/work-units/mark-done/${wu.id || wu._id}`,
+        {
+          method: "PUT",
+          headers: authJsonHeaders,
+        },
+      );
+
+      if (response.ok) {
+        await loadProjectData(projectId);
+      } else {
+        const error = await response.json();
+        alert(error.message || "Failed to mark phase as done");
+      }
+    } catch (error) {
+      console.error("Mark phase done error:", error);
+      alert("Failed to mark phase as done");
+    }
+  };
+
+  const isOverdue =
+    new Date(project.endDate) < new Date() && !project.isCompleted;
 
   const completedTasks = tasks.filter((t: any) => t.status === "done").length;
   const inProgressTasks = tasks.filter(
@@ -516,6 +615,7 @@ export default function ProjectDetail() {
                   <div className="bg-white p-6 rounded-lg shadow-lg w-[500px]">
                     <div className="flex justify-between items-center mb-4">
                       <h2 className="text-lg font-semibold">Edit Project</h2>
+
                       <button onClick={() => setEditMode(false)}>
                         <X className="w-5 h-5 text-gray-600" />
                       </button>
@@ -576,7 +676,28 @@ export default function ProjectDetail() {
                     {project.name}
                   </h1>
                   <p className="text-gray-600 mb-4">{project.description}</p>
-
+                  {/* Hiển thị deadline */}
+                  <div className="flex items-center gap-2 text-sm mb-4">
+                    <span className="font-medium text-gray-700">Deadline:</span>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs ${
+                        new Date(project.endDate) < new Date() &&
+                        !project.isCompleted
+                          ? "bg-red-100 text-red-600"
+                          : "bg-gray-100 text-gray-700"
+                      }`}
+                    >
+                      {new Date(project.endDate).toLocaleDateString()}
+                    </span>
+                  </div>
+                  {isOverdue && (
+                    <div className="flex items-center gap-2 p-4 bg-red-50 text-red-700 rounded-lg mb-4">
+                      <AlertCircle className="w-5 h-5" />
+                      <span>
+                        This project has passed its end date and is overdue.
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-3 flex-wrap">
                     {currentProjectRole &&
                       canManageProject(currentProjectRole) && (
@@ -690,6 +811,9 @@ export default function ProjectDetail() {
 
                 <div className="space-y-3">
                   {workUnits.map((wu: any) => {
+                    const now = new Date();
+                    const isOverdue =
+                      wu.endDate && new Date(wu.endDate) < now && !wu.isDone;
                     const wuId = wu.id || wu._id || "";
                     const unitTasks = tasks.filter(
                       (t: any) =>
@@ -706,8 +830,8 @@ export default function ProjectDetail() {
 
                     return (
                       <div key={wuId} className="p-4 border rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <div>
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
                             <h3 className="font-medium text-gray-900">
                               {wu.name}
                             </h3>
@@ -715,16 +839,68 @@ export default function ProjectDetail() {
                               <p className="text-sm text-gray-600">{wu.goal}</p>
                             )}
                           </div>
-                          <span className="text-sm text-gray-600">
-                            {unitTasks.length} tasks
-                          </span>
+                          <div className="flex flex-col items-end gap-2">
+                            <span className="text-sm text-gray-600">
+                              {unitTasks.length} tasks
+                            </span>
+                            {wu.type === "phase" && (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  disabled={!isPhaseEditable(wu)}
+                                  onClick={() => openPhaseEditor(wu)}
+                                  className={`text-xs px-2 py-1 rounded ${
+                                    isPhaseEditable(wu)
+                                      ? "bg-blue-600 text-white hover:bg-blue-700"
+                                      : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                                  }`}
+                                >
+                                  Edit Phase Dates
+                                </button>
+                                <button
+                                  disabled={!isPhaseEditable(wu) || wu.isDone}
+                                  onClick={() => handleMarkPhaseDone(wu)}
+                                  className={`text-xs px-2 py-1 rounded ${
+                                    isPhaseEditable(wu) && !wu.isDone
+                                      ? "bg-green-600 text-white hover:bg-green-700"
+                                      : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                                  }`}
+                                >
+                                  {wu.isDone
+                                    ? "Completed"
+                                    : "Mark as Completed"}
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
 
-                        {wu.startDate && wu.endDate && (
-                          <div className="text-sm text-gray-600 mb-2">
-                            {new Date(wu.startDate).toLocaleDateString()} -{" "}
-                            {new Date(wu.endDate).toLocaleDateString()}
-                          </div>
+                        <div className="text-sm text-gray-600 mb-2">
+                          {wu.startDate
+                            ? new Date(wu.startDate).toLocaleDateString()
+                            : "Start: not set"}
+                          {" - "}
+                          {wu.endDate
+                            ? new Date(wu.endDate).toLocaleDateString()
+                            : "End: not set"}
+
+                          {isOverdue && (
+                            <span className="ml-2 px-2 py-1 bg-red-100 text-red-600 rounded-full text-xs">
+                              Overdue
+                            </span>
+                          )}
+                        </div>
+
+                        {wu.type === "phase" && !isPhaseEditable(wu) && (
+                          <p className="text-xs text-red-500">
+                            Phase {wu.order} is locked until Phase{" "}
+                            {wu.order - 1} is completed.
+                          </p>
+                        )}
+
+                        {wu.type === "phase" && wu.isDone && (
+                          <p className="text-xs text-green-600 font-medium">
+                            ✓ Phase {wu.order} completed
+                          </p>
                         )}
 
                         <div className="w-full bg-gray-200 rounded-full h-2">
@@ -740,7 +916,61 @@ export default function ProjectDetail() {
               </div>
             </div>
           )}
+          {editingPhase && (
+            <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
+              <div className="bg-white p-6 rounded-lg shadow-lg w-[420px]">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold">Edit Phase Dates</h2>
+                  <button onClick={closePhaseEditor}>
+                    <X className="w-5 h-5 text-gray-600" />
+                  </button>
+                </div>
 
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-sm font-medium mb-1">Start Date</p>
+                    <input
+                      type="text"
+                      value={new Date().toISOString().split("T")[0]}
+                      disabled
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100"
+                    />
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-medium mb-1">End Date</p>
+                    <input
+                      type="date"
+                      value={phaseEndDate}
+                      onChange={(e) => setPhaseEndDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+
+                  {phaseModalError && (
+                    <p className="text-sm text-red-600">{phaseModalError}</p>
+                  )}
+
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={closePhaseEditor}
+                      disabled={phaseActionLoading}
+                      className="px-3 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSavePhase}
+                      disabled={phaseActionLoading}
+                      className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {phaseActionLoading ? "Saving..." : "Save"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           {activeTab === "members" && (
             <div className="bg-white rounded-lg border">
               <div className="p-6 border-b flex items-center justify-between">
@@ -869,7 +1099,6 @@ export default function ProjectDetail() {
                             onChange={(e) => {
                               const nextRole = normalizeRole(e.target.value);
                               if (!nextRole) return;
-
                               setEditedRoles((prev) => ({
                                 ...prev,
                                 [memberUserId]: nextRole,

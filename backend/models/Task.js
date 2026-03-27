@@ -26,6 +26,8 @@ const taskSchema = new mongoose.Schema({
     enum: ['parent', 'subtask', 'epic', 'milestone', 'feature', 'bug', 'improvement'],
     default: 'parent'
   },
+  storyPoints: { type: Number, default: null },
+  issueType: { type: String, enum: ['epic', 'user-story', 'task', 'bug', 'subtask'], default: 'task' },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
   relatedTasks: [
