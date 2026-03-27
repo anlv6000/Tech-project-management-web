@@ -320,12 +320,6 @@ export const verifyOtp = async (req, res) => {
     // Get the activated user
     const activatedUser = await User.findOne({ email }).select("-password");
 
-    // Generate token
-    const token = jwt.sign(
-      { userId: activatedUser._id, email: activatedUser.email, role: activatedUser.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
 
     await Otp.deleteOne({ email });
 
@@ -333,7 +327,6 @@ export const verifyOtp = async (req, res) => {
       success: true,
       message: "Email verified successfully",
       user: activatedUser,
-      token
     });
 
   } catch (error) {

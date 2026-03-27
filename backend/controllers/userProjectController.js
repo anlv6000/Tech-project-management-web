@@ -6,13 +6,19 @@ import Attachment from "../models/Attachment.js";
 import { createAuditLogFromRequest } from "../utils/auditLogger.js";
 import { normalizeProjectRole } from "../middleware/projectPermissions.js";
 
-const VALID_ROLES = ["projectAdmin", "pm", "member", "viewer"];
-const EDITABLE_ROLES_BY_PROJECT_ADMIN = ["pm", "member", "viewer"];
+const VALID_ROLES = ["projectAdmin", "projectManager", "member", "viewer"];
+
+const EDITABLE_ROLES_BY_PROJECT_ADMIN = ["projectManager", "member", "viewer"];
 
 export const getAllUserProjects = async (req, res) => {
   try {
     const userProjects = await UserProject.find();
-    res.json(userProjects);
+    res.json(
+      userProjects.map((item) => ({
+        ...item.toObject(),
+        role: normalizeProjectRole(item.role),
+      })),
+    );
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -21,6 +27,7 @@ export const getAllUserProjects = async (req, res) => {
 export const getProjectMembers = async (req, res) => {
   try {
     const { projectId } = req.params;
+
     const members = await UserProject.find({ projectId })
       .populate("userId", "-password")
       .lean();
@@ -69,6 +76,7 @@ export const addUserToProject = async (req, res) => {
     });
 
     const saved = await userProject.save();
+
     const populated = await UserProject.findById(saved._id).populate(
       "userId",
       "-password",
@@ -81,7 +89,10 @@ export const addUserToProject = async (req, res) => {
       details: `${req.user?.fullName || "User"} added user ${userId} to project ${projectId} as ${normalizedRole}`,
     });
 
-    res.status(201).json(populated);
+    res.status(201).json({
+      ...populated.toObject(),
+      role: normalizeProjectRole(populated.role),
+    });
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -135,16 +146,7 @@ export const updateUserRole = async (req, res) => {
     const { userId, projectId } = req.params;
     const { role } = req.body;
 
-    console.log("updateUserRole called with:", {
-      userId,
-      projectId,
-      role,
-      requester: req.user?._id,
-    });
-
     const normalizedRole = normalizeProjectRole(role);
-
-    console.log("normalizedRole =", normalizedRole);
 
     if (!VALID_ROLES.includes(normalizedRole)) {
       return res.status(400).json({ message: "Invalid project role" });
@@ -169,8 +171,6 @@ export const updateUserRole = async (req, res) => {
       projectId: new mongoose.Types.ObjectId(projectId),
     });
 
-    console.log("found userProject =", userProject);
-
     if (!userProject) {
       return res.status(404).json({ message: "User not found in project" });
     }
@@ -186,8 +186,6 @@ export const updateUserRole = async (req, res) => {
     userProject.role = normalizedRole;
     await userProject.save();
 
-    console.log("saved userProject =", userProject);
-
     const populated = await UserProject.findById(userProject._id).populate(
       "userId",
       "-password",
@@ -200,7 +198,7 @@ export const updateUserRole = async (req, res) => {
       details: `${req.user?.fullName || "User"} changed role of user ${userId} in project ${projectId} from ${oldRole} to ${normalizedRole}`,
     });
 
-    res.json({
+    return res.json({
       ...populated.toObject(),
       role: normalizeProjectRole(populated.role),
     });
@@ -213,6 +211,7 @@ export const updateUserRole = async (req, res) => {
 export const getUserProjectsByUserId = async (req, res) => {
   try {
     const { userId } = req.params;
+
     const userProjects = await UserProject.find({ userId }).populate({
       path: "projectId",
       populate: [

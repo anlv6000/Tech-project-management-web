@@ -102,16 +102,50 @@ export const updateWorkUnit = async (req, res) => {
   try {
     const { name, type, order, startDate, endDate, goal } = req.body;
 
+    const existing = await WorkUnit.findById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ message: "WorkUnit not found" });
+    }
+
+    const updateFields = {};
+    if (name !== undefined) updateFields.name = name;
+    if (type !== undefined) updateFields.type = type;
+    if (order !== undefined) updateFields.order = order;
+    if (goal !== undefined) updateFields.goal = goal;
+
+    const isPhase = existing.type === "phase" || type === "phase";
+    if (isPhase) {
+      // Sequence control: only allow updating phase n when phase n-1 is completed
+      if (existing.order > 1) {
+        const prevPhase = await WorkUnit.findOne({
+          projectId: existing.projectId,
+          type: "phase",
+          order: existing.order - 1,
+        });
+
+        if (prevPhase && !prevPhase.isDone) {
+          return res.status(400).json({
+            message:
+              "Cannot update this phase before previous phase is completed.",
+          });
+        }
+      }
+
+      // Start date for phases is always set to now when updating
+      updateFields.startDate = new Date();
+
+      // End date is customizable
+      if (endDate !== undefined) {
+        updateFields.endDate = new Date(endDate);
+      }
+    } else {
+      if (startDate !== undefined) updateFields.startDate = new Date(startDate);
+      if (endDate !== undefined) updateFields.endDate = new Date(endDate);
+    }
+
     const updated = await WorkUnit.findByIdAndUpdate(
       req.params.id,
-      {
-        name,
-        type,
-        order,
-        startDate: startDate ? new Date(startDate) : undefined,
-        endDate: endDate ? new Date(endDate) : undefined,
-        goal,
-      },
+      updateFields,
       { new: true },
     );
 
@@ -159,5 +193,35 @@ export const deleteWorkUnit = async (req, res) => {
   } catch (error) {
     console.error("deleteWorkUnit error:", error);
     res.status(500).json({ message: error.message });
+  }
+};
+
+export const markPhaseDone = async (req, res) => {
+  try {
+    const workUnit = await WorkUnit.findById(req.params.id);
+    if (!workUnit) {
+      return res.status(404).json({ message: "WorkUnit not found" });
+    }
+
+    if (workUnit.type !== "phase") {
+      return res.status(400).json({ message: "Only phases can be marked as done" });
+    }
+
+    const updated = await WorkUnit.findByIdAndUpdate(
+      req.params.id,
+      { isDone: true },
+      { new: true },
+    );
+
+    await createAuditLogFromRequest(req, {
+      action: "update",
+      entity: "workunit",
+      entityId: updated._id,
+      details: `${req.user?.fullName || "User"} marked phase ${updated.name} as completed`,
+    });
+
+    res.json(updated);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
   }
 };

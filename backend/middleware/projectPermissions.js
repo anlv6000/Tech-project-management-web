@@ -6,18 +6,26 @@ import WorkUnit from "../models/WorkUnit.js";
 
 const ROLE_MAP = {
   projectAdmin: "projectAdmin",
-  pm: "pm",
+  projectManager: "projectManager",
   member: "member",
   viewer: "viewer",
+
+  // fallback for old data
+  pm: "projectManager",
+  PM: "projectManager",
+  Lead: "projectManager",
+  Manager: "projectManager",
   Admin: "projectAdmin",
-  PM: "pm",
-  Lead: "pm",
-  Manager: "pm",
+  "Project Admin": "projectAdmin",
+  "Project Manager": "projectManager",
   Member: "member",
   Viewer: "viewer",
 };
 
-export const normalizeProjectRole = (role) => ROLE_MAP[role] || "member";
+export const normalizeProjectRole = (role) => {
+  if (!role) return "member";
+  return ROLE_MAP[String(role).trim()] || "member";
+};
 
 const getIdString = (value) => {
   if (!value) return "";
@@ -45,47 +53,47 @@ const isSystemAdmin = (req) => req.user?.role === "admin";
 
 export const requireProjectRole =
   (allowedRoles = [], projectIdResolver) =>
-    async (req, res, next) => {
-      try {
-        if (isSystemAdmin(req)) {
-          return next();
-        }
-
-        const resolvedProjectId = projectIdResolver
-          ? await projectIdResolver(req)
-          : req.params.projectId || req.params.id || req.body.projectId;
-
-        if (!resolvedProjectId) {
-          return res.status(400).json({ message: "Project id is required" });
-        }
-
-        const membership = await getProjectMembership(
-          req.user?._id || req.user?.id,
-          resolvedProjectId,
-        );
-
-        if (!membership) {
-          return res
-            .status(403)
-            .json({ message: "You are not a member of this project" });
-        }
-
-        if (!allowedRoles.includes(membership.role)) {
-          return res
-            .status(403)
-            .json({ message: "You do not have permission for this action" });
-        }
-
-        req.projectMembership = membership;
-        req.projectRole = membership.role;
-        req.projectId = getIdString(resolvedProjectId);
-
-        next();
-      } catch (error) {
-        console.error("requireProjectRole error:", error);
-        res.status(500).json({ message: error.message });
+  async (req, res, next) => {
+    try {
+      if (isSystemAdmin(req)) {
+        return next();
       }
-    };
+
+      const resolvedProjectId = projectIdResolver
+        ? await projectIdResolver(req)
+        : req.params.projectId || req.params.id || req.body.projectId;
+
+      if (!resolvedProjectId) {
+        return res.status(400).json({ message: "Project id is required" });
+      }
+
+      const membership = await getProjectMembership(
+        req.user?._id || req.user?.id,
+        resolvedProjectId,
+      );
+
+      if (!membership) {
+        return res
+          .status(403)
+          .json({ message: "You are not a member of this project" });
+      }
+
+      if (!allowedRoles.includes(membership.role)) {
+        return res
+          .status(403)
+          .json({ message: "You do not have permission for this action" });
+      }
+
+      req.projectMembership = membership;
+      req.projectRole = membership.role;
+      req.projectId = getIdString(resolvedProjectId);
+
+      next();
+    } catch (error) {
+      console.error("requireProjectRole error:", error);
+      res.status(500).json({ message: error.message });
+    }
+  };
 
 export const attachTaskToRequest = async (req, res, next) => {
   try {
@@ -128,7 +136,7 @@ export const requireTaskCreatePermission = async (req, res, next) => {
         .json({ message: "You are not a member of this project" });
     }
 
-    if (!["projectAdmin", "pm"].includes(membership.role)) {
+    if (!["projectAdmin", "projectManager"].includes(membership.role)) {
       return res
         .status(403)
         .json({ message: "You do not have permission to create tasks" });
@@ -162,7 +170,7 @@ export const requireTaskUpdatePermission = async (req, res, next) => {
     const userId = getIdString(req.user?._id || req.user?.id);
     const assigneeId = getIdString(task.assigneeId);
 
-    if (["projectAdmin", "pm"].includes(membership.role)) {
+    if (["projectAdmin", "projectManager"].includes(membership.role)) {
       req.projectMembership = membership;
       req.projectRole = membership.role;
       return next();
@@ -218,7 +226,7 @@ export const requireTaskDeletePermission = async (req, res, next) => {
         .json({ message: "You are not a member of this project" });
     }
 
-    if (!["projectAdmin", "pm"].includes(membership.role)) {
+    if (!["projectAdmin", "projectManager"].includes(membership.role)) {
       return res
         .status(403)
         .json({ message: "You do not have permission to delete this task" });
@@ -280,7 +288,9 @@ export const requireCommentCreatePermission = async (req, res, next) => {
         .json({ message: "You are not a member of this project" });
     }
 
-    if (!["projectAdmin", "pm", "member"].includes(membership.role)) {
+    if (
+      !["projectAdmin", "projectManager", "member"].includes(membership.role)
+    ) {
       return res
         .status(403)
         .json({ message: "You do not have permission to comment" });
@@ -325,7 +335,7 @@ export const requireCommentModifyPermission = async (req, res, next) => {
     const ownerId = getIdString(comment.userId);
 
     if (
-      ["projectAdmin", "pm"].includes(membership.role) ||
+      ["projectAdmin", "projectManager"].includes(membership.role) ||
       ownerId === userId
     ) {
       req.projectMembership = membership;
@@ -364,10 +374,6 @@ export const attachAttachmentToRequest = async (req, res, next) => {
 
 export const requireAttachmentCreatePermission = async (req, res, next) => {
   try {
-    console.log("requireAttachmentCreatePermission triggered");
-    console.log("req.body:", req.body);
-    console.log("taskId:", req.body.taskId);
-
     if (isSystemAdmin(req)) return next();
 
     const taskId = req.body.taskId;
@@ -393,7 +399,9 @@ export const requireAttachmentCreatePermission = async (req, res, next) => {
         .json({ message: "You are not a member of this project" });
     }
 
-    if (!["projectAdmin", "pm", "member"].includes(membership.role)) {
+    if (
+      !["projectAdmin", "projectManager", "member"].includes(membership.role)
+    ) {
       return res
         .status(403)
         .json({ message: "You do not have permission to upload attachments" });
@@ -438,7 +446,7 @@ export const requireAttachmentDeletePermission = async (req, res, next) => {
     const uploaderId = getIdString(attachment.uploadedBy);
 
     if (
-      ["projectAdmin", "pm"].includes(membership.role) ||
+      ["projectAdmin", "projectManager"].includes(membership.role) ||
       uploaderId === userId
     ) {
       req.projectMembership = membership;
@@ -499,10 +507,10 @@ export const requireWorkUnitManagePermission =
           .json({ message: "You are not a member of this project" });
       }
 
-      if (!["projectAdmin", "pm"].includes(membership.role)) {
-        return res
-          .status(403)
-          .json({ message: "You do not have permission to manage work units" });
+      if (!["projectAdmin", "projectManager"].includes(membership.role)) {
+        return res.status(403).json({
+          message: "You do not have permission to manage work units",
+        });
       }
 
       req.projectMembership = membership;

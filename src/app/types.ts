@@ -1,10 +1,14 @@
 // Database types matching the 7 tables
 
-export type UserRole = 'user' | 'admin';
-export type ProjectRole = 'owner' | 'member' | 'viewer' | 'Admin' | 'Manager' | 'Member' | 'Viewer';
-export type Methodology = 'agile' | 'kanban' | 'waterfall';
-export type TaskStatus = 'todo' | 'in-progress' | 'done' | 'backlog';
-export type WorkUnitType = 'sprint' | 'column' | 'phase';
+export type UserRole = "user" | "admin";
+export type ProjectRole =
+  | "projectAdmin"
+  | "projectManager"
+  | "member"
+  | "viewer";
+export type Methodology = "agile" | "kanban" | "waterfall";
+export type TaskStatus = "todo" | "in-progress" | "done" | "backlog";
+export type WorkUnitType = "sprint" | "column" | "phase";
 
 export interface User {
   id?: string;
@@ -54,9 +58,10 @@ export interface WorkUnit {
   startDate?: string;
   endDate?: string;
   goal?: string;
+  isDone?: boolean;
   createdAt?: string;
   updatedAt?: string;
-  status?: string; // Added optional status property
+  status?: string;
 }
 
 export interface Task {
@@ -73,12 +78,12 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
   order: number;
-  timeSpent?: number; // in hours
-  parentId?: string; // for subtasks
-  type?: string; // 'parent', 'subtask', 'epic', 'milestone', 'feature', 'bug', 'improvement'
+  timeSpent?: number;
+  parentId?: string;
+  type?: string;
   relatedTasks?: {
     taskId: string;
-    type: string; // 'blocks', 'blocked_by', 'relates_to', 'duplicates'
+    type: string;
   }[];
 }
 
@@ -89,7 +94,7 @@ export interface Comment {
   userId: string;
   content: string;
   createdAt: string;
-  parentId?: string; // for replies
+  parentId?: string;
   updatedAt?: string;
 }
 
@@ -110,22 +115,23 @@ export interface Notification {
   userId: string;
   title: string;
   message: string;
-  type: 'task' | 'comment' | 'project' | 'system';
+  type: "task" | "comment" | "project" | "system";
   isRead: boolean;
   createdAt: string;
   link?: string;
 }
+
 export interface AuditLog {
   _id?: string;
   id?: string;
   userId:
-    | string
-    | {
-        _id?: string;
-        id?: string;
-        fullName?: string;
-        email?: string;
-      };
+  | string
+  | {
+    _id?: string;
+    id?: string;
+    fullName?: string;
+    email?: string;
+  };
   action: string;
   entity: string;
   entityId?: string;

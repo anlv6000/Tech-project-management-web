@@ -12,6 +12,7 @@ const workUnitSchema = new mongoose.Schema({
   startDate: { type: Date, default: null },
   endDate: { type: Date, default: null },
   goal: { type: String, default: null, trim: true },
+  isDone: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });

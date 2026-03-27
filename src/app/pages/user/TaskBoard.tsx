@@ -59,6 +59,7 @@ interface TaskCardProps {
   isProjectCompleted: boolean;
   currentProjectRole?: ProjectRole;
   currentUserId: string;
+  isWorkUnitDisabled?: boolean;
 }
 
 function TaskCard({
@@ -68,19 +69,22 @@ function TaskCard({
   isProjectCompleted,
   currentProjectRole,
   currentUserId,
+  isWorkUnitDisabled = false,
 }: TaskCardProps) {
   const { deleteTask } = useData();
   const canEditThisTask =
     !!currentProjectRole &&
-    canEditTask(task, currentProjectRole, currentUserId);
+    canEditTask(task, currentProjectRole, currentUserId) &&
+    !isWorkUnitDisabled;
 
   const [{ isDragging }, drag] = useDrag({
     type: ItemType,
     item: { id: task.id || task._id, workUnitId: task.workUnitId },
     canDrag:
       !isProjectCompleted &&
+      !isWorkUnitDisabled &&
       !!currentProjectRole &&
-      ["projectAdmin", "pm"].includes(currentProjectRole),
+      ["projectAdmin", "projectManager"].includes(currentProjectRole),
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
@@ -90,6 +94,7 @@ function TaskCard({
   const [editTaskData, setEditTaskData] = useState({
     title: task.title,
     description: task.description,
+    deadline: task.deadline || "",
   });
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState("");
@@ -135,20 +140,25 @@ function TaskCard({
   const attachments = getTaskAttachments(taskId);
 
   let statusColor = "";
-  if (task.status === "todo") statusColor = "bg-gray-100 border-gray-300";
-  else if (task.status === "in-progress")
+  if (isWorkUnitDisabled) {
+    statusColor = "bg-green-200 border-green-100";
+  } else if (task.status === "todo") {
+    statusColor = "bg-gray-100 border-gray-300";
+  } else if (task.status === "in-progress") {
     statusColor = "bg-yellow-100 border-yellow-300";
-  else if (task.status === "done")
-    statusColor = "bg-green-100 border-green-300";
-  else statusColor = "bg-white border-gray-300";
+  } else if (task.status === "done") {
+    statusColor = "bg-green-100 border-green-100";
+  } else {
+    statusColor = "bg-white border-gray-300";
+  }
 
   return (
     <>
       <div
         ref={drag as any}
-        onClick={onClick}
+        onClick={isWorkUnitDisabled ? undefined : onClick}
         className={`p-4 rounded-lg border hover:shadow-md transition-all ${statusColor} ${isDragging ? "opacity-50" : "opacity-100"
-          } ${isProjectCompleted ? "cursor-not-allowed" : "cursor-pointer"}`}
+          } ${isProjectCompleted || isWorkUnitDisabled ? "cursor-not-allowed" : "cursor-pointer"}`}
       >
         <div className="flex justify-between items-start">
           <h3 className="font-medium text-gray-900 mb-2">{task.title}</h3>
@@ -170,7 +180,11 @@ function TaskCard({
                   const id = task.id ?? task._id;
                   if (!id) return;
 
-                  if (window.confirm(`Are you sure you want to delete task "${task.title}"?`)) {
+                  if (
+                    window.confirm(
+                      `Are you sure you want to delete task "${task.title}"?`,
+                    )
+                  ) {
                     deleteTask(id);
                   }
                 }}
@@ -252,6 +266,23 @@ function TaskCard({
               placeholder="Task Description"
             />
 
+            <div className="mb-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Deadline
+              </label>
+              <input
+                type="date"
+                value={editTaskData.deadline}
+                onChange={(e) =>
+                  setEditTaskData({
+                    ...editTaskData,
+                    deadline: e.target.value,
+                  })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              />
+            </div>
+
             {editError && <p className="text-red-600 mb-2">{editError}</p>}
 
             <div className="flex justify-end gap-4">
@@ -287,6 +318,7 @@ interface ColumnProps {
   isProjectCompleted: boolean;
   currentProjectRole?: ProjectRole;
   currentUserId: string;
+  isWorkUnitDisabled?: boolean;
 }
 
 function Column({
@@ -299,6 +331,7 @@ function Column({
   isProjectCompleted,
   currentProjectRole,
   currentUserId,
+  isWorkUnitDisabled = false,
 }: ColumnProps) {
   const workUnitId = workUnit.id || workUnit._id || "";
 
@@ -306,8 +339,9 @@ function Column({
     accept: ItemType,
     canDrop: () =>
       !isProjectCompleted &&
+      !isWorkUnitDisabled &&
       !!currentProjectRole &&
-      ["projectAdmin", "pm"].includes(currentProjectRole),
+      ["projectAdmin", "projectManager"].includes(currentProjectRole),
     drop: (item: { id: string; workUnitId: string }) => {
       if (item.workUnitId !== workUnitId) {
         onDrop(item.id, workUnitId);
@@ -322,11 +356,16 @@ function Column({
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-lg font-bold text-gray-900">{workUnit.name}</h2>
+          <h2 className={`text-lg font-bold ${isWorkUnitDisabled ? "text-green-600" : "text-gray-900"
+            }`}>
+            {workUnit.name}
+            {isWorkUnitDisabled && " ✓"}
+          </h2>
           <p className="text-sm text-gray-600">{tasks.length} tasks</p>
         </div>
 
         {!isProjectCompleted &&
+          !isWorkUnitDisabled &&
           currentProjectRole &&
           canCreateTask(currentProjectRole) && (
             <button
@@ -340,20 +379,23 @@ function Column({
 
       <div
         ref={drop as any}
-        className={`flex-1 space-y-3 min-h-[200px] p-2 rounded-lg transition-colors ${isOver
-          ? "bg-blue-50 border-2 border-dashed border-blue-300"
-          : "bg-transparent"
+        className={`flex-1 space-y-3 min-h-[200px] p-2 rounded-lg transition-colors ${isWorkUnitDisabled
+          ? "bg-green-100 border-2 border-dashed border-green-300"
+          : isOver
+            ? "bg-blue-50 border-2 border-dashed border-blue-300"
+            : "bg-transparent"
           }`}
       >
         {tasks.map((task) => (
           <TaskCard
-            key={task.id || task._id}
+            key={String(task.id ?? task._id)}
             task={task}
             onClick={() => onTaskClick(task)}
             users={users}
             isProjectCompleted={isProjectCompleted}
             currentProjectRole={currentProjectRole}
             currentUserId={currentUserId}
+            isWorkUnitDisabled={isWorkUnitDisabled}
           />
         ))}
       </div>
@@ -389,6 +431,7 @@ export default function TaskBoard() {
   const [createWorkUnitId, setCreateWorkUnitId] = useState("");
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDesc, setNewTaskDesc] = useState("");
+  const [newTaskDeadline, setNewTaskDeadline] = useState("");
   const [newComment, setNewComment] = useState("");
   const [timeLog, setTimeLog] = useState("");
   const [taskChanges, setTaskChanges] = useState<Partial<Task>>({});
@@ -719,12 +762,14 @@ export default function TaskBoard() {
       createdBy: user.id || user._id || "",
       order: tasksInUnit.length,
       type: "parent",
+      deadline: newTaskDeadline || undefined,
     });
 
 
     setShowCreateTask(false);
     setNewTaskTitle("");
     setNewTaskDesc("");
+    setNewTaskDeadline("");
   };
 
   const handleTaskChange = (field: keyof Task, value: any) => {
@@ -992,21 +1037,28 @@ export default function TaskBoard() {
                 return (
                   <div
                     key={workUnitId}
-                    className="bg-gray-100 p-4 rounded-lg relative"
+                    className={`p-4 rounded-lg relative ${workUnit.type === "phase" && workUnit.isDone
+                      ? "bg-green-100 border-2 border-green-300"
+                      : "bg-gray-100"
+                      }`}
                   >
                     <Column
                       workUnit={workUnit}
                       tasks={tasks}
                       onTaskClick={handleTaskClick}
                       onDrop={(taskId, newWorkUnitId) => {
-                        if (isProjectCompleted) return;
+                        if (isProjectCompleted || (workUnit.type === "phase" && workUnit.isDone)) return;
                         return handleDrop(taskId, newWorkUnitId);
                       }}
-                      onAddTask={handleAddTask}
+                      onAddTask={(workUnitId) => {
+                        if (workUnit.type === "phase" && workUnit.isDone) return;
+                        handleAddTask(workUnitId);
+                      }}
                       users={users}
                       isProjectCompleted={isProjectCompleted}
                       currentProjectRole={currentProjectRole}
                       currentUserId={currentUserId}
+                      isWorkUnitDisabled={workUnit.type === "phase" && workUnit.isDone}
                     />
 
                     {project?.methodology === "agile" &&
@@ -1221,8 +1273,8 @@ export default function TaskBoard() {
                             disabled={isProjectCompleted}
                             onClick={handleLogTime}
                             className={`px-4 py-2 rounded-lg ${isProjectCompleted
-                              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                              : "bg-blue-600 text-white hover:bg-blue-700"
+                                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                                : "bg-blue-600 text-white hover:bg-blue-700"
                               }`}
                           >
                             Log Time
@@ -1631,6 +1683,18 @@ export default function TaskBoard() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     rows={3}
                     placeholder="Task description..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Deadline
+                  </label>
+                  <input
+                    type="date"
+                    value={newTaskDeadline}
+                    onChange={(e) => setNewTaskDeadline(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 

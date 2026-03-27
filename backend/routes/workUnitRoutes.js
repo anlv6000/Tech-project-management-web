@@ -41,4 +41,12 @@ router.post(
   workUnitController.createSprint,
 );
 
+router.put(
+  "/mark-done/:id",
+  authenticateToken,
+  attachWorkUnitToRequest,
+  requireWorkUnitManagePermission((req) => req.workUnit.projectId),
+  workUnitController.markPhaseDone,
+);
+
 export default router;
