@@ -83,23 +83,6 @@ export const createAuditLog = async (req, res) => {
   }
 };
 
-export const deleteAuditLog = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const result = await AuditLog.findByIdAndDelete(id);
-
-    if (!result) {
-      return res.status(404).json({ message: "Audit log not found" });
-    }
-
-    res.json(result);
-  } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error deleting audit log", error: error.message });
-  }
-};
-
 // Helper function to create audit logs from other operations
 export const logAction = async (userId, action, entity, entityId, details) => {
   try {
@@ -113,5 +96,64 @@ export const logAction = async (userId, action, entity, entityId, details) => {
     await auditLog.save();
   } catch (error) {
     console.error("Error logging action:", error);
+  }
+};
+// GET /api/audit-logs/recent
+export const getRecentAuditLogs = async (req, res) => {
+  try {
+    const logs = await AuditLog.find()
+      .populate("userId", "fullName email")
+      .sort({ createdAt: -1 })
+      .limit(5);
+
+    res.json(logs);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error fetching audit logs", error: error.message });
+  }
+};
+
+export const deleteAuditLog = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const deletedLog = await AuditLog.findByIdAndDelete(id);
+
+    if (!deletedLog) {
+      return res.status(404).json({ message: "Audit log not found" });
+    }
+
+    res.json({ message: "Audit log deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const deleteAuditLogsByDate = async (req, res) => {
+  try {
+    const { date } = req.body;
+
+    if (!date) {
+      return res.status(400).json({ message: "Date is required" });
+    }
+
+    const startDate = new Date(date);
+    const endDate = new Date(date);
+    endDate.setDate(endDate.getDate() + 1);
+
+    const result = await AuditLog.deleteMany({
+      createdAt: {
+        $gte: startDate,
+        $lt: endDate,
+      },
+    });
+
+    res.json({
+      message: `Deleted ${result.deletedCount} audit logs`,
+      deletedCount: result.deletedCount,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };
