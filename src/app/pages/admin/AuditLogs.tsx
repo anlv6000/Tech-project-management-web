@@ -218,12 +218,12 @@ export default function AuditLogs() {
           </p>
         </div>
 
-        <button
+        {/* <button
           onClick={handleExportCsv}
           className="px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700"
         >
           Export CSV
-        </button>
+        </button> */}
       </div>
 
       <div className="bg-white p-4 rounded-lg border mb-6">

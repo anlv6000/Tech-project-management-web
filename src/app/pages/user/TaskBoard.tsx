@@ -774,7 +774,11 @@ export default function TaskBoard() {
     setSprintGoal("");
     setShowSprintModal(true);
   };
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
+  const start = new Date(sprintStartDate);
+  start.setHours(0, 0, 0, 0);
   const handleCreateSprint = async () => {
     try {
       if (!sprintName.trim()) {
@@ -791,7 +795,7 @@ export default function TaskBoard() {
         alert("End date is required");
         return;
       }
-      if (new Date(sprintStartDate) < new Date()) {
+      if (start < today) {
         alert("Start date cannot be in the past");
         return;
       }
@@ -1544,26 +1548,6 @@ export default function TaskBoard() {
                         </p>
                       </div>
 
-                      {/* Story points */}
-                      <div className="grid grid-cols-2 gap-4 border-t pt-4">
-                        <div>
-                          <p className="text-sm text-gray-600">
-                            Total Story Points
-                          </p>
-                          <p className="text-2xl font-bold text-gray-800">
-                            {sprintStats.stats.totalStoryPoints}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-600">
-                            Remaining Points
-                          </p>
-                          <p className="text-2xl font-bold text-orange-600">
-                            {sprintStats.stats.remainingStoryPoints}
-                          </p>
-                        </div>
-                      </div>
-
                       {/* Time stats */}
                       <div className="grid grid-cols-3 gap-3 border-t pt-4 text-center">
                         <div>
@@ -1586,9 +1570,9 @@ export default function TaskBoard() {
                           )}
                         </div>
                         <div>
-                          <p className="text-sm text-gray-600">Points/Day</p>
+                          <p className="text-sm text-gray-600">Total days</p>
                           <p className="text-lg font-bold">
-                            {sprintStats.stats.pointsPerDay}
+                            {sprintStats.stats.daysTotal}
                           </p>
                         </div>
                       </div>

@@ -200,12 +200,12 @@ export default function SystemReports() {
             Global statistics and analytics from database
           </p>
         </div>
-        <button
+        {/* <button
           onClick={handleExportSummary}
           className="px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700"
         >
           Export Summary
-        </button>
+        </button> */}
       </div>
 
       <div className="grid md:grid-cols-5 gap-6 mb-6">
